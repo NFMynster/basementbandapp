@@ -79,7 +79,7 @@ export function TrackInspector({
                       onClick={() => task(() => api.importAudio(track.id))}
                     >
                       <ArrowDownToLine size={12} />
-                      Import audio
+                      {track.kind === "midi" ? "Import MIDI" : "Import audio"}
                     </button>
                     <button
                       className="text-button"
@@ -95,14 +95,20 @@ export function TrackInspector({
                   </div>
                 </div>
                 <div className="input-block">
-                  <label>AUDIO INPUT</label>
+                  <label>
+                    {track.kind === "midi" ? "MIDI INPUT" : "AUDIO INPUT"}
+                  </label>
                   <button className="input-selector" onClick={openSetup}>
                     <Mic2 size={15} />
-                    Input {track.input + 1}
+                    {track.kind === "midi"
+                      ? "MIDI device & channel"
+                      : `Input ${track.input + 1}`}
                     <ChevronDown size={14} />
                   </button>
                   <span className="subtle">
-                    Mono · one instrument per track
+                    {track.kind === "midi"
+                      ? "Mark track to hear your instrument"
+                      : "Mono · one instrument per track"}
                   </span>
                 </div>
                 <div className="input-block level-block">
@@ -137,11 +143,19 @@ export function TrackInspector({
                     <Headphones size={21} />
                   </span>
                   <div>
-                    <strong>Hear yourself without the delay.</strong>
+                    <strong>
+                      {track.kind === "midi"
+                        ? "Your pads. Your instrument."
+                        : "Hear yourself without the delay."}
+                    </strong>
                     <p>
-                      Use direct monitoring on your audio interface.
+                      {track.kind === "midi"
+                        ? "Choose a MIDI input and load a VST3 instrument."
+                        : "Use direct monitoring on your audio interface."}
                       <br />
-                      This first version records your input dry.
+                      {track.kind === "midi"
+                        ? "Mark this track to play and record MIDI."
+                        : "Audio recording uses device-latency correction."}
                     </p>
                   </div>
                 </div>
@@ -150,9 +164,15 @@ export function TrackInspector({
               <>
                 <div className="plugin-intro">
                   <span className="eyebrow">BRING YOUR OWN SOUND</span>
-                  <h3>Your favorite amp. Right here.</h3>
+                  <h3>
+                    {track.kind === "midi"
+                      ? "Your drum kit. Your keys."
+                      : "Your favorite amp. Right here."}
+                  </h3>
                   <p>
-                    Load an installed VST3 effect for this track’s playback.
+                    {track.kind === "midi"
+                      ? "Load an installed VST3 instrument to turn MIDI into sound."
+                      : "Load an installed VST3 effect for this track’s playback."}
                   </p>
                 </div>
                 <div className="plugin-slot">
@@ -176,7 +196,9 @@ export function TrackInspector({
                         <small>
                           {track.bypass
                             ? "Bypassed"
-                            : "Stereo effect · playback"}
+                            : track.kind === "midi"
+                              ? "MIDI instrument · live & playback"
+                              : "Stereo effect · playback"}
                         </small>
                       </div>
                       <button
@@ -210,14 +232,18 @@ export function TrackInspector({
                     >
                       <Plus size={20} />
                       <span>
-                        Add VST3 plug-in
+                        {track.kind === "midi"
+                          ? "Add VST3 instrument"
+                          : "Add VST3 plug-in"}
                         <small>Choose an installed .vst3 bundle</small>
                       </span>
                     </button>
                   )}
                 </div>
                 <p className="plugin-note">
-                  One effect per track in this iteration.
+                  {track.kind === "midi"
+                    ? "One instrument per MIDI track. No sounds bundled."
+                    : "One effect per audio track in this iteration."}
                   <br />
                   Stop playback before loading a plug-in.
                 </p>

@@ -14,6 +14,8 @@ void Engine::add(String name, String color, int input) {
   t->name = name;
   t->color = color;
   t->input = input;
+  t->collector.reset(rate);
+  t->liveMidi.ensureSize(65536);
   t->scratch.setSize(2, jmax(block, 8192));
   tracks.push_back(std::move(t));
 }
@@ -22,13 +24,16 @@ Engine::Engine(bool testing) : testDevice(testing) {
   formats.registerBasicFormats();
   addDefaultFormatsToManager(plugins);
   disk.startThread();
+  midi.ensureSize(65536);
   if (!testing) {
     deviceError = devices.initialise(2, 2, nullptr, true);
     devices.addAudioCallback(this);
+    devices.addMidiInputDeviceCallback({}, this);
   }
 }
 
 Engine::~Engine() {
+  devices.removeMidiInputDeviceCallback({}, this);
   devices.removeAudioCallback(this);
   editor.reset();
   for (auto &t : tracks)
@@ -46,6 +51,10 @@ var Engine::state(bool full) {
                      {"name", t->name},
                      {"color", t->color},
                      {"input", t->input},
+                     {"kind", t->isMidi ? "midi" : "audio"},
+                     {"midiDevice", t->midiDevice},
+                     {"midiChannel", t->midiChannel},
+                     {"latencySamples", t->latency},
                      {"armed", t->armed},
                      {"recordStart", t->recordStart},
                      {"mute", t->mute},
@@ -78,6 +87,8 @@ var Engine::state(bool full) {
                  {"tempo", tempo},
                  {"sampleRate", rate},
                  {"bufferSize", block},
+                 {"inputLatencySamples", inputLatency},
+                 {"outputLatencySamples", outputLatency},
                  {"device", d ? d->getName() : "No audio device"},
                  {"deviceError", deviceError},
                  {"diskOverrun", diskOverrun.load()}});

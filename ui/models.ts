@@ -1,4 +1,6 @@
 export type Clip = {
+  kind?: "audio" | "midi";
+  notes?: { start: number; duration: number; note: number }[];
   id: string;
   name: string;
   start: number;
@@ -6,6 +8,10 @@ export type Clip = {
   peaks: number[];
 };
 export type Track = {
+  kind?: "audio" | "midi";
+  midiDevice?: string;
+  midiChannel?: number;
+  latencySamples?: number;
   id: string;
   name: string;
   color: string;
@@ -38,6 +44,7 @@ export type Session = {
   diskOverrun: boolean;
 };
 export type Devices = {
+  midiInputs?: { id: string; name: string }[];
   types: { name: string; inputs: string[]; outputs: string[] }[];
   type: string;
   input: string;
@@ -50,7 +57,18 @@ export type Devices = {
 };
 
 export type TrackPatch = Partial<
-  Pick<Track, "name" | "input" | "armed" | "mute" | "solo" | "gain" | "pan">
+  Pick<
+    Track,
+    | "name"
+    | "input"
+    | "armed"
+    | "mute"
+    | "solo"
+    | "gain"
+    | "pan"
+    | "midiDevice"
+    | "midiChannel"
+  >
 >;
 export type DeviceConfiguration = Pick<
   Devices,
@@ -58,15 +76,9 @@ export type DeviceConfiguration = Pick<
 >;
 export type SessionCommand =
   | {
-      op:
-        | "state"
-        | "addTrack"
-        | "play"
-        | "stop"
-        | "record"
-        | "new"
-        | "clearWarning";
+      op: "state" | "play" | "stop" | "record" | "new" | "clearWarning";
     }
+  | { op: "addTrack"; kind?: "audio" | "midi" }
   | ({ op: "track"; track: string } & TrackPatch)
   | { op: "removeTrack" | "editor" | "removePlugin"; track: string }
   | { op: "removeClip"; track: string; clip: string }

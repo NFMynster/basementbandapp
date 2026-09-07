@@ -25,6 +25,7 @@ test("file dialogs validate the sender and forward chosen paths, including VST3 
     process,
   });
   module.exports.registerIpc({ webContents: sender }, async (c) => {
+    if (c.op === "state") return { tracks: [{ id: "g", kind: "audio" }] };
     commands.push(c);
     return c;
   });

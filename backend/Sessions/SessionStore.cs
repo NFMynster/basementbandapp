@@ -17,7 +17,7 @@ internal sealed class SessionStore(string dataDirectory)
 
     public async Task SaveAsync(JsonObject snapshot, string target)
     {
-        snapshot["version"] = 1;
+        snapshot["version"] = snapshot["tracks"]!.AsArray().Any(track => track?["kind"]?.ToString() == "midi") ? 2 : 1;
         SessionDocument.Validate(snapshot);
         target = Path.GetFullPath(target);
         var assets = target + ".audio";
@@ -30,13 +30,15 @@ internal sealed class SessionStore(string dataDirectory)
             if (!string.Equals(source, destination, comparison)) File.Copy(source, destination, overwrite: true);
             clip["path"] = Path.GetRelativePath(Path.GetDirectoryName(target)!, destination);
             clip.Remove("peaks"); // Derived from audio on load, not project state.
+            clip.Remove("notes"); // Regenerated from the .mid asset.
         }
-        foreach (var key in new[] { "position", "playing", "recording", "device", "deviceError", "diskOverrun", "sampleRate", "bufferSize" }) snapshot.Remove(key);
+        foreach (var key in new[] { "position", "playing", "recording", "device", "deviceError", "diskOverrun", "sampleRate", "bufferSize", "inputLatencySamples", "outputLatencySamples" }) snapshot.Remove(key);
         foreach (var node in snapshot["tracks"]!.AsArray())
         {
             var track = node!.AsObject();
             track.Remove("peak");
             track.Remove("recordStart");
+            track.Remove("latencySamples");
         }
         var temporary = target + $".{Guid.NewGuid():N}.tmp";
         try

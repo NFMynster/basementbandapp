@@ -2,6 +2,7 @@ import type React from "react";
 import { useState, useCallback } from "react";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
+import { MidiNotes } from "./MidiNotes";
 import {
   AudioLines,
   ArrowDownToLine,
@@ -138,12 +139,16 @@ export function Arrangement({
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="instrument">
-                {i === 1 ? <Music2 size={27} /> : <Guitar size={28} />}
+                {t.kind === "midi" || i === 1 ? (
+                  <Music2 size={27} />
+                ) : (
+                  <Guitar size={28} />
+                )}
               </div>
               <div className="track-info">
                 <div className="track-name">
                   {t.name}
-                  <span>MONO</span>
+                  <span>{t.kind === "midi" ? "MIDI" : "MONO"}</span>
                 </div>
                 <div className="track-buttons">
                   <button
@@ -169,7 +174,13 @@ export function Arrangement({
                   >
                     S
                   </button>
-                  <span className="input-label">In {t.input + 1}</span>
+                  <span className="input-label">
+                    {t.kind === "midi"
+                      ? t.midiChannel
+                        ? `Ch ${t.midiChannel}`
+                        : "All ch"
+                      : `In ${t.input + 1}`}
+                  </span>
                 </div>
                 <div className="track-volume">
                   <input
@@ -195,6 +206,20 @@ export function Arrangement({
           >
             <Plus size={17} />
             Add audio track
+          </button>
+          <button
+            className="add-track"
+            disabled={s.recording}
+            onClick={async () => {
+              const result = await run({ op: "addTrack", kind: "midi" });
+              if (result) {
+                setSelected(result.tracks.at(-1)!.id);
+                controller.setPanel("plugins");
+              }
+            }}
+          >
+            <Plus size={17} />
+            Add MIDI track
           </button>
           <div className="track-list-bottom">
             <Headphones size={16} />
@@ -308,7 +333,11 @@ export function Arrangement({
                         {c.name}
                         <AudioLines size={12} />
                       </div>
-                      <Waveform peaks={c.peaks} />
+                      {c.kind === "midi" ? (
+                        <MidiNotes clip={c} />
+                      ) : (
+                        <Waveform peaks={c.peaks} />
+                      )}
                     </div>
                   ))}
                   {s.recording && t.armed && (

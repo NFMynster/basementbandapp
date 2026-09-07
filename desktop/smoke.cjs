@@ -177,6 +177,31 @@ function verifyDesktop(win, request) {
       console.log(
         "Desktop smoke passed: UI-to-JUCE commands, cancelled close preserves service, dialog shortcuts and Escape.",
       );
+      await win.webContents.executeJavaScript(
+        `([...document.querySelectorAll('button')].find(b => b.textContent.includes('Add MIDI track'))).click()`,
+      );
+      await new Promise((r) => setTimeout(r, 250));
+      if ((await request({ op: "state" })).tracks.at(-1).kind !== "midi")
+        throw new Error("UI did not create a MIDI track");
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('.plugin-slot').textContent.includes('Add VST3 instrument')`,
+        ))
+      )
+        throw new Error("New MIDI track did not show instrument setup");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[title="Input settings"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 200));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `!!document.querySelector('[aria-label="MIDI 3 MIDI device"]')`,
+        ))
+      )
+        throw new Error("MIDI device routing was not exposed");
+      console.log(
+        "MIDI desktop check passed: add track, instrument setup and device routing.",
+      );
       win.destroy();
       app.quit();
     } catch (e) {

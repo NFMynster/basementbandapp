@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { MidiRouting } from "./MidiRouting";
 import { AudioLines, ChevronRight } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 export function AudioSetupDialog({
@@ -173,26 +174,35 @@ export function AudioSetupDialog({
                       <AudioLines size={16} />
                     </span>
                     <strong>{t.name}</strong>
-                    <select
-                      disabled={s.recording}
-                      value={t.input}
-                      onChange={(e) => update(t, { input: +e.target.value })}
-                    >
-                      {t.input >= devices.channels.length && (
-                        <option value={t.input}>
-                          Input {t.input + 1} unavailable
-                        </option>
-                      )}
-                      {devices.channels.length ? (
-                        devices.channels.map((n, i) => (
-                          <option key={i} value={i}>
-                            {i + 1} · {n}
+                    {t.kind === "midi" ? (
+                      <MidiRouting
+                        track={t}
+                        devices={devices}
+                        disabled={s.recording}
+                        update={update}
+                      />
+                    ) : (
+                      <select
+                        disabled={s.recording}
+                        value={t.input}
+                        onChange={(e) => update(t, { input: +e.target.value })}
+                      >
+                        {t.input >= devices.channels.length && (
+                          <option value={t.input}>
+                            Input {t.input + 1} unavailable
                           </option>
-                        ))
-                      ) : (
-                        <option value={0}>No inputs available</option>
-                      )}
-                    </select>
+                        )}
+                        {devices.channels.length ? (
+                          devices.channels.map((n, i) => (
+                            <option key={i} value={i}>
+                              {i + 1} · {n}
+                            </option>
+                          ))
+                        ) : (
+                          <option value={0}>No inputs available</option>
+                        )}
+                      </select>
+                    )}
                   </div>
                 ))}
               </div>

@@ -33,6 +33,11 @@ void Engine::restoreSession(const var &c) {
     t->name = str(v, "name");
     t->color = str(v, "color");
     t->input = (int)number(v, "input");
+    t->isMidi = str(v, "kind") == "midi";
+    t->midiDevice = str(v, "midiDevice");
+    t->midiChannel = jlimit(0, 16, (int)number(v, "midiChannel"));
+    t->collector.reset(rate);
+    t->liveMidi.ensureSize(65536);
     t->gain = (float)number(v, "gain", 0.8);
     t->pan = (float)number(v, "pan");
     t->mute = flag(v, "mute");
@@ -42,7 +47,8 @@ void Engine::restoreSession(const var &c) {
     t->scratch.setSize(2, jmax(block, 8192));
     require(v["clips"].isArray(), "Invalid session clips");
     for (auto &cv : *v["clips"].getArray()) {
-      auto clip = readClip(str(cv, "path"), str(cv, "name"), number(cv, "start"));
+      auto clip = t->isMidi ? readMidiClip(str(cv, "path"), str(cv, "name"), number(cv, "start"))
+                            : readClip(str(cv, "path"), str(cv, "name"), number(cv, "start"));
       clip->id = str(cv, "id");
       t->clips.push_back(std::move(clip));
     }
@@ -50,6 +56,9 @@ void Engine::restoreSession(const var &c) {
       loadPlugin(*t, str(v, "pluginPath"), str(v, "pluginState"));
     loaded.push_back(std::move(t));
   }
+  for (auto &t : loaded)
+    if (t->isMidi && t->midiDevice.isNotEmpty())
+      devices.setMidiInputDeviceEnabled(t->midiDevice, true);
   editor.reset();
   const ScopedLock l(guard);
   tracks = std::move(loaded);
@@ -60,5 +69,6 @@ void Engine::restoreSession(const var &c) {
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd", 8);
   looping = flag(session, "looping");
+  preparePlayback(position, looping);
 }
 } // namespace basement

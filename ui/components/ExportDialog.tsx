@@ -43,7 +43,7 @@ export function ExportDialog({
       </p>
       <p>
         {track || mode === "separate"
-          ? "Exports tracks with audio, including muted tracks, aligned for use together."
+          ? "Exports tracks with regions, including muted tracks, aligned for use together. MIDI tracks need an active instrument."
           : "The mix follows your mute and solo settings."}{" "}
         Plug-in tails are included up to 10 seconds.
       </p>

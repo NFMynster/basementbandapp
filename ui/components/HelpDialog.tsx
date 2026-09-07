@@ -42,9 +42,9 @@ export function HelpDialog({
             </li>
           </ol>
           <p>
-            Recordings are written locally as WAV files. Save your session to
-            keep the arrangement and audio together. MIDI, live plugin
-            monitoring, and overdub latency compensation are still to come.
+            Audio takes are WAV files; MIDI takes are saved as MIDI files when
+            you stop. Save your session to keep them together. MIDI tracks need
+            a VST3 instrument for sound. Mark a MIDI track to play it live.
           </p>
           <button className="primary" onClick={() => setHelp(false)}>
             Let’s play

@@ -3,6 +3,8 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 class TestGain final : public juce::AudioProcessor {
   juce::AudioParameterFloat *gain;
+  float delay[2][480]{};
+  int cursor = 0;
 
 public:
   TestGain()
@@ -11,15 +13,32 @@ public:
                            .withOutput("Output", juce::AudioChannelSet::stereo(), true)) {
     addParameter(gain = new juce::AudioParameterFloat(juce::ParameterID("gain", 1), "Gain", 0.0f,
                                                       1.0f, 0.5f));
+#if BASEMENT_TEST_DELAY
+    setLatencySamples(480);
+#endif
   }
   const juce::String getName() const override { return "Basement Test Gain"; }
-  void prepareToPlay(double, int) override {}
+  void prepareToPlay(double, int) override { reset(); }
+  void reset() override {
+    std::memset(delay, 0, sizeof(delay));
+    cursor = 0;
+  }
   void releaseResources() override {}
   bool isBusesLayoutSupported(const BusesLayout &l) const override {
     return l.getMainInputChannelSet() == juce::AudioChannelSet::stereo() &&
            l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
   }
   void processBlock(juce::AudioBuffer<float> &b, juce::MidiBuffer &) override {
+#if BASEMENT_TEST_DELAY
+    for (int i = 0; i < b.getNumSamples(); ++i) {
+      for (int ch = 0; ch < 2; ++ch) {
+        const float input = b.getSample(ch, i);
+        b.setSample(ch, i, delay[ch][cursor]);
+        delay[ch][cursor] = input;
+      }
+      cursor = (cursor + 1) % 480;
+    }
+#endif
     b.applyGain(gain->get());
   }
   bool acceptsMidi() const override { return false; }

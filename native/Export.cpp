@@ -24,6 +24,8 @@ var Engine::exportAudio(const var &c) {
       continue;
     if (mode == "mix" && (t->mute || (anySolo && !t->solo)))
       continue;
+    require(!t->isMidi || (t->plugin && !t->bypass),
+            "Load an active instrument on each MIDI track before WAV export");
     selected.push_back(t.get());
     for (auto &clip : t->clips)
       duration = jmax(duration, clip->start + clip->duration());
@@ -40,8 +42,7 @@ var Engine::exportAudio(const var &c) {
   Array<var> files;
   // Reset DSP history, not parameters; exports must not inherit the last playback tail.
   for (auto *t : selected)
-    if (t->plugin && !t->bypass)
-      t->plugin->reset();
+    prepareTrack(*t, 0, false);
   const ScopeGuard reset([&] {
     for (auto *t : selected)
       if (t->plugin && !t->bypass)
@@ -70,7 +71,7 @@ var Engine::exportAudio(const var &c) {
         if (mode == "separate" && (int)i != fileIndex)
           continue;
         auto &t = *selected[i];
-        renderTrack(t, offset / rate, n, false);
+        renderTrack(t, (offset + t.latency) / rate, n, false);
         const float left = t.gain * (t.pan > 0 ? 1 - t.pan : 1);
         const float right = t.gain * (t.pan < 0 ? 1 + t.pan : 1);
         mix.addFrom(0, 0, t.scratch, 0, 0, n, left);

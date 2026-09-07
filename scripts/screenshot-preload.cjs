@@ -32,6 +32,28 @@ const state = {
   tracks: [
     track("g", "Guitar", "#58a9e8", 0),
     track("b", "Bass", "#c093eb", 1),
+    {
+      ...track("m", "Drums", "#b0c4a7", 0),
+      kind: "midi",
+      midiDevice: "pad",
+      midiChannel: 10,
+      pluginName: "Drum instrument (fixture)",
+      clips: [
+        {
+          id: "m1",
+          name: "Drums take",
+          kind: "midi",
+          start: 0,
+          duration: 16,
+          peaks: [],
+          notes: Array.from({ length: 32 }, (_, i) => ({
+            start: i * 0.5,
+            duration: 0.15,
+            note: i % 2 ? 38 : 36,
+          })),
+        },
+      ],
+    },
   ],
   position: 3,
   playing: false,
@@ -47,6 +69,7 @@ const state = {
   diskOverrun: false,
 };
 const devices = {
+  midiInputs: [{ id: "pad", name: "USB drum pad (fixture)" }],
   types: [
     {
       name: "WASAPI",

@@ -8,7 +8,7 @@ internal static partial class SessionDocument
 {
     public static void Validate(JsonObject session)
     {
-        if (session["version"]?.ToString() != "1") throw new InvalidDataException("Unsupported session version");
+        if (session["version"]?.ToString() is not ("1" or "2")) throw new InvalidDataException("Unsupported session version");
         Text(session, "title", 100);
         Number(session, "tempo", 40, 240);
         Number(session, "loopStart", 0, double.MaxValue);
@@ -24,6 +24,13 @@ internal static partial class SessionDocument
             var track = node as JsonObject ?? throw new InvalidDataException("Invalid track");
             Id(track, ids);
             Text(track, "name", 80);
+            if (track["kind"] is not null && track["kind"]!.ToString() is not ("audio" or "midi")) throw new InvalidDataException("Invalid track kind");
+            if (track["midiDevice"] is not null) Text(track, "midiDevice", 4096);
+            if (track["midiChannel"] is not null)
+            {
+                Number(track, "midiChannel", 0, 16);
+                if (track["midiChannel"]!.GetValue<double>() % 1 != 0) throw new InvalidDataException("Invalid MIDI channel");
+            }
             Text(track, "color", 7);
             if (!HexColor().IsMatch(track["color"]!.GetValue<string>())) throw new InvalidDataException("Invalid track color");
             Number(track, "input", 0, 127);

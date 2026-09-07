@@ -5,6 +5,16 @@
   font-weight: 600;
   letter-spacing: normal;
 }
+.midi-notes {
+  width: 100%;
+  height: 60px;
+  display: block;
+  fill: #e3f1db;
+  pointer-events: none;
+}
+.routing select {
+  min-width: 0;
+}
 .workspace-toolbar {
   padding-left: 0;
   gap: 16px;

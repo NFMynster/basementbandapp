@@ -2,14 +2,64 @@
 #include <cmath>
 
 namespace basement {
+static void panicMidi(MidiBuffer &buffer, int sample) {
+  for (int ch = 1; ch <= 16; ++ch) {
+    buffer.addEvent(MidiMessage::controllerEvent(ch, 64, 0), sample);
+    buffer.addEvent(MidiMessage::allNotesOff(ch), sample);
+    buffer.addEvent(MidiMessage::allSoundOff(ch), sample);
+  }
+}
 // Shared sample interpolation and plug-in processing for playback and export.
 void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
   t.scratch.clear();
+  midi.clear();
+  if (t.panic) {
+    panicMidi(midi, 0);
+    t.panic = false;
+  }
   for (int i = 0; i < n; ++i) {
     double time = start + i / rate;
+    if (start < 0)
+      break; // Live instrument monitoring without arrangement playback.
     if (cycle && loopEnd > loopStart && time >= loopEnd)
       time = loopStart + std::fmod(time - loopStart, loopEnd - loopStart);
+    if (t.isMidi && t.previousMidiTime >= 0 && time < t.previousMidiTime)
+      panicMidi(midi, i);
+    const bool chase = t.isMidi && (t.previousMidiTime < 0 || time < t.previousMidiTime);
+    t.previousMidiTime = time;
     for (auto &c : t.clips) {
+      if (c->isMidi) {
+        const double relative = time - c->start;
+        if (relative < 0 || relative > c->duration() + 1 / rate)
+          continue;
+        if (chase)
+          for (auto *event : c->events) {
+            if (event->message.isNoteOn() && event->message.getTimeStamp() < relative &&
+                event->noteOffObject && event->noteOffObject->message.getTimeStamp() > relative)
+              midi.addEvent(event->message, i);
+          }
+        if (chase || c->eventPosition < 0 || relative < c->eventPosition ||
+            relative - c->eventPosition > 1.5 / rate) {
+          int low = 0, high = c->events.getNumEvents();
+          while (low < high) {
+            const int mid = (low + high) / 2;
+            if (c->events.getEventPointer(mid)->message.getTimeStamp() < relative - 1e-9)
+              low = mid + 1;
+            else
+              high = mid;
+          }
+          c->eventCursor = low;
+        }
+        c->eventPosition = relative;
+        while (c->eventCursor < c->events.getNumEvents()) {
+          const auto &event = c->events.getEventPointer(c->eventCursor)->message;
+          if (event.getTimeStamp() >= relative + 1 / rate - 1e-9)
+            break;
+          midi.addEvent(event, i);
+          ++c->eventCursor;
+        }
+        continue;
+      }
       double sample = (time - c->start) * c->sampleRate;
       if (sample < 0 || sample >= c->audio.getNumSamples())
         continue;
@@ -23,7 +73,8 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
     }
   }
   if (t.plugin && !t.bypass) {
-    midi.clear();
+    if (t.isMidi && t.armed)
+      midi.addEvents(t.liveMidi, 0, n, 0);
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     t.plugin->processBlock(view, midi);
   }

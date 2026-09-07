@@ -21,7 +21,7 @@ The app has three processes. Keep raw audio in JUCE; the other two processes sen
 4. Update a focused UI component and the workspace hook. Reuse `Modal` for focus trapping, Escape handling and isolation from transport shortcuts.
 5. Extend the integration test for the affected boundary, then build and run the checks below.
 
-Avoid placeholder controls and unreachable protocol operations for future features. Add MIDI, editing and plugin-chain capabilities when their workflows are implemented. The unused move-region command was removed during cleanup; it can return with an actual editing interaction.
+Avoid placeholder controls and unreachable protocol operations for future features. Extend MIDI editing and plugin-chain capabilities only with their implemented workflows. The unused move-region command was removed during cleanup; it can return with an actual editing interaction.
 
 ## Protocol and lifecycle
 
@@ -31,17 +31,17 @@ Close the backend at Electron's `will-quit`, after any unsaved-work confirmation
 
 ## Export and track interactions
 
-`Rendering.cpp` shares interpolation and VST processing between playback and `Export.cpp`. Export runs while transport is stopped, writes 24-bit stereo WAV at the current session sample rate, ignores cycling, and does not move the playhead. Separate tracks include muted/unsoloed tracks with audio and share a zero-time origin and common end. Mixdown respects mute/solo. A selected-track export only includes that track. Level, pan and bypass are preserved; plug-in tails are capped at 10 seconds. Plug-in latency compensation is not implemented (the same limitation applies to playback). Exports are rendered on the native control thread; polling is paused and export-specific deadlines allow up to 30 minutes. The current export cannot be canceled mid-render.
+`Rendering.cpp` shares interpolation and VST processing between playback and `Export.cpp`. Export runs while transport is stopped, writes 24-bit stereo WAV at the current session sample rate, ignores cycling, and does not move the playhead. Separate tracks include muted/unsoloed tracks with audio and share a zero-time origin and common end. Mixdown respects mute/solo. A selected-track export only includes that track. Level, pan and bypass are preserved; plug-in tails are capped at 10 seconds. `Latency.cpp` primes processors and reads prerecorded sources ahead by their reported latency, for playback and export. See [runtime details](RUNTIME.md) for live monitoring and driver-correction limits. Exports are rendered on the native control thread; polling is paused and export-specific deadlines allow up to 30 minutes. The current export cannot be canceled mid-render.
 
 The Electron export handler validates options and owns the folder picker; renderer code cannot supply an arbitrary export path. Each export creates a new subfolder so earlier exports remain untouched. Failed writes can leave partial files in that new folder. `tests/export.test.mjs` verifies actual samples, alignment, plug-in processing, bypass, mute/solo and non-overwrite behavior. `tests/ipc.test.mjs` guards file-dialog sender validation.
 
 Track headers and lanes expose contextual actions; header double-click and Properties select the Recording inspector. The playhead uses pointer capture and commits release coordinates, independent of React paint timing. Recording terminology is “mark for recording” throughout user-facing controls; the existing `armed` protocol/session field is retained for compatibility.
 
-Future input work should model MIDI endpoints independently from audio-device channels: a USB MIDI drum pad can coexist with an audio interface, but requires MIDI capture and an instrument/drum track. Multiple independent audio interfaces additionally need clock-drift handling or OS aggregation. Neither is implemented in this pass; channel routing remains scoped to the active audio device.
+MIDI endpoints are independent of audio-device channels. `Midi.cpp` handles MIDI capture, standard MIDI assets and note playback; MIDI tracks host VST3 instruments. Multiple independent audio interfaces still need clock-drift handling or OS aggregation and remain unsupported.
 
 ## Session storage
 
-Version 1 `.basement` files contain persistent arrangement values and relative audio paths into the adjacent `.basement.audio` directory. Waveforms and runtime device/transport state are not saved. `SessionDocument` validates IDs, types, bounds and colors before a loaded document reaches filenames, CSS or audio math. Keep existing version-1 documents readable; introduce an explicit migration when the schema changes.
+Audio-only saves use version 1; MIDI-containing saves use version 2. Both are readable. `.basement` files contain persistent arrangement values and relative media paths into the adjacent `.basement.audio` directory. Waveforms and runtime device/transport state are not saved. `SessionDocument` validates IDs, types, bounds and colors before a loaded document reaches filenames, CSS or audio math. Keep existing version-1 documents readable; introduce an explicit migration when the schema changes.
 
 Raw WAV files are retained when arrangement regions are removed. On stop, every recording writer is finalized before loading takes into memory; one failed decode must not leave other WAV headers unfinished. Saving metadata is atomic, but the entire multi-file asset copy is not transactional.
 

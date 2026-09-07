@@ -4,6 +4,21 @@
 namespace basement {
 var Engine::command(const var &c) {
   auto op = str(c, "op");
+  if (op == "testLatency" && testDevice) {
+    inputLatency = jlimit(0, 48000, (int)number(c, "input"));
+    outputLatency = jlimit(0, 48000, (int)number(c, "output"));
+    return state();
+  }
+  if (op == "testMidi" && testDevice) {
+    auto &t = track(c);
+    const int channel = jlimit(1, 16, (int)number(c, "channel", 1));
+    if (t.armed && (t.midiChannel == 0 || t.midiChannel == channel))
+      t.liveMidi.addEvent(
+          flag(c, "off") ? MidiMessage::noteOff(channel, (int)number(c, "note", 60))
+                         : MidiMessage::noteOn(channel, (int)number(c, "note", 60), (uint8)100),
+          (int)number(c, "sample"));
+    return state();
+  }
   if (op == "pump" && testDevice) {
     int n = jlimit(1, 8192, (int)number(c, "frames", 512));
     AudioBuffer<float> in(2, n), out(2, n);
@@ -19,8 +34,13 @@ var Engine::command(const var &c) {
     }
     return object({{"left", left}, {"right", right}, {"state", state()}});
   }
-  if (op == "state")
+  if (op == "state") {
+    const ScopedLock lock(guard);
+    for (auto &t : tracks)
+      if (t->latency != (t->plugin && !t->bypass ? jmax(0, t->plugin->getLatencySamples()) : 0))
+        prepareTrack(*t, position, looping && !recording);
     return state();
+  }
   if (op == "export")
     return exportAudio(c);
   if (op == "clearWarning") {
@@ -47,6 +67,7 @@ var Engine::command(const var &c) {
     require(testDevice || devices.getCurrentAudioDevice() != nullptr,
             "Choose an audio device first");
     const ScopedLock l(guard);
+    preparePlayback(position, looping);
     playing = true;
   } else if (op == "record") {
     beginRecording();
@@ -54,11 +75,13 @@ var Engine::command(const var &c) {
     require(!recording, "Cannot move the playhead while recording");
     const ScopedLock l(guard);
     position = jmax(0.0, number(c, "position"));
+    preparePlayback(position, looping);
   } else if (op == "loop") {
     const ScopedLock l(guard);
     loopStart = jmax(0.0, number(c, "start"));
     loopEnd = jmax(loopStart + 0.05, number(c, "end", 8));
     looping = flag(c, "enabled");
+    preparePlayback(position, looping && !recording);
   } else if (op == "tempo") {
     const ScopedLock l(guard);
     tempo = jlimit(40.0, 240.0, number(c, "value", 120));
@@ -69,6 +92,11 @@ var Engine::command(const var &c) {
     require(tracks.size() < 32, "This version supports up to 32 tracks");
     const ScopedLock l(guard);
     add("Audio " + String(tracks.size() + 1), tracks.size() % 2 ? "#c093eb" : "#58a9e8", 0);
+    if (str(c, "kind") == "midi") {
+      tracks.back()->isMidi = true;
+      tracks.back()->name = "MIDI " + String(tracks.size());
+      tracks.back()->color = "#b0c4a7";
+    }
   } else if (op == "track") {
     updateTrack(c);
   } else if (op == "removeTrack") {
@@ -82,7 +110,10 @@ var Engine::command(const var &c) {
     auto source = File(str(c, "path"));
     auto dest = File(folder).getChildFile(Uuid().toString() + source.getFileExtension());
     require(source.copyFileTo(dest), "Could not copy imported audio into this session");
-    auto clip = readClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), position);
+    auto clip =
+        t.isMidi
+            ? readMidiClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), position)
+            : readClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), position);
     const ScopedLock l(guard);
     t.clips.push_back(std::move(clip));
   } else if (op == "removeClip") {
@@ -99,6 +130,7 @@ var Engine::command(const var &c) {
     t.pluginPath.clear();
     t.pluginName.clear();
     t.bypass = false;
+    t.latency = 0;
   } else if (op == "plugin") {
     auto &t = track(c);
     loadPlugin(t, str(c, "path"));
@@ -108,6 +140,7 @@ var Engine::command(const var &c) {
     auto &t = track(c);
     const ScopedLock l(guard);
     t.bypass = flag(c, "value");
+    prepareTrack(t, position, looping && !recording);
   } else if (op == "editor") {
     auto &t = track(c);
     require(t.plugin != nullptr, "Choose a plugin first");
@@ -120,12 +153,38 @@ var Engine::command(const var &c) {
 
 void Engine::updateTrack(const var &c) {
   auto &t = track(c);
+  if (c.hasProperty("midiDevice")) {
+    require(!recording, "Stop recording before changing MIDI inputs");
+    const auto id = str(c, "midiDevice");
+    if (id.isNotEmpty() && !testDevice) {
+      bool found = false;
+      for (const auto &device : MidiInput::getAvailableDevices())
+        found |= device.identifier == id;
+      require(found, "MIDI input is no longer available");
+      devices.setMidiInputDeviceEnabled(id, true);
+      require(devices.isMidiInputDeviceEnabled(id), "Could not open MIDI input");
+    }
+  }
   const ScopedLock l(guard);
+  if (c.hasProperty("midiDevice")) {
+    t.midiDevice = str(c, "midiDevice");
+    t.collector.reset(rate);
+    sendPanic(t);
+  }
+  if (c.hasProperty("midiChannel")) {
+    require(!recording, "Stop recording before changing MIDI channels");
+    t.midiChannel = jlimit(0, 16, (int)number(c, "midiChannel"));
+    sendPanic(t);
+  }
   if (c.hasProperty("name"))
     t.name = str(c, "name").substring(0, 80);
   if (c.hasProperty("armed")) {
     require(!recording, "Stop recording before changing marked tracks");
     t.armed = flag(c, "armed");
+    if (t.isMidi) {
+      t.collector.reset(rate);
+      sendPanic(t);
+    }
   }
   if (c.hasProperty("input")) {
     require(!recording, "Stop recording before changing inputs");

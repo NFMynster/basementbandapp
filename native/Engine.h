@@ -3,7 +3,7 @@
 #include "PluginWindow.h"
 
 namespace basement {
-class Engine final : public AudioIODeviceCallback {
+class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   AudioDeviceManager devices;
   AudioFormatManager formats;
   AudioPluginFormatManager plugins;
@@ -20,6 +20,7 @@ class Engine final : public AudioIODeviceCallback {
   std::atomic<bool> diskOverrun{false};
   bool testDevice = false;
   MidiBuffer midi;
+  int inputLatency = 0, outputLatency = 0;
 
   Track &track(const var &command);
   std::unique_ptr<Clip> readClip(String path, String name, double start);
@@ -30,6 +31,7 @@ class Engine final : public AudioIODeviceCallback {
 public:
   explicit Engine(bool testing = false);
   ~Engine() override;
+  void handleIncomingMidiMessage(MidiInput *source, const MidiMessage &message) override;
   void audioDeviceAboutToStart(AudioIODevice *device) override;
   void audioDeviceStopped() override;
   void audioDeviceIOCallbackWithContext(const float *const *inputs, int inputChannels,
@@ -47,5 +49,10 @@ private:
   void updateTrack(const var &command);
   void renderTrack(Track &track, double start, int samples, bool cycle);
   var exportAudio(const var &command);
+  std::unique_ptr<Clip> readMidiClip(String path, String name, double start);
+  void finishMidiTake(Track &track);
+  void preparePlayback(double start, bool cycle);
+  void prepareTrack(Track &track, double start, bool cycle);
+  void sendPanic(Track &track);
 };
 } // namespace basement

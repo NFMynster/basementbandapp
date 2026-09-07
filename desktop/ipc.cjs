@@ -51,10 +51,17 @@ function registerIpc(win, request) {
   });
   ipcMain.handle("import", async (event, track) => {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
+    const state = await request({ op: "state" });
+    const midi = state.tracks.find((t) => t.id === track)?.kind === "midi";
     const r = await dialog.showOpenDialog(win, {
-      filters: [
-        { name: "Audio", extensions: ["wav", "aif", "aiff", "flac", "mp3"] },
-      ],
+      filters: midi
+        ? [{ name: "MIDI", extensions: ["mid", "midi"] }]
+        : [
+            {
+              name: "Audio",
+              extensions: ["wav", "aif", "aiff", "flac", "mp3"],
+            },
+          ],
       properties: ["openFile"],
     });
     return r.canceled

@@ -24,7 +24,11 @@ var Engine::listDevices() {
       buffers.add(b);
   }
   auto setup = devices.getAudioDeviceSetup();
+  Array<var> midiInputs;
+  for (const auto &device : MidiInput::getAvailableDevices())
+    midiInputs.add(object({{"id", device.identifier}, {"name", device.name}}));
   return object({{"types", types},
+                 {"midiInputs", midiInputs},
                  {"type", devices.getCurrentAudioDeviceType()},
                  {"input", setup.inputDeviceName},
                  {"output", setup.outputDeviceName},

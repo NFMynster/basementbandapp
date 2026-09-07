@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 		docs\BUILD.md = docs\BUILD.md
 		docs\ARCHITECTURE.md = docs\ARCHITECTURE.md
+		docs\RUNTIME.md = docs\RUNTIME.md
 		package.json = package.json
 		.editorconfig = .editorconfig
 	EndProjectSection

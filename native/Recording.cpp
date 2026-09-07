@@ -29,6 +29,9 @@ void Engine::stop() {
     const ScopedLock l(guard);
     playing = false;
     recording = false;
+    for (auto &t : tracks) {
+      sendPanic(*t);
+    }
   }
   std::vector<Track *> finalized;
   // Finalize all WAV headers before decoding any take. One bad/oversized take
@@ -39,6 +42,15 @@ void Engine::stop() {
       finalized.push_back(t.get());
     }
   StringArray errors;
+  for (auto &t : tracks)
+    if (t->midiRecording) {
+      try {
+        const ScopedLock lock(guard);
+        finishMidiTake(*t);
+      } catch (const std::exception &error) {
+        errors.add(t->name + ": " + String(error.what()) + ". MIDI take retained in " + folder);
+      }
+    }
   for (auto *t : finalized) {
     try {
       std::unique_ptr<AudioFormatReader> reader(formats.createReaderFor(File(t->recordingPath)));
@@ -63,16 +75,33 @@ void Engine::beginRecording() {
   int count = 0;
   for (auto &t : tracks)
     if (t->armed) {
-      require(t->input >= 0 &&
-                  t->input < (testDevice ? 2 : d->getActiveInputChannels().countNumberOfSetBits()),
-              "A marked track uses an unavailable input. Check Audio setup.");
+      if (t->isMidi)
+        require(testDevice ||
+                    (t->midiDevice.isNotEmpty() && devices.isMidiInputDeviceEnabled(t->midiDevice)),
+                "Choose a MIDI input in Input settings");
+      else
+        require(t->input >= 0 &&
+                    t->input <
+                        (testDevice ? 2 : d->getActiveInputChannels().countNumberOfSetBits()),
+                "A marked track uses an unavailable input. Check Input settings.");
       ++count;
     }
   require(count > 0, "Mark at least one track with its record button");
   diskOverrun = false;
+  const ScopedLock preparation(guard);
+  preparePlayback(position, false);
   try {
     for (auto &t : tracks)
       if (t->armed) {
+        t->recordStart = position;
+        t->captureOffset = (t->isMidi ? outputLatency : inputLatency + outputLatency) / rate;
+        t->captureSkip = t->isMidi ? 0 : inputLatency + outputLatency;
+        if (t->isMidi) {
+          t->midiTake.clear();
+          t->midiTake.reserve(262144);
+          t->midiRecording = true;
+          continue;
+        }
         t->recordingPath = File(folder).getChildFile(Uuid().toString() + ".wav").getFullPathName();
         auto output = File(t->recordingPath).createOutputStream();
         require(output != nullptr, "Cannot create recording file");
@@ -84,8 +113,10 @@ void Engine::beginRecording() {
         t->recordStart = position;
       }
   } catch (...) {
-    for (auto &t : tracks)
+    for (auto &t : tracks) {
       t->writer.reset();
+      t->midiRecording = false;
+    }
     throw;
   }
   const ScopedLock l(guard);
