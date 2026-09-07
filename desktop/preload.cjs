@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("basement", {
   open: () => ipcRenderer.invoke("open"),
   importAudio: (track) => ipcRenderer.invoke("import", track),
   plugin: (track) => ipcRenderer.invoke("plugin", track),
+  exportAudio: (options) => ipcRenderer.invoke("export", options),
 });

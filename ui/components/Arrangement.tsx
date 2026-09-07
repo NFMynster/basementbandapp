@@ -1,4 +1,7 @@
 import type React from "react";
+import { useState, useCallback } from "react";
+import { TrackMenu } from "./TrackMenu";
+import { SessionName } from "./SessionName";
 import {
   AudioLines,
   ArrowDownToLine,
@@ -20,6 +23,10 @@ export function Arrangement({
 }: {
   controller: WorkspaceController;
 }) {
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(
+    null,
+  );
+  const closeMenu = useCallback(() => setMenu(null), []);
   const {
     s,
     track,
@@ -37,7 +44,6 @@ export function Arrangement({
     rulerMove,
     rulerUp,
     selection,
-    setSelection,
     loop,
     pxPerSecond,
     hasClips,
@@ -48,9 +54,11 @@ export function Arrangement({
     <>
       <div className="workspace-toolbar">
         <div className="workspace-label">
-          <span className="live-dot" />
-          YOUR SESSION<span>{s.tracks.length} tracks</span>
+          <SessionName controller={controller} />
         </div>
+        <span className="session-summary">
+          {s.tracks.length} tracks{controller.dirty ? " · Unsaved" : ""}
+        </span>
         <div className="toolbar-right">
           <span className="snap-label">Snap: beat</span>
           <button
@@ -102,6 +110,29 @@ export function Arrangement({
               }
               style={{ "--track-color": t.color } as React.CSSProperties}
               onClick={() => setSelected(t.id)}
+              tabIndex={0}
+              onDoubleClick={() => {
+                controller.openProperties(t.id);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setSelected(t.id);
+                setMenu({ id: t.id, x: e.clientX, y: e.clientY });
+              }}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter") {
+                  controller.openProperties(t.id);
+                }
+                if (
+                  e.key === "ContextMenu" ||
+                  (e.shiftKey && e.key === "F10")
+                ) {
+                  e.preventDefault();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  setMenu({ id: t.id, x: r.left + 30, y: r.top + 30 });
+                }
+              }}
             >
               <span className="track-number">
                 {String(i + 1).padStart(2, "0")}
@@ -116,8 +147,8 @@ export function Arrangement({
                 </div>
                 <div className="track-buttons">
                   <button
-                    aria-label={`Arm ${t.name}`}
-                    title="Arm for recording"
+                    aria-label={`Mark ${t.name} for recording`}
+                    title="Mark for recording"
                     className={t.armed ? "armed" : ""}
                     disabled={s.recording}
                     onClick={() => update(t, { armed: !t.armed })}
@@ -184,9 +215,19 @@ export function Arrangement({
               onPointerDown={rulerDown}
               onPointerMove={rulerMove}
               onPointerUp={rulerUp}
-              onPointerCancel={() => setSelection(null)}
-              title="Drag to select a loop. Click to move the playhead."
+              onPointerCancel={controller.rulerCancel}
+              title="Top: select a loop. Bottom: move the playhead."
             >
+              <div
+                className="ruler-zone ruler-loop"
+                data-ruler-zone="loop"
+                title="Drag to select a loop"
+              />
+              <div
+                className="ruler-zone ruler-seek"
+                data-ruler-zone="seek"
+                title="Click or drag to move the playhead"
+              />
               {Array.from({ length: Math.ceil(width / zoom) }, (_, i) => (
                 <span key={i} style={{ left: i * zoom, width: zoom }}>
                   {i + 1}
@@ -212,6 +253,16 @@ export function Arrangement({
                 <div
                   key={t.id}
                   className={"lane " + (t.id === track?.id ? "selected" : "")}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setSelected(t.id);
+                    setMenu({ id: t.id, x: e.clientX, y: e.clientY });
+                  }}
+                  onDoubleClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      controller.openProperties(t.id);
+                    }
+                  }}
                   onClick={() => setSelected(t.id)}
                 >
                   {t.clips.map((c) => (
@@ -277,49 +328,120 @@ export function Arrangement({
                 </div>
               ))}
               <div className="empty-grid" />
-              {!hasClips && !s.recording && (
-                <div className="welcome">
-                  <div className="welcome-icon">
-                    <AudioLines size={32} />
-                  </div>
-                  <span className="eyebrow">
-                    GOOD MUSIC STARTS WITH A MOMENT
-                  </span>
-                  <h1>
-                    Plug in. Press record.
-                    <br />
-                    See where it goes.
-                  </h1>
-                  <p>
-                    A guitar, a bass, a friend. Give each input a track
-                    <br />
-                    and capture the whole thing together.
-                  </p>
-                  <button className="primary" onClick={openSetup}>
-                    <Settings2 size={16} />
-                    Set up your inputs
-                    <ChevronRight size={16} />
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={!track}
-                    onClick={() => task(() => api.importAudio(track!.id))}
-                  >
-                    <ArrowDownToLine size={14} />
-                    Or import an audio file
-                  </button>
-                </div>
-              )}
             </div>
             <div
               className={"playhead " + (s.recording ? "red" : "")}
-              style={{ left: s.position * pxPerSecond }}
+              style={{
+                left: (controller.dragPosition ?? s.position) * pxPerSecond,
+              }}
+              role="slider"
+              aria-label="Playhead"
+              aria-valuemin={0}
+              aria-valuemax={width / pxPerSecond}
+              aria-valuenow={controller.dragPosition ?? s.position}
+              aria-disabled={s.recording}
+              tabIndex={0}
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onPointerDown={(e) => {
+                if (s.recording || e.button !== 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.setPointerCapture(e.pointerId);
+                controller.setDragPosition(s.position);
+              }}
+              onPointerMove={(e) => {
+                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                const r =
+                  e.currentTarget.parentElement!.getBoundingClientRect();
+                controller.setDragPosition(
+                  Math.max(0, Math.min(width, e.clientX - r.left)) /
+                    pxPerSecond,
+                );
+              }}
+              onPointerUp={(e) => {
+                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                e.currentTarget.releasePointerCapture(e.pointerId);
+                const rect =
+                  e.currentTarget.parentElement!.getBoundingClientRect();
+                const position =
+                  Math.max(0, Math.min(width, e.clientX - rect.left)) /
+                  pxPerSecond;
+                void run({ op: "seek", position }, false).finally(() =>
+                  controller.setDragPosition(null),
+                );
+              }}
+              onPointerCancel={() => controller.setDragPosition(null)}
+              onKeyDown={(e) => {
+                if (
+                  s.recording ||
+                  !["ArrowLeft", "ArrowRight", "Home"].includes(e.key)
+                )
+                  return;
+                e.preventDefault();
+                e.stopPropagation();
+                run(
+                  {
+                    op: "seek",
+                    position:
+                      e.key === "Home"
+                        ? 0
+                        : Math.max(
+                            0,
+                            s.position +
+                              ((e.key === "ArrowRight" ? 1 : -1) * 60) /
+                                s.tempo,
+                          ),
+                  },
+                  false,
+                );
+              }}
             >
               <span />
             </div>
           </div>
         </div>
+        {!hasClips && !s.recording && (
+          <div className="welcome">
+            <div className="welcome-icon">
+              <AudioLines size={32} />
+            </div>
+            <span className="eyebrow">GOOD MUSIC STARTS WITH A MOMENT</span>
+            <h1>
+              Plug in. Press record.
+              <br />
+              See where it goes.
+            </h1>
+            <p>
+              A guitar, a bass, a friend. Give each input a track
+              <br />
+              and capture the whole thing together.
+            </p>
+            <button className="primary" onClick={openSetup}>
+              <Settings2 size={16} />
+              Set up your inputs
+              <ChevronRight size={16} />
+            </button>
+            <button
+              className="text-button"
+              disabled={!track}
+              onClick={() => task(() => api.importAudio(track!.id))}
+            >
+              <ArrowDownToLine size={14} />
+              Or import an audio file
+            </button>
+          </div>
+        )}
       </main>
+      {menu && s.tracks.find((t) => t.id === menu.id) && (
+        <TrackMenu
+          track={s.tracks.find((t) => t.id === menu.id)!}
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          controller={controller}
+        />
+      )}
     </>
   );
 }

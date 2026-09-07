@@ -46,29 +46,37 @@ const state = {
   deviceError: "",
   diskOverrun: false,
 };
+const devices = {
+  types: [
+    {
+      name: "WASAPI",
+      inputs: ["Audio interface"],
+      outputs: ["Audio interface", "Headphones", "Unavailable"],
+    },
+  ],
+  type: "WASAPI",
+  input: "Audio interface",
+  output: "Audio interface",
+  channels: ["Input 1", "Input 2"],
+  rates: [44100, 48000],
+  buffers: [128, 256, 512],
+  sampleRate: 48000,
+  bufferSize: 256,
+};
 contextBridge.exposeInMainWorld("basement", {
-  command: async (c) =>
-    c.op === "devices"
-      ? {
-          types: [
-            {
-              name: "WASAPI",
-              inputs: ["Audio interface"],
-              outputs: ["Audio interface"],
-            },
-          ],
-          type: "WASAPI",
-          input: "Audio interface",
-          output: "Audio interface",
-          channels: ["Input 1", "Input 2"],
-          rates: [44100, 48000],
-          buffers: [128, 256, 512],
-          sampleRate: 48000,
-          bufferSize: 256,
-        }
-      : state,
+  command: async (c) => {
+    if (c.op === "devices") return devices;
+    if (c.op === "configure") {
+      if (c.output === "Unavailable")
+        throw new Error("Test output unavailable");
+      Object.assign(devices, c);
+      return devices;
+    }
+    return state;
+  },
   save: async () => null,
   open: async () => null,
   plugin: async () => null,
   importAudio: async () => null,
+  exportAudio: async () => null,
 });

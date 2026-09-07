@@ -1,0 +1,145 @@
+.session-name {
+  width: 100%;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+.workspace-toolbar {
+  padding-left: 0;
+  gap: 16px;
+}
+.workspace-label {
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
+  padding: 0 12px;
+}
+.session-summary {
+  margin-right: auto;
+  color: #7f818a;
+  font-size: 10px;
+}
+.app {
+  --sidebar-width: 280px;
+}
+.track-list {
+  width: var(--sidebar-width);
+}
+.welcome {
+  left: var(--sidebar-width);
+}
+.ruler-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+}
+.ruler-loop {
+  top: 0;
+  cursor: crosshair;
+  border-bottom: 1px solid #ffffff18;
+}
+.ruler-seek {
+  bottom: 0;
+  cursor: ew-resize;
+}
+.ruler-zone:hover {
+  background: #ffffff06;
+}
+.ruler > span {
+  pointer-events: none;
+}
+.inspector {
+  position: relative;
+  outline: none;
+}
+.properties-ping {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  border: 2px solid #b0c4a7;
+  animation: properties-ping 1000ms ease-out forwards;
+}
+@keyframes properties-ping {
+  from {
+    opacity: 1;
+    box-shadow: inset 0 0 30px #b0c4a730;
+  }
+  to {
+    opacity: 0;
+    box-shadow: inset 0 0 0 #b0c4a700;
+  }
+}
+.session-name:focus {
+  background: #ffffff0a;
+}
+.ruler,
+.clip {
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+}
+.playhead::after {
+  content: "";
+  position: absolute;
+  inset: 0 -7px;
+}
+.playhead[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+.menu-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+.track-menu {
+  position: fixed;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+  background: #303139f5;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px #0007;
+  animation: surface-in 120ms ease-out;
+}
+.track-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 10px 12px;
+}
+.track-menu button:focus {
+  background: #ffffff14;
+  outline: none;
+}
+.track-menu .danger {
+  color: #f19a9a;
+}
+.export-result,
+.export-error {
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.export-error {
+  color: #f19a9a;
+}
+.modal {
+  animation: surface-in 140ms ease-out;
+}
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  .track-menu {
+    animation: none;
+  }
+}

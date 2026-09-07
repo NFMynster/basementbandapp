@@ -38,6 +38,7 @@ app.whenReady().then(() => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: !smoke,
     },
   });
   let handedOff = false;

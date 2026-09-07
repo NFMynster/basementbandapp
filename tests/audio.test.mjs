@@ -21,7 +21,7 @@ test("native engine: synchronized capture, routing, loop boundaries, mute/solo, 
     let s = await send({ op: "init", folder });
     assert.equal(s.tracks.length, 2);
     const [g, b] = s.tracks;
-    assert.match((await send({ op: "record" })).error, /Arm at least/);
+    assert.match((await send({ op: "record" })).error, /Mark at least/);
     await send({ op: "track", track: g.id, armed: true, input: 0, gain: 1 });
     await send({ op: "track", track: b.id, armed: true, input: 1, gain: 1 });
     await send({ op: "record" });

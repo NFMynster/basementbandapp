@@ -21,6 +21,8 @@ var Engine::command(const var &c) {
   }
   if (op == "state")
     return state();
+  if (op == "export")
+    return exportAudio(c);
   if (op == "clearWarning") {
     diskOverrun = false;
     return state();
@@ -122,7 +124,7 @@ void Engine::updateTrack(const var &c) {
   if (c.hasProperty("name"))
     t.name = str(c, "name").substring(0, 80);
   if (c.hasProperty("armed")) {
-    require(!recording, "Stop recording before changing armed tracks");
+    require(!recording, "Stop recording before changing marked tracks");
     t.armed = flag(c, "armed");
   }
   if (c.hasProperty("input")) {

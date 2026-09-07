@@ -8,6 +8,7 @@ import type {
   Command,
   CommandResult,
   SaveResult,
+  ExportOptions,
 } from "../models";
 import { desktop as api } from "../services/desktop";
 const empty: Session = {
@@ -28,6 +29,12 @@ const empty: Session = {
 };
 export function useWorkspace() {
   const [starting, setStarting] = useState(true);
+  const [propertiesPing, setPropertiesPing] = useState(0);
+  const rulerGesture = useRef<{ mode: "seek" | "loop"; start: number } | null>(
+    null,
+  );
+  const [exportTarget, setExportTarget] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
     [clipId, setClipId] = useState(""),
@@ -133,7 +140,10 @@ export function useWorkspace() {
   }, [notice]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
-      if (e.repeat || document.querySelector('[role="dialog"], [data-startup]'))
+      if (
+        e.repeat ||
+        document.querySelector('[role="dialog"], [role="menu"], [data-startup]')
+      )
         return;
       if (
         (e.target as HTMLElement).closest(
@@ -187,32 +197,75 @@ export function useWorkspace() {
       setDeviceLoading(false);
     }
   }
+  async function exportAudio(options: ExportOptions) {
+    editing.current = true;
+    setBusy(true);
+    try {
+      return await api.exportAudio(options);
+    } finally {
+      editing.current = false;
+      setBusy(false);
+    }
+  }
   function rulerDown(e: React.PointerEvent) {
-    if (s.recording) return;
+    if (s.recording || e.button !== 0) return;
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const start = Math.max(
       0,
       (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
     );
-    setSelection({ start, end: start });
+    const mode =
+      (e.target as HTMLElement).closest<HTMLElement>("[data-ruler-zone]")
+        ?.dataset.rulerZone === "seek"
+        ? "seek"
+        : "loop";
+    rulerGesture.current = { mode, start };
+    if (mode === "seek") setDragPosition(start);
+    else setSelection({ start, end: start });
     e.currentTarget.setPointerCapture(e.pointerId);
   }
   function rulerMove(e: React.PointerEvent) {
-    if (!selection) return;
+    const gesture = rulerGesture.current;
+    if (!gesture || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const end = Math.max(
       0,
       (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
     );
-    setSelection({ ...selection, end });
+    if (gesture.mode === "seek") setDragPosition(end);
+    else setSelection({ start: gesture.start, end });
   }
-  function rulerUp() {
-    if (!selection) return;
-    const a = Math.min(selection.start, selection.end),
-      b = Math.max(selection.start, selection.end);
-    if (b - a < 0.05) run({ op: "seek", position: a }, false);
-    else run({ op: "loop", start: a, end: b, enabled: true });
+  function rulerUp(e: React.PointerEvent) {
+    const gesture = rulerGesture.current;
+    if (!gesture) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const end = Math.max(
+      0,
+      (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
+    );
+    rulerGesture.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    const a = Math.min(gesture.start, end),
+      b = Math.max(gesture.start, end);
+    if (gesture.mode === "seek")
+      void run({ op: "seek", position: end }, false).finally(() =>
+        setDragPosition(null),
+      );
+    else if (b - a >= 0.05)
+      run({ op: "loop", start: a, end: b, enabled: true });
     setSelection(null);
+  }
+  function rulerCancel() {
+    rulerGesture.current = null;
+    setSelection(null);
+    setDragPosition(null);
+  }
+  function openProperties(id: string) {
+    setSelected(id);
+    setPanel("input");
+    setPropertiesPing((value) => value + 1);
   }
   const loop = selection
     ? {
@@ -225,6 +278,14 @@ export function useWorkspace() {
   const bar = Math.floor(s.position / secondsPerBar) + 1,
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
+    openProperties,
+    propertiesPing,
+    rulerCancel,
+    exportTarget,
+    exportAudio,
+    setExportTarget,
+    dragPosition,
+    setDragPosition,
     starting,
     s,
     setS,

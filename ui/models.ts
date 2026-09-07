@@ -82,12 +82,15 @@ export type CommandResult<C extends Command> = C extends DeviceCommand
   ? Devices
   : Session;
 export type SaveResult = { saved: string };
+export type ExportOptions = { mode: "separate" | "mix"; track?: string };
+export type ExportResult = { folder: string; files: string[] };
 export interface DesktopApi {
   command<C extends Command>(command: C): Promise<CommandResult<C>>;
   save(): Promise<SaveResult | null>;
   open(): Promise<Session | null>;
   importAudio(track: string): Promise<Session | null>;
   plugin(track: string): Promise<Session | null>;
+  exportAudio(options: ExportOptions): Promise<ExportResult | null>;
 }
 declare global {
   interface Window {

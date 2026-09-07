@@ -16,7 +16,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
         <div className="transport-left">
           <button
             className="icon-button"
-            title="Audio setup"
+            title="Input settings"
             onClick={openSetup}
           >
             <SlidersHorizontal size={20} />
@@ -46,7 +46,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           </button>
           <button
             className={"record-button " + (s.recording ? "recording" : "")}
-            title="Record armed tracks · R"
+            title="Record marked tracks · R"
             disabled={busy}
             onClick={() => run({ op: s.recording ? "stop" : "record" })}
           >

@@ -14,7 +14,7 @@ export function Notices({ controller }: { controller: WorkspaceController }) {
                 : "")}
           </span>
           {!error && s.deviceError ? (
-            <button onClick={openSetup}>Audio setup</button>
+            <button onClick={openSetup}>Input settings</button>
           ) : (
             <button
               onClick={() => {

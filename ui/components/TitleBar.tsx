@@ -1,8 +1,8 @@
-import { AudioLines, FolderOpen, Plus, Save } from "lucide-react";
+import { AudioLines, FolderOpen, Plus, Save, Download } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 export function TitleBar({ controller }: { controller: WorkspaceController }) {
-  const { s, setS, run, busy, dirty, setDirty, setClipId, setSelected, task } =
+  const { s, run, busy, dirty, setDirty, setClipId, setSelected, task } =
     controller;
   return (
     <>
@@ -13,19 +13,6 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
           </span>
           basement<span className="brand-light">band</span>
           <span className="preview-label">EARLY ACCESS</span>
-        </div>
-        <div className="project-title">
-          <input
-            aria-label="Session name"
-            value={s.title}
-            onChange={(e) => {
-              setS({ ...s, title: e.target.value });
-              run({ op: "rename", title: e.target.value });
-            }}
-          />
-          <span className={dirty ? "unsaved" : ""}>
-            {dirty ? "Unsaved changes" : "Local session"}
-          </span>
         </div>
         <div className="file-actions">
           <button
@@ -68,6 +55,13 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
           >
             <Save size={16} />
             Save
+          </button>
+          <button
+            disabled={busy || s.playing || !controller.hasClips}
+            onClick={() => controller.setExportTarget("")}
+          >
+            <Download size={16} />
+            Export
           </button>
         </div>
       </header>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Modal } from "./Modal";
 import { AudioLines, ChevronRight } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
@@ -18,12 +19,47 @@ export function AudioSetupDialog({
     deviceLoading,
     openSetup,
   } = controller;
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState("");
+  async function apply(close: boolean) {
+    if (!devices || applying) return;
+    setApplying(true);
+    setApplyError("");
+    try {
+      const d = await run(
+        {
+          op: "configure",
+          type: devices.type,
+          input: devices.input,
+          output: devices.output,
+          sampleRate: devices.sampleRate,
+          bufferSize: devices.bufferSize,
+        },
+        false,
+      );
+      if (d) {
+        setDevices(d);
+        setNotice("Audio settings applied.");
+        if (close) setSetup(false);
+      } else
+        setApplyError(
+          "Could not apply audio settings. Check your device selections and try again.",
+        );
+    } finally {
+      setApplying(false);
+    }
+  }
   return (
     <>
       {setup && (
-        <Modal title="Audio setup" onClose={() => setSetup(false)}>
-          <span className="eyebrow">LET’S GET CONNECTED</span>
-          <h2>One interface. Everyone in.</h2>
+        <Modal
+          title="Input settings"
+          onClose={() => {
+            if (!applying) setSetup(false);
+          }}
+        >
+          <span className="eyebrow">AUDIO DEVICES & TRACK ROUTING</span>
+          <h2>Input settings</h2>
           <p>
             Choose your audio device, then give each instrument its own input.
           </p>
@@ -122,26 +158,13 @@ export function AudioSetupDialog({
                 </label>
               </div>
               <button
-                className="primary apply-device"
-                disabled={s.playing}
-                onClick={async () => {
-                  const d = await run(
-                    {
-                      op: "configure",
-                      ...devices,
-                    },
-                    false,
-                  );
-                  if (d) {
-                    setDevices(d);
-                    setNotice(
-                      "Audio device connected. Assign your inputs below.",
-                    );
-                  }
-                }}
+                className="apply-device"
+                disabled={s.playing || applying}
+                onClick={() => apply(false)}
               >
-                Connect device
+                Apply & refresh inputs
               </button>
+              {applyError && <p role="alert">{applyError}</p>}
               <div className="routing">
                 <label>TRACK ROUTING</label>
                 {s.tracks.map((t) => (
@@ -170,20 +193,17 @@ export function AudioSetupDialog({
                         <option value={0}>No inputs available</option>
                       )}
                     </select>
-                    <button
-                      className={t.armed ? "route-arm active" : "route-arm"}
-                      disabled={s.recording}
-                      onClick={() => update(t, { armed: !t.armed })}
-                    >
-                      {t.armed ? "Armed" : "Arm"}
-                    </button>
                   </div>
                 ))}
               </div>
               <div className="modal-bottom">
                 <span>Use one interface for synchronized recording.</span>
-                <button className="primary" onClick={() => setSetup(false)}>
-                  Done
+                <button
+                  className="primary"
+                  disabled={s.playing || applying}
+                  onClick={() => apply(true)}
+                >
+                  {applying ? "Applying…" : "Done"}
                   <ChevronRight size={15} />
                 </button>
               </div>

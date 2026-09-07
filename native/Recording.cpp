@@ -65,10 +65,10 @@ void Engine::beginRecording() {
     if (t->armed) {
       require(t->input >= 0 &&
                   t->input < (testDevice ? 2 : d->getActiveInputChannels().countNumberOfSetBits()),
-              "An armed track uses an unavailable input. Check Audio setup.");
+              "A marked track uses an unavailable input. Check Audio setup.");
       ++count;
     }
-  require(count > 0, "Arm at least one track with its record button");
+  require(count > 0, "Mark at least one track with its record button");
   diskOverrun = false;
   try {
     for (auto &t : tracks)

@@ -26,7 +26,7 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           ) : armed ? (
             `${armed} ${armed === 1 ? "track" : "tracks"} ready to record`
           ) : (
-            "Arm a track to get started"
+            "Mark a track to get started"
           )}
           <span className="key">R</span>record<span className="key">space</span>
           play

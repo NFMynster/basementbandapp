@@ -54,7 +54,9 @@ class ServiceClient {
                     "The audio service timed out. Restart the app before continuing.",
                   ),
                 ),
-              this.#timeout,
+              command.op === "export"
+                ? Math.max(this.#timeout, 31 * 60 * 1000)
+                : this.#timeout,
             )
           : undefined;
       this.#pending.set(id, { resolve, reject, timer });

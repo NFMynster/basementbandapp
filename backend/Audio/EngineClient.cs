@@ -33,7 +33,8 @@ internal sealed class EngineClient : IAsyncDisposable
         try
         {
             if (failure is not null) throw new IOException("The audio engine is unavailable. Restart the app.", failure);
-            using var timeout = new CancellationTokenSource(Debugger.IsAttached ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(45));
+            var deadline = command["op"]?.GetValue<string>() == "export" ? TimeSpan.FromMinutes(30) : TimeSpan.FromSeconds(45);
+            using var timeout = new CancellationTokenSource(Debugger.IsAttached ? Timeout.InfiniteTimeSpan : deadline);
             JsonObject reply;
             try
             {

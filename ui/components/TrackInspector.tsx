@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
   ChevronDown,
@@ -15,11 +16,28 @@ export function TrackInspector({
 }: {
   controller: WorkspaceController;
 }) {
+  const inspector = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (controller.propertiesPing)
+      inspector.current?.focus({ preventScroll: true });
+  }, [controller.propertiesPing]);
   const { track, panel, setPanel, s, update, run, openSetup, busy, task } =
     controller;
   return (
     <>
-      <section className="inspector">
+      <section
+        ref={inspector}
+        className="inspector"
+        tabIndex={-1}
+        aria-label={`${track?.name || "Track"} properties`}
+      >
+        {controller.propertiesPing > 0 && (
+          <span
+            key={controller.propertiesPing}
+            className="properties-ping"
+            aria-hidden="true"
+          />
+        )}
         <div className="inspector-toolbar">
           <div className="selected-track">
             <span style={{ background: track?.color }} />

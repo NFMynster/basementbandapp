@@ -45,5 +45,7 @@ private:
   void restoreSession(const var &command);
   void beginRecording();
   void updateTrack(const var &command);
+  void renderTrack(Track &track, double start, int samples, bool cycle);
+  var exportAudio(const var &command);
 };
 } // namespace basement

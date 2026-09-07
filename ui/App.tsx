@@ -7,6 +7,7 @@ import { StatusBar } from "./components/StatusBar";
 import { Notices } from "./components/Notices";
 import { AudioSetupDialog } from "./components/AudioSetupDialog";
 import { HelpDialog } from "./components/HelpDialog";
+import { ExportDialog } from "./components/ExportDialog";
 export function App() {
   const controller = useWorkspace();
   if (controller.starting) {
@@ -41,6 +42,9 @@ export function App() {
       <Notices controller={controller} />
       <AudioSetupDialog controller={controller} />
       <HelpDialog controller={controller} />
+      {controller.exportTarget !== null && (
+        <ExportDialog controller={controller} />
+      )}
     </div>
   );
 }

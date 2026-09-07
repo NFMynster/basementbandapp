@@ -21,12 +21,12 @@ export function HelpDialog({
             <li>
               <strong>Connect your interface.</strong>
               <p>
-                Open Audio setup, choose a device, and assign a different input
-                to each track.
+                Open Input settings, choose a device, and assign a different
+                input to each track.
               </p>
             </li>
             <li>
-              <strong>Arm your tracks. Hit record.</strong>
+              <strong>Mark your tracks. Hit record.</strong>
               <p>
                 Click R on every track you want to capture. The red transport
                 button records them together. Press Space to stop.
@@ -35,8 +35,9 @@ export function HelpDialog({
             <li>
               <strong>Find the part. Play it again.</strong>
               <p>
-                Drag across the timeline ruler to loop a range, or double-click
-                a region to loop its length. Press L to toggle cycle.
+                Drag the top half of the ruler to loop a range. Drag its bottom
+                half to move the playhead. Double-click a region to loop its
+                length. Press L to toggle cycle.
               </p>
             </li>
           </ol>

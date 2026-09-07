@@ -89,7 +89,7 @@ input[type="number"]::-webkit-inner-spin-button {
   overflow: hidden;
 }
 .titlebar {
-  height: 68px;
+  height: 44px;
   flex-shrink: 0;
   border-bottom: 1px solid #ffffff08;
   display: flex;
@@ -129,31 +129,6 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 4px 6px;
   margin-left: 15px;
   color: #92939b;
-}
-.project-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 4px;
-}
-.project-title input {
-  border: 0;
-  background: transparent;
-  text-align: center;
-  padding: 0;
-  font-weight: 550;
-  width: 230px;
-  font-size: 13px;
-}
-.project-title > span {
-  font-size: 10px;
-  color: #777980;
-}
-.project-title .unsaved {
-  color: #b3a27c;
 }
 .file-actions {
   display: flex;
@@ -349,6 +324,7 @@ input[type="number"]::-webkit-inner-spin-button {
   margin-right: 20px;
 }
 .arrangement {
+  position: relative;
   flex: 1;
   min-height: 245px;
   display: flex;
@@ -485,8 +461,8 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-shrink: 0;
 }
 .track-list-bottom {
-  min-height: 170px;
-  align-items: flex-end;
+  min-height: 44px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -598,10 +574,11 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .welcome {
   position: absolute;
-  top: 80px;
-  left: 0;
-  width: calc(100vw - 280px);
-  max-width: 1160px;
+  top: 50%;
+  left: 280px;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 3;
   text-align: center;
   pointer-events: none;
   display: flex;
@@ -670,15 +647,18 @@ input[type="number"]::-webkit-inner-spin-button {
   bottom: 0;
   width: 1px;
   background: #e0ddd2;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
   z-index: 2;
 }
 .playhead > span {
   position: absolute;
   top: 0;
-  left: -4px;
-  width: 9px;
-  height: 11px;
+  left: -7px;
+  width: 15px;
+  height: 16px;
   background: #e0ddd2;
   clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
 }
@@ -1062,16 +1042,6 @@ footer .live-dot {
 .routing select {
   flex: 1;
 }
-.route-arm {
-  border: 1px solid #5a4d52;
-  font-size: 10px;
-  min-width: 65px;
-}
-.route-arm.active {
-  background: #984d58;
-  color: #fff;
-  border-color: #b16b75;
-}
 .modal-bottom {
   margin-top: 24px;
   display: flex;
@@ -1108,9 +1078,6 @@ button svg {
   }
 }
 @media (max-height: 800px) {
-  .welcome {
-    top: 65px;
-  }
   .welcome-icon {
     display: none;
   }
