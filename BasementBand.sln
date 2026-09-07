@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasementBand", "backend\BasementBand.csproj", "{45CA6434-40C7-4BAE-B133-D28919F93803}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F527AC28-AB37-45F9-9928-8A1E596E1C24}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		docs\BUILD.md = docs\BUILD.md
+		docs\ARCHITECTURE.md = docs\ARCHITECTURE.md
+		package.json = package.json
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45CA6434-40C7-4BAE-B133-D28919F93803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45CA6434-40C7-4BAE-B133-D28919F93803}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45CA6434-40C7-4BAE-B133-D28919F93803}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45CA6434-40C7-4BAE-B133-D28919F93803}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,325 @@
+import type React from "react";
+import {
+  AudioLines,
+  ArrowDownToLine,
+  ChevronRight,
+  Guitar,
+  Headphones,
+  Repeat2 as Loop,
+  Music2,
+  Plus,
+  Settings2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import type { WorkspaceController } from "../hooks/useWorkspace";
+import { desktop as api } from "../services/desktop";
+import { Waveform } from "./Waveform";
+export function Arrangement({
+  controller,
+}: {
+  controller: WorkspaceController;
+}) {
+  const {
+    s,
+    track,
+    setSelected,
+    clipId,
+    setClipId,
+    run,
+    update,
+    zoom,
+    setZoom,
+    trackList,
+    timelineScroll,
+    width,
+    rulerDown,
+    rulerMove,
+    rulerUp,
+    selection,
+    setSelection,
+    loop,
+    pxPerSecond,
+    hasClips,
+    openSetup,
+    task,
+  } = controller;
+  return (
+    <>
+      <div className="workspace-toolbar">
+        <div className="workspace-label">
+          <span className="live-dot" />
+          YOUR SESSION<span>{s.tracks.length} tracks</span>
+        </div>
+        <div className="toolbar-right">
+          <span className="snap-label">Snap: beat</span>
+          <button
+            title="Zoom out"
+            onClick={() => setZoom(Math.max(40, zoom - 16))}
+          >
+            <ZoomOut size={15} />
+          </button>
+          <input
+            aria-label="Timeline zoom"
+            type="range"
+            min="40"
+            max="200"
+            value={zoom}
+            onChange={(e) => setZoom(+e.target.value)}
+          />
+          <button
+            title="Zoom in"
+            onClick={() => setZoom(Math.min(200, zoom + 16))}
+          >
+            <ZoomIn size={15} />
+          </button>
+        </div>
+      </div>
+      <main className="arrangement">
+        <aside
+          className="track-list"
+          ref={trackList}
+          onScroll={(e) => {
+            if (timelineScroll.current)
+              timelineScroll.current.scrollTop = e.currentTarget.scrollTop;
+          }}
+        >
+          <div className="track-list-title">
+            TRACKS
+            <button
+              title="Add audio track"
+              disabled={s.recording}
+              onClick={() => run({ op: "addTrack" })}
+            >
+              <Plus size={17} />
+            </button>
+          </div>
+          {s.tracks.map((t, i) => (
+            <div
+              key={t.id}
+              className={
+                "track-header " + (track?.id === t.id ? "selected" : "")
+              }
+              style={{ "--track-color": t.color } as React.CSSProperties}
+              onClick={() => setSelected(t.id)}
+            >
+              <span className="track-number">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div className="instrument">
+                {i === 1 ? <Music2 size={27} /> : <Guitar size={28} />}
+              </div>
+              <div className="track-info">
+                <div className="track-name">
+                  {t.name}
+                  <span>MONO</span>
+                </div>
+                <div className="track-buttons">
+                  <button
+                    aria-label={`Arm ${t.name}`}
+                    title="Arm for recording"
+                    className={t.armed ? "armed" : ""}
+                    disabled={s.recording}
+                    onClick={() => update(t, { armed: !t.armed })}
+                  >
+                    R
+                  </button>
+                  <button
+                    title="Mute"
+                    className={t.mute ? "muted" : ""}
+                    onClick={() => update(t, { mute: !t.mute })}
+                  >
+                    M
+                  </button>
+                  <button
+                    title="Solo"
+                    className={t.solo ? "solo" : ""}
+                    onClick={() => update(t, { solo: !t.solo })}
+                  >
+                    S
+                  </button>
+                  <span className="input-label">In {t.input + 1}</span>
+                </div>
+                <div className="track-volume">
+                  <input
+                    aria-label={`${t.name} volume`}
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.01"
+                    value={t.gain}
+                    onChange={(e) => update(t, { gain: +e.target.value })}
+                  />
+                  <div className="tiny-meter">
+                    <i style={{ width: `${Math.min(100, t.peak * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          <button
+            className="add-track"
+            disabled={s.recording}
+            onClick={() => run({ op: "addTrack" })}
+          >
+            <Plus size={17} />
+            Add audio track
+          </button>
+          <div className="track-list-bottom">
+            <Headphones size={16} />
+            <span>Made for playing together.</span>
+          </div>
+        </aside>
+        <div
+          className="timeline-scroll"
+          ref={timelineScroll}
+          onScroll={(e) => {
+            if (trackList.current)
+              trackList.current.scrollTop = e.currentTarget.scrollTop;
+          }}
+        >
+          <div className="timeline" style={{ width, minHeight: "100%" }}>
+            <div
+              className="ruler"
+              onPointerDown={rulerDown}
+              onPointerMove={rulerMove}
+              onPointerUp={rulerUp}
+              onPointerCancel={() => setSelection(null)}
+              title="Drag to select a loop. Click to move the playhead."
+            >
+              {Array.from({ length: Math.ceil(width / zoom) }, (_, i) => (
+                <span key={i} style={{ left: i * zoom, width: zoom }}>
+                  {i + 1}
+                </span>
+              ))}
+              {(s.looping || selection) && (
+                <div
+                  className="cycle-region"
+                  style={{
+                    left: loop.start * pxPerSecond,
+                    width: (loop.end - loop.start) * pxPerSecond,
+                  }}
+                >
+                  <Loop size={11} />
+                </div>
+              )}
+            </div>
+            <div
+              className="lanes"
+              style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
+            >
+              {s.tracks.map((t) => (
+                <div
+                  key={t.id}
+                  className={"lane " + (t.id === track?.id ? "selected" : "")}
+                  onClick={() => setSelected(t.id)}
+                >
+                  {t.clips.map((c) => (
+                    <div
+                      key={c.id}
+                      className={"clip " + (clipId === c.id ? "chosen" : "")}
+                      style={
+                        {
+                          left: c.start * pxPerSecond,
+                          width: Math.max(12, c.duration * pxPerSecond),
+                          "--clip-color": t.color,
+                        } as React.CSSProperties
+                      }
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`${c.name}, ${c.duration.toFixed(1)} seconds. Double click to loop.`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelected(t.id);
+                        setClipId(c.id);
+                      }}
+                      onDoubleClick={() =>
+                        run({
+                          op: "loop",
+                          start: c.start,
+                          end: c.start + c.duration,
+                          enabled: true,
+                        })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          run({
+                            op: "loop",
+                            start: c.start,
+                            end: c.start + c.duration,
+                            enabled: true,
+                          });
+                        if (e.key === "Delete")
+                          run({ op: "removeClip", track: t.id, clip: c.id });
+                      }}
+                    >
+                      <div className="clip-title">
+                        {c.name}
+                        <AudioLines size={12} />
+                      </div>
+                      <Waveform peaks={c.peaks} />
+                    </div>
+                  ))}
+                  {s.recording && t.armed && (
+                    <div
+                      className="recording-region"
+                      style={{
+                        left: t.recordStart * pxPerSecond,
+                        width: Math.max(
+                          10,
+                          (s.position - t.recordStart) * pxPerSecond,
+                        ),
+                      }}
+                    >
+                      Recording…
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="empty-grid" />
+              {!hasClips && !s.recording && (
+                <div className="welcome">
+                  <div className="welcome-icon">
+                    <AudioLines size={32} />
+                  </div>
+                  <span className="eyebrow">
+                    GOOD MUSIC STARTS WITH A MOMENT
+                  </span>
+                  <h1>
+                    Plug in. Press record.
+                    <br />
+                    See where it goes.
+                  </h1>
+                  <p>
+                    A guitar, a bass, a friend. Give each input a track
+                    <br />
+                    and capture the whole thing together.
+                  </p>
+                  <button className="primary" onClick={openSetup}>
+                    <Settings2 size={16} />
+                    Set up your inputs
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={!track}
+                    onClick={() => task(() => api.importAudio(track!.id))}
+                  >
+                    <ArrowDownToLine size={14} />
+                    Or import an audio file
+                  </button>
+                </div>
+              )}
+            </div>
+            <div
+              className={"playhead " + (s.recording ? "red" : "")}
+              style={{ left: s.position * pxPerSecond }}
+            >
+              <span />
+            </div>
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}

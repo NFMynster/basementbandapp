@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Basement Band desktop": {
+      "commandName": "Project",
+      "commandLineArgs": "--desktop",
+      "launchBrowser": false
+    }
+  }
+}

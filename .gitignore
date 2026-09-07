@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+artifacts/
+release/
+**/bin/
+**/obj/
+.tools/
+.vs/
+*.user
+*.log
