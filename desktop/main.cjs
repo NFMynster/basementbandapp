@@ -3,6 +3,7 @@ const path = require("node:path");
 const { mkdirSync } = require("node:fs");
 const { startBackend } = require("./backend.cjs");
 const { registerIpc } = require("./ipc.cjs");
+const { createSplash } = require("./startup.cjs");
 const smoke = process.env.BASEMENT_SMOKE === "1";
 if (smoke) {
   const data = path.resolve("artifacts/smoke-user");
@@ -14,6 +15,7 @@ let startupError;
 const request = (command) =>
   backend ? backend.request(command) : Promise.reject(startupError);
 app.whenReady().then(() => {
+  const splash = createSplash(smoke);
   try {
     backend = startBackend(
       app.isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
@@ -23,7 +25,7 @@ app.whenReady().then(() => {
     startupError = error;
   }
   const win = new BrowserWindow({
-    show: !smoke,
+    show: false,
     width: 1440,
     height: 940,
     minWidth: 1050,
@@ -37,6 +39,20 @@ app.whenReady().then(() => {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  let handedOff = false;
+  splash.on("closed", () => {
+    if (!handedOff) app.quit();
+  });
+  win.once("ready-to-show", () => {
+    handedOff = true;
+    if (!smoke) win.show();
+    if (!splash.isDestroyed()) splash.destroy();
+  });
+  win.webContents.on("did-fail-load", (_event, code, description) => {
+    if (code === -3) return;
+    dialog.showErrorBox("Could not open Basement Band", description);
+    app.quit();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-prevent-unload", (event) => {

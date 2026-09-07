@@ -7,9 +7,9 @@ function verifyDesktop(win, request) {
       if (state.tracks.length !== 2) throw new Error("Default tracks missing");
       await new Promise((r) => setTimeout(r, 500));
       const rendered = await win.webContents.executeJavaScript(
-        `({tracks:document.querySelectorAll('.track-header').length,welcome:!!document.querySelector('.welcome')})`,
+        `({tracks:document.querySelectorAll('.track-header').length,welcome:!!document.querySelector('.welcome'),starting:!!document.querySelector('[data-startup]')})`,
       );
-      if (rendered.tracks !== 2 || !rendered.welcome)
+      if (rendered.tracks !== 2 || !rendered.welcome || rendered.starting)
         throw new Error("Workspace did not render");
       mkdirSync("artifacts/screenshots", { recursive: true });
       writeFileSync(

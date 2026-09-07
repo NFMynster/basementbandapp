@@ -9,6 +9,28 @@ import { AudioSetupDialog } from "./components/AudioSetupDialog";
 import { HelpDialog } from "./components/HelpDialog";
 export function App() {
   const controller = useWorkspace();
+  if (controller.starting) {
+    return (
+      <main className="startup" data-startup role="status" aria-live="polite">
+        <div className="startup-mark" aria-hidden="true">
+          ♫
+        </div>
+        <h1>Basement Band</h1>
+        {controller.error ? (
+          <>
+            <p>We couldn’t connect to your recording room.</p>
+            <pre role="alert">{controller.error}</pre>
+            <button onClick={() => window.location.reload()}>Try again</button>
+          </>
+        ) : (
+          <>
+            <p>Connecting to your audio engine…</p>
+            <span className="startup-spinner" aria-hidden="true" />
+          </>
+        )}
+      </main>
+    );
+  }
   return (
     <div className="app">
       <TitleBar controller={controller} />

@@ -27,6 +27,7 @@ const empty: Session = {
   diskOverrun: false,
 };
 export function useWorkspace() {
+  const [starting, setStarting] = useState(true);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
     [clipId, setClipId] = useState(""),
@@ -108,7 +109,10 @@ export function useWorkspace() {
       polling.current = true;
       try {
         const v = await api.command({ op: "state" });
-        if (alive) accept(v);
+        if (alive) {
+          accept(v);
+          setStarting(false);
+        }
       } catch (e) {
         if (alive) setError(errorMessage(e));
       } finally {
@@ -129,7 +133,8 @@ export function useWorkspace() {
   }, [notice]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
-      if (e.repeat || document.querySelector('[role="dialog"]')) return;
+      if (e.repeat || document.querySelector('[role="dialog"], [data-startup]'))
+        return;
       if (
         (e.target as HTMLElement).closest(
           "input,select,textarea,[contenteditable]",
@@ -220,6 +225,7 @@ export function useWorkspace() {
   const bar = Math.floor(s.position / secondsPerBar) + 1,
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
+    starting,
     s,
     setS,
     setSelected,
