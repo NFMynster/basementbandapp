@@ -286,6 +286,7 @@ export function Arrangement({
               ))}
               <div
                 className="empty-grid"
+                data-empty-grid
                 onClick={() => controller.setClipId("")}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -304,7 +305,10 @@ export function Arrangement({
                   void controller.dropAudio(Array.from(e.dataTransfer.files));
                 }}
               >
-                <span>Drop audio or MIDI files here to create tracks</span>
+                <span>
+                  Drop files here to create tracks, or drag a recording down to
+                  copy its track settings
+                </span>
               </div>
             </div>
             <div

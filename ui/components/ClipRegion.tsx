@@ -67,21 +67,14 @@ export function ClipRegion({
             Math.max(
               Math.max(
                 -c.start,
-                ...[c, ...takes].map(
-                  (take) => (take.sourceStart ?? 0) - (take.offset ?? 0),
-                ),
+                ...[c, ...takes].map((take) => take.sourceStart - take.offset),
               ),
               delta,
             ),
             Math.max(0, shortest - 2 / w.s.sampleRate),
           )
         : Math.max(
-            Math.min(
-              (c.sourceEnd ?? (c.offset ?? 0) + c.duration) -
-                (c.offset ?? 0) -
-                c.duration,
-              delta,
-            ),
+            Math.min(c.sourceEnd - c.offset - c.duration, delta),
             -c.duration + 2 / w.s.sampleRate,
           );
     return drag.current!.mode === "left"
@@ -248,7 +241,7 @@ export function ClipRegion({
                   },
             );
         }}
-        onPointerUp={(e) => {
+        onPointerUp={async (e) => {
           if (!drag.current) return;
           if (drag.current.mode !== "move") {
             const trim = trimAt(e.clientX),
@@ -280,13 +273,17 @@ export function ClipRegion({
             setPreview(null);
             return;
           }
-          const target =
-            document
-              .elementFromPoint(e.clientX, e.clientY)
-              ?.closest<HTMLElement>("[data-lane]")?.dataset.lane || t.id;
-          if (
-            w.s.tracks.find((track) => track.id === target)?.kind !== t.kind
-          ) {
+          const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+          const emptyGrid =
+            dropTarget?.closest<HTMLElement>("[data-empty-grid]");
+          const lane = dropTarget?.closest<HTMLElement>("[data-lane]");
+          const target = emptyGrid
+            ? await w.createTrackLike(t)
+            : lane
+              ? w.s.tracks.find((track) => track.id === lane.dataset.lane)
+              : t;
+          const targetId = target?.id ?? t.id;
+          if (!target || target.kind !== t.kind) {
             setPreview(null);
             w.setNotice("Move regions to a matching audio or MIDI track.");
             return;
@@ -298,7 +295,7 @@ export function ClipRegion({
               clip: c.id,
               action: "move",
               position: at,
-              target,
+              target: targetId,
             })
             .finally(() => setPreview(null));
         }}

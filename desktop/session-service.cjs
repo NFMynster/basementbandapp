@@ -2,6 +2,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const {
+  CURRENT_SESSION_VERSION,
   sessionClips,
   validate,
   writeJsonAtomically,
@@ -109,7 +110,7 @@ class SessionService {
     const snapshot = await this.engine.request({ op: "snapshot" });
     this.lastSnapshot = snapshot;
     if (!this.recover) return;
-    snapshot.version = 3;
+    snapshot.version = CURRENT_SESSION_VERSION;
     validate(snapshot);
     const target = path.join(this.directory, RECOVERY_FILE);
     await writeJsonAtomically(target, snapshot);
@@ -221,13 +222,7 @@ class SessionService {
   async executeRaw(command) {
     if (command.op === "save") {
       const snapshot = await this.engine.request({ op: "snapshot" });
-      snapshot.version = sessionClips(snapshot).some(
-        (c) => c.offset > 0 || c.length >= 0 || c.takeGroup,
-      )
-        ? 3
-        : snapshot.tracks.some((t) => t.kind === "midi")
-          ? 2
-          : 1;
+      snapshot.version = CURRENT_SESSION_VERSION;
       validate(snapshot);
       const target = path.resolve(command.path),
         assets = target + ".audio";

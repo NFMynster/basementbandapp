@@ -37,7 +37,7 @@ The engine uses short control locks. Its callback attempts the lock without bloc
 
 ## Session files
 
-Version 1 audio-only projects and version 2 MIDI projects remain readable. Projects containing trimmed regions or take stacks save as version 3. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
+Session files use the current version 3 format. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
 
 Shared sources are copied once per save, not once per take. New asset copies have unique names so a failed save does not overwrite the previous document’s media. Metadata is written to a temporary file and renamed. Multi-file copying is not fully transactional: a failed save may leave unused media, which is deliberately not deleted automatically.
 

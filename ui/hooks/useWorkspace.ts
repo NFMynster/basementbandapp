@@ -36,6 +36,22 @@ function trackContainingClip(tracks: Track[], clipId: string) {
   );
 }
 
+function trackClonePatch(source: Track): TrackPatch {
+  return {
+    name: `${source.name} copy`,
+    input: source.input,
+    mute: source.mute,
+    solo: source.solo,
+    gain: source.gain,
+    pan: source.pan,
+    color: source.color,
+    icon: source.icon,
+    monitor: source.monitor,
+    // A duplicated track should not unexpectedly record alongside its source.
+    armed: false,
+  };
+}
+
 function rulerPosition(
   clientX: number,
   rect: DOMRect,
@@ -321,6 +337,20 @@ export function useWorkspace() {
   }
   const update = (t: Track, c: TrackPatch) =>
     run({ op: "track", track: t.id, ...c });
+  async function createTrackLike(source: Track) {
+    const added = await run({ op: "addTrack", kind: source.kind });
+    const created = added?.tracks.at(-1);
+    if (!created) return;
+
+    const configured = await update(created, trackClonePatch(source));
+    if (!configured) {
+      // Avoid leaving an unconfigured track behind if the second command fails.
+      await run({ op: "removeTrack", track: created.id }, false);
+      return;
+    }
+    setSelected(created.id);
+    return created;
+  }
   async function openSetup(tab?: "audio" | "midi" | React.MouseEvent) {
     setSettingsTab(
       typeof tab === "string" ? tab : track?.kind === "midi" ? "midi" : "audio",
@@ -446,6 +476,7 @@ export function useWorkspace() {
     creatingTrack,
     setCreatingTrack,
     openCreateTrack,
+    createTrackLike,
     welcome,
     setWelcome,
     settingsTab,

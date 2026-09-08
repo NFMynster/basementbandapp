@@ -2,13 +2,13 @@ export type TrackIconName =
   "guitar" | "bass" | "drums" | "keys" | "mic" | "audio";
 
 export type Clip = {
-  offset?: number;
-  sourceStart?: number;
-  sourceEnd?: number;
-  takeGroup?: string;
-  take?: number;
-  active?: boolean;
-  kind?: "audio" | "midi";
+  offset: number;
+  sourceStart: number;
+  sourceEnd: number;
+  takeGroup: string;
+  take: number;
+  active: boolean;
+  kind: "audio" | "midi";
   notes?: { start: number; duration: number; note: number }[];
   id: string;
   name: string;
@@ -17,11 +17,11 @@ export type Clip = {
   peaks: number[];
 };
 export type Track = {
-  monitor?: boolean;
-  icon?: TrackIconName;
-  kind?: "audio" | "midi";
-  midiDevice?: string;
-  midiChannel?: number;
+  monitor: boolean;
+  icon: TrackIconName;
+  kind: "audio" | "midi";
+  midiDevice: string;
+  midiChannel: number;
   latencySamples?: number;
   id: string;
   name: string;

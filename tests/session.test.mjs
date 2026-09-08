@@ -30,7 +30,7 @@ test("Electron session service saves portable audio, reopens edits, and preserve
     r = await send({ op: "save", path });
     assert.equal(r.result.saved, path);
     const saved = JSON.parse(readFileSync(path, "utf8"));
-    assert.equal(saved.version, 1);
+    assert.equal(saved.version, 3);
     assert.equal(saved.title, "Two friends");
     assert.equal(isAbsolute(saved.tracks[0].clips[0].path), false);
     assert.ok(existsSync(resolve(folder, saved.tracks[0].clips[0].path)));

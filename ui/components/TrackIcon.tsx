@@ -9,12 +9,12 @@ export const trackIcons = {
   audio: AudioLines,
 };
 export function TrackIcon({
-  icon = "guitar",
+  icon,
   size = 27,
 }: {
-  icon?: TrackIconName;
+  icon: TrackIconName;
   size?: number;
 }) {
-  const Icon = trackIcons[icon ?? "audio"] || AudioLines;
+  const Icon = trackIcons[icon];
   return <Icon size={size} />;
 }

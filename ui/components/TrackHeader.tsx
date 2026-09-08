@@ -49,12 +49,7 @@ export function TrackHeader({
       )}
       <span className="track-number">{String(index + 1).padStart(2, "0")}</span>
       <div className="instrument">
-        <TrackIcon
-          icon={
-            track.icon ||
-            (track.kind === "midi" ? "keys" : index === 1 ? "bass" : "guitar")
-          }
-        />
+        <TrackIcon icon={track.icon} />
       </div>
       <div className="track-info">
         <div className="track-name">

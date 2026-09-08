@@ -15,7 +15,7 @@ export function MidiRouting({
       <select
         aria-label={`${track.name} MIDI device`}
         disabled={disabled}
-        value={track.midiDevice ?? ""}
+        value={track.midiDevice}
         onChange={(e) => update(track, { midiDevice: e.target.value })}
       >
         <option value="">No external input · plug-in preview</option>
@@ -34,7 +34,7 @@ export function MidiRouting({
       <select
         aria-label={`${track.name} MIDI channel`}
         disabled={disabled}
-        value={track.midiChannel ?? 0}
+        value={track.midiChannel}
         onChange={(e) => update(track, { midiChannel: +e.target.value })}
       >
         <option value={0}>All channels</option>

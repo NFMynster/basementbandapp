@@ -12,7 +12,7 @@ export function TrackAppearance({
 }) {
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const close = useCallback(() => setAnchor(null), []);
-  const icon = track.icon || (track.kind === "midi" ? "keys" : "guitar");
+  const icon = track.icon;
   return (
     <>
       <button

@@ -35,15 +35,15 @@ void Engine::restoreSession(const var &c) {
     t->id = str(v, "id");
     t->name = str(v, "name");
     t->color = str(v, "color");
-    t->icon = str(v, "icon", "guitar");
+    t->icon = str(v, "icon");
     t->input = (int)number(v, "input");
     t->isMidi = str(v, "kind") == "midi";
-    t->monitor = flag(v, "monitor", t->isMidi);
+    t->monitor = flag(v, "monitor");
     t->midiDevice = str(v, "midiDevice");
-    t->midiChannel = jlimit(0, 16, (int)number(v, "midiChannel"));
+    t->midiChannel = (int)number(v, "midiChannel");
     t->collector.reset(rate);
     t->liveMidi.ensureSize(65536);
-    t->gain = (float)number(v, "gain", 0.8);
+    t->gain = (float)number(v, "gain");
     t->pan = (float)number(v, "pan");
     t->mute = flag(v, "mute");
     t->solo = flag(v, "solo");
@@ -61,16 +61,16 @@ void Engine::restoreSession(const var &c) {
       clip->start = number(cv, "start");
       clip->id = str(cv, "id");
       clip->offset = number(cv, "offset");
-      clip->length = number(cv, "length", -1);
+      clip->length = number(cv, "length");
       require(clip->offset >= 0 && clip->offset < clip->sourceDuration() &&
                   (clip->length == -1 || (clip->length > 0 && clip->offset + clip->length <=
                                                                   clip->sourceDuration() + 0.002)),
               "Invalid region trim");
       clip->takeGroup = str(cv, "takeGroup");
       clip->take = (int)number(cv, "take");
-      clip->active = flag(cv, "active", true);
-      clip->sourceStart = number(cv, "sourceStart", clip->takeGroup.isEmpty() ? 0 : clip->offset);
-      clip->sourceEnd = number(cv, "sourceEnd", clip->takeGroup.isEmpty() ? clip->sourceDuration() : clip->offset + clip->duration());
+      clip->active = flag(cv, "active");
+      clip->sourceStart = number(cv, "sourceStart");
+      clip->sourceEnd = number(cv, "sourceEnd");
       require(clip->sourceStart >= 0 && clip->sourceStart <= clip->offset &&
                   clip->sourceEnd >= clip->offset + clip->duration() - 1e-8 &&
                   clip->sourceEnd <= clip->sourceDuration() + 0.002,
@@ -90,10 +90,10 @@ void Engine::restoreSession(const var &c) {
   folder = str(c, "folder");
   title = str(session, "title");
   position = 0;
-  tempo = number(session, "tempo", 120);
-  masterGain = (float)jlimit(0.0, 2.0, number(session, "masterGain", 1));
+  tempo = number(session, "tempo");
+  masterGain = (float)number(session, "masterGain");
   loopStart = number(session, "loopStart");
-  loopEnd = number(session, "loopEnd", 8);
+  loopEnd = number(session, "loopEnd");
   looping = flag(session, "looping");
   metronome = flag(session, "metronome");
   countIn = flag(session, "countIn");
