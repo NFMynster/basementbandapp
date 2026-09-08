@@ -32,6 +32,11 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     let s = await send({ op: "init", folder });
     assert.equal(s.bufferSize, 256);
     assert.equal(
+      s.audioInputActive,
+      false,
+      "Unmarked audio tracks must not keep the input open",
+    );
+    assert.equal(
       s.masterGain,
       1,
       "Default output leaves room below the 2x maximum",
@@ -49,7 +54,8 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     assert.equal(s.tracks[0].monitor, false);
     await send({ op: "track", track: audio, gain: 1 });
     await output(0);
-    await send({ op: "track", track: audio, monitor: true });
+    s = await send({ op: "track", track: audio, monitor: true });
+    assert.equal(s.audioInputActive, true, "Audio monitoring needs input");
     await output(0.4);
     await send({ op: "master", value: 2 });
     await output(0.8);
@@ -81,6 +87,11 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     assert.equal(s.tracks[0].clips.at(-1).start, 3.5);
     s = await send({ op: "addTrack", kind: "midi" });
     const midi = s.tracks.at(-1).id;
+    assert.equal(
+      s.audioInputActive,
+      false,
+      "MIDI monitoring must use output-only when no audio track needs input",
+    );
     assert.equal(s.tracks.at(-1).monitor, true);
     assert.equal(s.tracks.at(-1).midiDevice, "");
     assert.equal(s.tracks.at(-1).armed, false);
@@ -94,7 +105,12 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     await send({ op: "track", track: midi, gain: 1 });
     await send({ op: "testMidi", track: midi, note: 36 });
     await output(0.125, 0);
-    await send({ op: "track", track: midi, monitor: false, armed: true });
+    s = await send({ op: "track", track: midi, monitor: false, armed: true });
+    assert.equal(
+      s.audioInputActive,
+      false,
+      "Marking MIDI for capture must not enable microphone input",
+    );
     await send({ op: "seek", position: 1 });
     await send({ op: "record" }); // No MIDI device required.
     await send({ op: "testMidi", track: midi, note: 36 });

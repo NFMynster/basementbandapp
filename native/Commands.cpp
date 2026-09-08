@@ -197,11 +197,14 @@ var Engine::command(const var &c) {
     editor = std::make_unique<PluginWindow>(*t.plugin);
   } else
     throw std::runtime_error("Unknown audio command");
+  syncAudioInput();
   return state();
 }
 
 void Engine::updateTrack(const var &c) {
   auto &t = track(c);
+  if (!t.isMidi && !audioInputActive && (flag(c, "armed") || flag(c, "monitor")))
+    require(!playing, "Stop playback before enabling an audio input. MIDI monitoring does not need it.");
   if (c.hasProperty("midiDevice")) {
     require(!recording, "Stop recording before changing MIDI inputs");
     const auto id = str(c, "midiDevice");

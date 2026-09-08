@@ -26,6 +26,11 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   bool testDevice = false;
   MidiBuffer midi;
   int inputLatency = 0, outputLatency = 0;
+  String configuredInput;
+  StringArray inputChannelNames;
+  bool audioInputActive = false;
+  bool needsAudioInput() const;
+  void syncAudioInput();
 
   Track &track(const var &command);
   std::unique_ptr<Clip> readClip(String path, String name, double start);

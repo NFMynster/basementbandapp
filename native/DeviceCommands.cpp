@@ -2,6 +2,34 @@
 #include <cmath>
 
 namespace basement {
+bool Engine::needsAudioInput() const {
+  return configuredInput.isNotEmpty() && std::any_of(tracks.begin(), tracks.end(), [](const auto &t) {
+    return !t->isMidi && (t->armed || t->monitor);
+  });
+}
+
+void Engine::syncAudioInput() {
+  // Device reconfiguration must never happen under guard (its callbacks take
+  // that lock), on the audio thread, or in the middle of a running transport.
+  if (playing) return;
+  const bool needed = needsAudioInput();
+  if (testDevice) { audioInputActive = needed; return; }
+  auto setup = devices.getAudioDeviceSetup();
+  const String target = needed ? configuredInput : String();
+  if (setup.inputDeviceName == target && audioInputActive == needed) return;
+  if (auto *d = devices.getCurrentAudioDevice(); d && audioInputActive)
+    inputChannelNames = d->getInputChannelNames();
+  setup.inputDeviceName = target;
+  setup.useDefaultInputChannels = false;
+  setup.inputChannels.clear();
+  if (needed) setup.inputChannels.setRange(0, 128, true);
+  deviceError = devices.setAudioDeviceSetup(setup, false);
+  auto *d = devices.getCurrentAudioDevice();
+  audioInputActive = d && !d->getActiveInputChannels().isZero();
+  if (audioInputActive) inputChannelNames = d->getInputChannelNames();
+  if (deviceError.isNotEmpty()) throw std::runtime_error(deviceError.toStdString());
+}
+
 var Engine::listDevices() {
   Array<var> types;
   for (auto *type : devices.getAvailableDeviceTypes()) {
@@ -16,13 +44,14 @@ var Engine::listDevices() {
   Array<var> channels, rates, buffers;
   auto *d = devices.getCurrentAudioDevice();
   if (d) {
-    for (auto &s : d->getInputChannelNames())
-      channels.add(s);
+    if (audioInputActive) inputChannelNames = d->getInputChannelNames();
     for (auto r : d->getAvailableSampleRates())
       rates.add(r);
     for (auto b : d->getAvailableBufferSizes())
       buffers.add(b);
   }
+  if (configuredInput.isNotEmpty())
+    for (auto &s : inputChannelNames) channels.add(s);
   auto setup = devices.getAudioDeviceSetup();
   Array<var> midiInputs;
   for (const auto &device : MidiInput::getAvailableDevices())
@@ -30,7 +59,8 @@ var Engine::listDevices() {
   return object({{"types", types},
                  {"midiInputs", midiInputs},
                  {"type", devices.getCurrentAudioDeviceType()},
-                 {"input", setup.inputDeviceName},
+                 {"input", configuredInput},
+                 {"audioInputActive", audioInputActive},
                  {"output", setup.outputDeviceName},
                  {"channels", channels},
                  {"rates", rates},
@@ -43,14 +73,18 @@ var Engine::configureDevice(const var &c) {
   require(!playing, "Stop transport before changing audio devices");
   devices.setCurrentAudioDeviceType(str(c, "type"), true);
   auto setup = devices.getAudioDeviceSetup();
-  setup.inputDeviceName = str(c, "input");
+  if (configuredInput != str(c, "input")) inputChannelNames.clear();
+  configuredInput = str(c, "input");
+  setup.inputDeviceName = needsAudioInput() ? configuredInput : String();
   setup.outputDeviceName = str(c, "output");
   setup.sampleRate = number(c, "sampleRate", 48000);
   setup.bufferSize = (int)number(c, "bufferSize", 256);
   setup.useDefaultInputChannels = false;
   setup.inputChannels.clear();
-  setup.inputChannels.setRange(0, 128, true);
+  if (needsAudioInput()) setup.inputChannels.setRange(0, 128, true);
   deviceError = devices.setAudioDeviceSetup(setup, true);
+  auto *device = devices.getCurrentAudioDevice();
+  audioInputActive = device && !device->getActiveInputChannels().isZero();
   if (deviceError.isNotEmpty())
     throw std::runtime_error(deviceError.toStdString());
   return listDevices();

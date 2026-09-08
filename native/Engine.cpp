@@ -24,6 +24,7 @@ void Engine::add(String name, String color, int input) {
 }
 
 Engine::Engine(bool testing) : testDevice(testing) {
+  if (testDevice) configuredInput = "Test input";
   formats.registerBasicFormats();
   addDefaultFormatsToManager(plugins);
   disk.startThread();
@@ -50,6 +51,11 @@ void Engine::initializeAudio(bool inputAllowed) {
     }
 #endif
   deviceError = devices.initialise(inputAllowed ? 2 : 0, 2, nullptr, true, {}, &preferred);
+  configuredInput = devices.getAudioDeviceSetup().inputDeviceName;
+  if (auto *device = devices.getCurrentAudioDevice()) {
+    inputChannelNames = device->getInputChannelNames();
+    audioInputActive = !device->getActiveInputChannels().isZero();
+  }
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
   std::cerr << "Audio device initialization finished: " << deviceError << std::endl;
@@ -129,6 +135,7 @@ var Engine::state(bool full) {
        {"loopEnd", loopEnd},
        {"tempo", tempo},
        {"masterGain", masterGain},
+       {"audioInputActive", audioInputActive},
        {"masterPeak", masterPeak.load()},
        {"metronome", metronome},
        {"countIn", countIn},

@@ -192,6 +192,11 @@ export function AudioSetupDialog({
                               <option key={n}>{n}</option>
                             ))}
                         </select>
+                        <small>
+                          {s.audioInputActive
+                            ? "Active for audio recording or monitoring."
+                            : "Idle · MIDI and playback use output only. Opens when an audio track needs input."}
+                        </small>
                       </label>
                       <label>
                         Output device

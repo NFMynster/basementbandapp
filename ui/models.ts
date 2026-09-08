@@ -36,6 +36,7 @@ export type Track = {
   bypass: boolean;
 };
 export type Session = {
+  audioInputActive?: boolean;
   outputLatencySamples?: number;
   inputLatencySamples?: number;
   masterGain?: number;
