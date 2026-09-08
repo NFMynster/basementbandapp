@@ -7,10 +7,11 @@ function bridge(): DesktopApi {
   return window.basement;
 }
 export const desktop: DesktopApi = {
+  dropFiles: (files, track, plugin) => bridge().dropFiles(files, track, plugin),
   command: (c) => bridge().command(c),
   save: () => bridge().save(),
   open: () => bridge().open(),
   importAudio: (t) => bridge().importAudio(t),
-  plugin: (t) => bridge().plugin(t),
+  plugin: (t, bundle) => bridge().plugin(t, bundle),
   exportAudio: (options) => bridge().exportAudio(options),
 };

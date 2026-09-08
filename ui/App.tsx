@@ -8,6 +8,8 @@ import { Notices } from "./components/Notices";
 import { AudioSetupDialog } from "./components/AudioSetupDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { ExportDialog } from "./components/ExportDialog";
+import { CreateTrackDialog } from "./components/CreateTrackDialog";
+import { WelcomeDialog } from "./components/WelcomeDialog";
 export function App() {
   const controller = useWorkspace();
   if (controller.starting) {
@@ -33,7 +35,11 @@ export function App() {
     );
   }
   return (
-    <div className="app">
+    <div
+      className="app"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => e.preventDefault()}
+    >
       <TitleBar controller={controller} />
       <Transport controller={controller} />
       <Arrangement controller={controller} />
@@ -42,6 +48,17 @@ export function App() {
       <Notices controller={controller} />
       <AudioSetupDialog controller={controller} />
       <HelpDialog controller={controller} />
+      {controller.creatingTrack && (
+        <CreateTrackDialog controller={controller} />
+      )}
+      {controller.welcome && <WelcomeDialog controller={controller} />}
+      {!!controller.s.countdown && (
+        <div className="count-in-overlay" role="status" aria-live="polite">
+          <span>GET READY</span>
+          <strong key={controller.s.countdown}>{controller.s.countdown}</strong>
+          <button onClick={() => controller.run({ op: "stop" })}>Cancel</button>
+        </div>
+      )}
       {controller.exportTarget !== null && (
         <ExportDialog controller={controller} />
       )}

@@ -2,26 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { startRpc } from "./helpers/process.mjs";
+import { startSession } from "./helpers/session.mjs";
 
-test("C# persists mixed audio/MIDI sessions and reconstructs MIDI note previews", async () => {
+test("Electron persists mixed audio/MIDI sessions and reconstructs MIDI note previews", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/midi-project-"));
-  const rpc = startRpc(
-    "dotnet",
-    [resolve("artifacts/backend/BasementBand.dll")],
-    {
-      env: {
-        ...process.env,
-        BASEMENT_NATIVE: resolve(
-          "artifacts/native/BasementAudio" +
-            (process.platform === "win32" ? ".exe" : ""),
-        ),
-        BASEMENT_DATA: folder,
-        BASEMENT_TEST_DEVICE: "1",
-      },
-    },
-  );
+  const rpc = startSession(folder);
   try {
     const send = async (command) => {
       const reply = await rpc.send(command);

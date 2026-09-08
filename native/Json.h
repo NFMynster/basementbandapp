@@ -9,7 +9,9 @@ inline var object(std::initializer_list<std::pair<String, var>> values) {
     d->setProperty(Identifier(k), v);
   return var(d);
 }
-inline String str(const var &v, const char *key) { return v.getProperty(key, {}).toString(); }
+inline String str(const var &v, const char *key, const String &fallback = {}) {
+  return v.getProperty(key, fallback).toString();
+}
 inline double number(const var &v, const char *key, double fallback = 0) {
   return (double)v.getProperty(key, fallback);
 }

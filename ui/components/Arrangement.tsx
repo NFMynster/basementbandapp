@@ -2,28 +2,17 @@ import type React from "react";
 import { useState, useCallback } from "react";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
-import { MidiNotes } from "./MidiNotes";
-import {
-  AudioLines,
-  ArrowDownToLine,
-  ChevronRight,
-  Guitar,
-  Headphones,
-  Repeat2 as Loop,
-  Music2,
-  Plus,
-  Settings2,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { ClipRegion } from "./ClipRegion";
+import { TrackIcon } from "./TrackIcon";
+import { Headphones, Plus, ZoomIn, ZoomOut } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
-import { Waveform } from "./Waveform";
 export function Arrangement({
   controller,
 }: {
   controller: WorkspaceController;
 }) {
+  const [scrollY, setScrollY] = useState(0);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(
     null,
   );
@@ -32,8 +21,6 @@ export function Arrangement({
     s,
     track,
     setSelected,
-    clipId,
-    setClipId,
     run,
     update,
     zoom,
@@ -47,8 +34,6 @@ export function Arrangement({
     selection,
     loop,
     pxPerSecond,
-    hasClips,
-    openSetup,
     task,
   } = controller;
   return (
@@ -89,16 +74,20 @@ export function Arrangement({
           className="track-list"
           ref={trackList}
           onScroll={(e) => {
-            if (timelineScroll.current)
+            setScrollY(e.currentTarget.scrollTop);
+            if (
+              timelineScroll.current &&
+              timelineScroll.current.scrollTop !== e.currentTarget.scrollTop
+            )
               timelineScroll.current.scrollTop = e.currentTarget.scrollTop;
           }}
         >
           <div className="track-list-title">
             TRACKS
             <button
-              title="Add audio track"
+              title="Add track"
               disabled={s.recording}
-              onClick={() => run({ op: "addTrack" })}
+              onClick={controller.openCreateTrack}
             >
               <Plus size={17} />
             </button>
@@ -106,6 +95,7 @@ export function Arrangement({
           {s.tracks.map((t, i) => (
             <div
               key={t.id}
+              data-track-header={t.id}
               className={
                 "track-header " + (track?.id === t.id ? "selected" : "")
               }
@@ -135,15 +125,19 @@ export function Arrangement({
                 }
               }}
             >
+              {controller.trackPing === t.id && (
+                <span className="properties-ping" aria-hidden="true" />
+              )}
               <span className="track-number">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="instrument">
-                {t.kind === "midi" || i === 1 ? (
-                  <Music2 size={27} />
-                ) : (
-                  <Guitar size={28} />
-                )}
+                <TrackIcon
+                  icon={
+                    t.icon ||
+                    (t.kind === "midi" ? "keys" : i === 1 ? "bass" : "guitar")
+                  }
+                />
               </div>
               <div className="track-info">
                 <div className="track-name">
@@ -202,24 +196,10 @@ export function Arrangement({
           <button
             className="add-track"
             disabled={s.recording}
-            onClick={() => run({ op: "addTrack" })}
+            onClick={controller.openCreateTrack}
           >
             <Plus size={17} />
-            Add audio track
-          </button>
-          <button
-            className="add-track"
-            disabled={s.recording}
-            onClick={async () => {
-              const result = await run({ op: "addTrack", kind: "midi" });
-              if (result) {
-                setSelected(result.tracks.at(-1)!.id);
-                controller.setPanel("plugins");
-              }
-            }}
-          >
-            <Plus size={17} />
-            Add MIDI track
+            Add track
           </button>
           <div className="track-list-bottom">
             <Headphones size={16} />
@@ -230,13 +210,17 @@ export function Arrangement({
           className="timeline-scroll"
           ref={timelineScroll}
           onScroll={(e) => {
-            if (trackList.current)
+            if (
+              trackList.current &&
+              trackList.current.scrollTop !== e.currentTarget.scrollTop
+            )
               trackList.current.scrollTop = e.currentTarget.scrollTop;
           }}
         >
           <div className="timeline" style={{ width, minHeight: "100%" }}>
             <div
               className="ruler"
+              style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
               onPointerDown={rulerDown}
               onPointerMove={rulerMove}
               onPointerUp={rulerUp}
@@ -265,9 +249,7 @@ export function Arrangement({
                     left: loop.start * pxPerSecond,
                     width: (loop.end - loop.start) * pxPerSecond,
                   }}
-                >
-                  <Loop size={11} />
-                </div>
+                ></div>
               )}
             </div>
             <div
@@ -277,6 +259,18 @@ export function Arrangement({
               {s.tracks.map((t) => (
                 <div
                   key={t.id}
+                  data-lane={t.id}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    task(() =>
+                      api.dropFiles(Array.from(e.dataTransfer.files), t.id),
+                    );
+                  }}
                   className={"lane " + (t.id === track?.id ? "selected" : "")}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -290,56 +284,16 @@ export function Arrangement({
                   }}
                   onClick={() => setSelected(t.id)}
                 >
-                  {t.clips.map((c) => (
-                    <div
-                      key={c.id}
-                      className={"clip " + (clipId === c.id ? "chosen" : "")}
-                      style={
-                        {
-                          left: c.start * pxPerSecond,
-                          width: Math.max(12, c.duration * pxPerSecond),
-                          "--clip-color": t.color,
-                        } as React.CSSProperties
-                      }
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`${c.name}, ${c.duration.toFixed(1)} seconds. Double click to loop.`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(t.id);
-                        setClipId(c.id);
-                      }}
-                      onDoubleClick={() =>
-                        run({
-                          op: "loop",
-                          start: c.start,
-                          end: c.start + c.duration,
-                          enabled: true,
-                        })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          run({
-                            op: "loop",
-                            start: c.start,
-                            end: c.start + c.duration,
-                            enabled: true,
-                          });
-                        if (e.key === "Delete")
-                          run({ op: "removeClip", track: t.id, clip: c.id });
-                      }}
-                    >
-                      <div className="clip-title">
-                        {c.name}
-                        <AudioLines size={12} />
-                      </div>
-                      {c.kind === "midi" ? (
-                        <MidiNotes clip={c} />
-                      ) : (
-                        <Waveform peaks={c.peaks} />
-                      )}
-                    </div>
-                  ))}
+                  {t.clips
+                    .filter((c) => c.active !== false)
+                    .map((c) => (
+                      <ClipRegion
+                        key={c.id}
+                        clip={c}
+                        track={t}
+                        controller={controller}
+                      />
+                    ))}
                   {s.recording && t.armed && (
                     <div
                       className="recording-region"
@@ -356,11 +310,24 @@ export function Arrangement({
                   )}
                 </div>
               ))}
-              <div className="empty-grid" />
+              <div
+                className="empty-grid"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  task(() => api.dropFiles(Array.from(e.dataTransfer.files)));
+                }}
+              >
+                <span>Drop audio or MIDI files here to create tracks</span>
+              </div>
             </div>
             <div
               className={"playhead " + (s.recording ? "red" : "")}
               style={{
+                top: scrollY + 25,
                 left: (controller.dragPosition ?? s.position) * pxPerSecond,
               }}
               role="slider"
@@ -430,37 +397,6 @@ export function Arrangement({
             </div>
           </div>
         </div>
-        {!hasClips && !s.recording && (
-          <div className="welcome">
-            <div className="welcome-icon">
-              <AudioLines size={32} />
-            </div>
-            <span className="eyebrow">GOOD MUSIC STARTS WITH A MOMENT</span>
-            <h1>
-              Plug in. Press record.
-              <br />
-              See where it goes.
-            </h1>
-            <p>
-              A guitar, a bass, a friend. Give each input a track
-              <br />
-              and capture the whole thing together.
-            </p>
-            <button className="primary" onClick={openSetup}>
-              <Settings2 size={16} />
-              Set up your inputs
-              <ChevronRight size={16} />
-            </button>
-            <button
-              className="text-button"
-              disabled={!track}
-              onClick={() => task(() => api.importAudio(track!.id))}
-            >
-              <ArrowDownToLine size={14} />
-              Or import an audio file
-            </button>
-          </div>
-        )}
       </main>
       {menu && s.tracks.find((t) => t.id === menu.id) && (
         <TrackMenu

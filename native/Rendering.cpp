@@ -25,25 +25,37 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
       time = loopStart + std::fmod(time - loopStart, loopEnd - loopStart);
     if (t.isMidi && t.previousMidiTime >= 0 && time < t.previousMidiTime)
       panicMidi(midi, i);
-    const bool chase = t.isMidi && (t.previousMidiTime < 0 || time < t.previousMidiTime);
+    bool chase = t.isMidi && (t.previousMidiTime < 0 || time < t.previousMidiTime);
     t.previousMidiTime = time;
+    Clip *top = nullptr;
+    for (auto &candidate : t.clips)
+      if (candidate->active && time >= candidate->start &&
+          time < candidate->start + candidate->duration())
+        top = candidate.get();
+    if (t.isMidi && top != t.previousClip) {
+      panicMidi(midi, i);
+      chase = true;
+    }
+    t.previousClip = top;
     for (auto &c : t.clips) {
+      if (c.get() != top)
+        continue;
       if (c->isMidi) {
-        const double relative = time - c->start;
-        if (relative < 0 || relative > c->duration() + 1 / rate)
+        const double relative = time - c->start + c->offset;
+        if (relative < c->offset || relative > c->offset + c->duration() + 1 / rate)
           continue;
         if (chase)
-          for (auto *event : c->events) {
+          for (auto *event : *c->events) {
             if (event->message.isNoteOn() && event->message.getTimeStamp() < relative &&
                 event->noteOffObject && event->noteOffObject->message.getTimeStamp() > relative)
               midi.addEvent(event->message, i);
           }
         if (chase || c->eventPosition < 0 || relative < c->eventPosition ||
             relative - c->eventPosition > 1.5 / rate) {
-          int low = 0, high = c->events.getNumEvents();
+          int low = 0, high = c->events->getNumEvents();
           while (low < high) {
             const int mid = (low + high) / 2;
-            if (c->events.getEventPointer(mid)->message.getTimeStamp() < relative - 1e-9)
+            if (c->events->getEventPointer(mid)->message.getTimeStamp() < relative - 1e-9)
               low = mid + 1;
             else
               high = mid;
@@ -51,8 +63,8 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
           c->eventCursor = low;
         }
         c->eventPosition = relative;
-        while (c->eventCursor < c->events.getNumEvents()) {
-          const auto &event = c->events.getEventPointer(c->eventCursor)->message;
+        while (c->eventCursor < c->events->getNumEvents()) {
+          const auto &event = c->events->getEventPointer(c->eventCursor)->message;
           if (event.getTimeStamp() >= relative + 1 / rate - 1e-9)
             break;
           midi.addEvent(event, i);
@@ -60,14 +72,14 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
         }
         continue;
       }
-      double sample = (time - c->start) * c->sampleRate;
-      if (sample < 0 || sample >= c->audio.getNumSamples())
+      double sample = (time - c->start + c->offset) * c->sampleRate;
+      if (sample < 0 || sample >= c->audio->getNumSamples())
         continue;
-      int a = (int)sample, b = jmin(a + 1, c->audio.getNumSamples() - 1);
+      int a = (int)sample, b = jmin(a + 1, c->audio->getNumSamples() - 1);
       float f = (float)(sample - a);
       for (int ch = 0; ch < 2; ++ch) {
-        int source = jmin(ch, c->audio.getNumChannels() - 1);
-        float v = c->audio.getSample(source, a) * (1 - f) + c->audio.getSample(source, b) * f;
+        int source = jmin(ch, c->audio->getNumChannels() - 1);
+        float v = c->audio->getSample(source, a) * (1 - f) + c->audio->getSample(source, b) * f;
         t.scratch.addSample(ch, i, v);
       }
     }

@@ -12,6 +12,8 @@ Track &Engine::track(const var &c) {
 void Engine::add(String name, String color, int input) {
   auto t = std::make_unique<Track>();
   t->name = name;
+  if (name == "Bass")
+    t->icon = "bass";
   t->color = color;
   t->input = input;
   t->collector.reset(rate);
@@ -42,6 +44,7 @@ Engine::~Engine() {
 }
 
 var Engine::state(bool full) {
+  const ScopedLock lock(guard);
   Array<var> list;
   for (auto &t : tracks) {
     Array<var> clips;
@@ -50,6 +53,7 @@ var Engine::state(bool full) {
     auto v = object({{"id", t->id},
                      {"name", t->name},
                      {"color", t->color},
+                     {"icon", t->icon},
                      {"input", t->input},
                      {"kind", t->isMidi ? "midi" : "audio"},
                      {"midiDevice", t->midiDevice},
@@ -76,21 +80,29 @@ var Engine::state(bool full) {
     list.add(v);
   }
   auto *d = devices.getCurrentAudioDevice();
-  return object({{"title", title},
-                 {"tracks", list},
-                 {"position", position.load()},
-                 {"playing", playing.load()},
-                 {"recording", recording.load()},
-                 {"looping", looping},
-                 {"loopStart", loopStart},
-                 {"loopEnd", loopEnd},
-                 {"tempo", tempo},
-                 {"sampleRate", rate},
-                 {"bufferSize", block},
-                 {"inputLatencySamples", inputLatency},
-                 {"outputLatencySamples", outputLatency},
-                 {"device", d ? d->getName() : "No audio device"},
-                 {"deviceError", deviceError},
-                 {"diskOverrun", diskOverrun.load()}});
+  return object(
+      {{"title", title},
+       {"tracks", list},
+       {"position",
+        recording && cycleRecording
+            ? recordingLoopStart + std::fmod(jmax(0.0, position.load() - recordingLoopStart),
+                                             recordingLoopEnd - recordingLoopStart)
+            : position.load()},
+       {"playing", playing.load()},
+       {"recording", recording.load()},
+       {"looping", looping},
+       {"loopStart", loopStart},
+       {"loopEnd", loopEnd},
+       {"tempo", tempo},
+       {"metronome", metronome},
+       {"countIn", countIn},
+       {"countdown", countRemaining > 0 ? (int)std::ceil(countRemaining / (rate * 60 / tempo)) : 0},
+       {"sampleRate", rate},
+       {"bufferSize", block},
+       {"inputLatencySamples", inputLatency},
+       {"outputLatencySamples", outputLatency},
+       {"device", d ? d->getName() : "No audio device"},
+       {"deviceError", deviceError},
+       {"diskOverrun", diskOverrun.load()}});
 }
 } // namespace basement

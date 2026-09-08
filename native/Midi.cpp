@@ -26,15 +26,15 @@ std::unique_ptr<Clip> Engine::readMidiClip(String path, String name, double star
   require(clip->midiLength <= 60 * 20, "MIDI regions must be shorter than 20 minutes");
   for (int i = 0; i < file.getNumTracks(); ++i) {
     const auto *sequence = file.getTrack(i);
-    require(sequence->getNumEvents() + clip->events.getNumEvents() <= 262144,
+    require(sequence->getNumEvents() + clip->events->getNumEvents() <= 262144,
             "MIDI file has too many events");
     for (const auto *event : *sequence) {
       const auto &m = event->message;
       if (m.getChannel() > 0 && m.getRawDataSize() <= 3)
-        clip->events.addEvent(m);
+        clip->events->addEvent(m);
     }
   }
-  clip->events.updateMatchedPairs();
+  clip->events->updateMatchedPairs();
   return clip;
 }
 

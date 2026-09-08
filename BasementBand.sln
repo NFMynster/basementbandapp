@@ -1,28 +1,21 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.7.12002.237 oobstable
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasementBand", "backend\BasementBand.csproj", "{45CA6434-40C7-4BAE-B133-D28919F93803}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F527AC28-AB37-45F9-9928-8A1E596E1C24}"
-	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
-		docs\BUILD.md = docs\BUILD.md
-		docs\ARCHITECTURE.md = docs\ARCHITECTURE.md
-		docs\RUNTIME.md = docs\RUNTIME.md
-		package.json = package.json
-		.editorconfig = .editorconfig
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Basement Band Desktop", "BasementBand.Desktop.vcxproj", "{7166373A-B501-4B8B-8BCB-A328958BC075}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{45CA6434-40C7-4BAE-B133-D28919F93803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{45CA6434-40C7-4BAE-B133-D28919F93803}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{45CA6434-40C7-4BAE-B133-D28919F93803}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{45CA6434-40C7-4BAE-B133-D28919F93803}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7166373A-B501-4B8B-8BCB-A328958BC075}.Debug|x64.ActiveCfg = Debug|x64
+		{7166373A-B501-4B8B-8BCB-A328958BC075}.Debug|x64.Build.0 = Debug|x64
+		{7166373A-B501-4B8B-8BCB-A328958BC075}.Release|x64.ActiveCfg = Release|x64
+		{7166373A-B501-4B8B-8BCB-A328958BC075}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

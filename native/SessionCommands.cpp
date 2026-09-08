@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include <cmath>
+#include <map>
 
 namespace basement {
 void Engine::resetSession(const var &c) {
@@ -27,11 +28,13 @@ void Engine::restoreSession(const var &c) {
   // Decode before replacing the existing session, so missing/corrupt media
   // cannot destroy it.
   std::vector<std::unique_ptr<Track>> loaded;
+  std::map<String, std::shared_ptr<Clip>> media;
   for (auto &v : *session["tracks"].getArray()) {
     auto t = std::make_unique<Track>();
     t->id = str(v, "id");
     t->name = str(v, "name");
     t->color = str(v, "color");
+    t->icon = str(v, "icon", "guitar");
     t->input = (int)number(v, "input");
     t->isMidi = str(v, "kind") == "midi";
     t->midiDevice = str(v, "midiDevice");
@@ -47,9 +50,23 @@ void Engine::restoreSession(const var &c) {
     t->scratch.setSize(2, jmax(block, 8192));
     require(v["clips"].isArray(), "Invalid session clips");
     for (auto &cv : *v["clips"].getArray()) {
-      auto clip = t->isMidi ? readMidiClip(str(cv, "path"), str(cv, "name"), number(cv, "start"))
-                            : readClip(str(cv, "path"), str(cv, "name"), number(cv, "start"));
+      const auto key = str(cv, "path");
+      if (!media.contains(key))
+        media[key] = t->isMidi ? readMidiClip(key, {}, 0) : readClip(key, {}, 0);
+      require(media[key]->isMidi == t->isMidi, "Region does not match track type");
+      auto clip = std::make_unique<Clip>(*media[key]);
+      clip->name = str(cv, "name");
+      clip->start = number(cv, "start");
       clip->id = str(cv, "id");
+      clip->offset = number(cv, "offset");
+      clip->length = number(cv, "length", -1);
+      require(clip->offset >= 0 && clip->offset < clip->sourceDuration() &&
+                  (clip->length == -1 || (clip->length > 0 && clip->offset + clip->length <=
+                                                                  clip->sourceDuration() + 0.002)),
+              "Invalid region trim");
+      clip->takeGroup = str(cv, "takeGroup");
+      clip->take = (int)number(cv, "take");
+      clip->active = flag(cv, "active", true);
       t->clips.push_back(std::move(clip));
     }
     if (str(v, "pluginPath").isNotEmpty())
@@ -69,6 +86,8 @@ void Engine::restoreSession(const var &c) {
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd", 8);
   looping = flag(session, "looping");
+  metronome = flag(session, "metronome");
+  countIn = flag(session, "countIn");
   preparePlayback(position, looping);
 }
 } // namespace basement

@@ -1,62 +1,52 @@
 # Working on Basement Band
 
-The app has three processes. Keep raw audio in JUCE; the other two processes send commands and display state.
+The desktop is React/Electron plus a separate C++/JUCE audio process. C# has been removed.
 
-| Area                   | Owns                                                               | Entry points                                                  |
-| ---------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| React renderer         | Workspace state, interaction, presentation                         | `ui/App.tsx`, `ui/hooks/useWorkspace.ts`, `ui/components/`    |
-| Renderer contract      | Typed commands, results and preload access                         | `ui/models.ts`, `ui/services/desktop.ts`                      |
-| Electron shell         | Windows, dialogs, allowed IPC and service lifecycle                | `desktop/main.cjs`, `desktop/ipc.cjs`, `desktop/backend.cjs`  |
-| Process transport      | Request IDs, deadlines and child failures                          | `desktop/service-client.cjs`, `backend/Audio/EngineClient.cs` |
-| C# application service | Session save/open, validation and working folders                  | `backend/Sessions/`                                           |
-| JUCE engine            | Audio callback, recording, devices, plugin hosting and arrangement | `native/Engine.h` and its focused implementation files        |
+| Area             | Owns                                                  | Entry points                                   |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| Renderer         | Presentation, selection, interaction, preferences     | ui/App.tsx, ui/hooks/, ui/components/          |
+| Contract         | Typed commands and limited preload API                | ui/models.ts, desktop/preload.cjs              |
+| Desktop shell    | Windows, dialogs, sender validation, file drops       | desktop/main.cjs, desktop/ipc.cjs              |
+| Session service  | Validation, portable saves, working folders           | desktop/session-service.cjs                    |
+| Native transport | Serialized pipe requests, framing, failure quarantine | desktop/native-client.cjs, desktop/backend.cjs |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering | native/Engine.h and focused .cpp files         |
 
-`native/Main.cpp` only runs the message loop and framed JSON transport. `Commands.cpp` dispatches commands. Disk recording and waveform loading live in `Recording.cpp`; plugin loading is in `PluginHost.cpp`; device and session commands have their own implementation files. The engine owns tracks/plugins and its short control lock. The callback uses a non-blocking lock attempt and reports dropouts; this is still an early audio engine, not a production real-time design.
+## Extending behavior
 
-## Adding behavior
-
-1. Add the renderer command/result to `ui/models.ts`. Use the existing desktop adapter; do not add direct filesystem or process access to React.
-2. Allow a user-facing command in `desktop/ipc.cjs`, or use a dedicated dialog handler when a path is needed. Internal commands such as `restore`, `snapshot` and test `pump` are not renderer commands.
-3. Implement project/filesystem behavior in the C# session service, and audio behavior in a focused native implementation. Add engine members/declarations in `Engine.h`.
-4. Update a focused UI component and the workspace hook. Reuse `Modal` for focus trapping, Escape handling and isolation from transport shortcuts.
-5. Extend the integration test for the affected boundary, then build and run the checks below.
-
-Avoid placeholder controls and unreachable protocol operations for future features. Extend MIDI editing and plugin-chain capabilities only with their implemented workflows. The unused move-region command was removed during cleanup; it can return with an actual editing interaction.
+1. Extend the typed contract in ui/models.ts.
+2. Allow the command in desktop/ipc.cjs or use a dedicated validated handler for paths. Renderer code must not gain arbitrary filesystem or process access.
+3. Put filesystem/session behavior in the Electron session service; put audio behavior in a focused native file.
+4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
+5. Add deterministic integration tests and UI checks.
 
 ## Protocol and lifecycle
 
-Electron sends `{id, op, ...}` to C# and receives `{id, result}` or `{id, error}`. C# serializes native requests and reads `BASEMENT:`-prefixed JSON lines from JUCE. Unframed native/plugin stdout is diagnostic text, so a plugin log line cannot become a command response. Command errors leave the channel usable; a timeout or transport failure invalidates it to prevent a late response from being applied to a different request.
+Electron’s SessionService serializes operations so save/open cannot race edits. NativeClient serializes JUCE requests and accepts only BASEMENT:-prefixed JSON replies. Plugin stdout diagnostics are ignored. Command errors leave the connection usable; malformed replies, timeouts and child failures quarantine it so late replies cannot be assigned to another request.
 
-Close the backend at Electron's `will-quit`, after any unsaved-work confirmation. `before-quit` is too early: the user can cancel closing. EOF asks C# to finalize JUCE recording and close the child. UI smoke-test code is isolated in `desktop/smoke.cjs`; it runs only under the explicit test environment flag.
+Close the child on Electron will-quit, after unsaved-work confirmation. EOF tells JUCE to finalize recording and exit. A bounded shutdown fallback terminates an unresponsive child. The normal app has no control TCP listener.
 
-## Export and track interactions
+The renderer is sandboxed with context isolation and a narrow preload bridge. File-drop paths are derived from actual File objects by Electron webUtils, not arbitrary path strings supplied to the public renderer API. The main handler checks the sender, path type, file extensions and audio/MIDI track compatibility. Imports copy into the working session; new-track import failures remove the just-created empty track while stopped.
 
-`Rendering.cpp` shares interpolation and VST processing between playback and `Export.cpp`. Export runs while transport is stopped, writes 24-bit stereo WAV at the current session sample rate, ignores cycling, and does not move the playhead. Separate tracks include muted/unsoloed tracks with audio and share a zero-time origin and common end. Mixdown respects mute/solo. A selected-track export only includes that track. Level, pan and bypass are preserved; plug-in tails are capped at 10 seconds. `Latency.cpp` primes processors and reads prerecorded sources ahead by their reported latency, for playback and export. See [runtime details](RUNTIME.md) for live monitoring and driver-correction limits. Exports are rendered on the native control thread; polling is paused and export-specific deadlines allow up to 30 minutes. The current export cannot be canceled mid-render.
+## Timing and recording
 
-The Electron export handler validates options and owns the folder picker; renderer code cannot supply an arbitrary export path. Each export creates a new subfolder so earlier exports remain untouched. Failed writes can leave partial files in that new folder. `tests/export.test.mjs` verifies actual samples, alignment, plug-in processing, bypass, mute/solo and non-overwrite behavior. `tests/ipc.test.mjs` guards file-dialog sender validation.
+AudioCallback.cpp owns device-clock metronome/count-in and capture. A count-in crossing block is split at the exact sample boundary. Loop recording retains an unwrapped capture clock while the renderer and arrangement playback wrap through the cycle. On Stop, Recording.cpp finalizes writers, then Editing.cpp creates non-destructive take windows over the shared source file. MIDI takes are serialized in Midi.cpp.
 
-Track headers and lanes expose contextual actions; header double-click and Properties select the Recording inspector. The playhead uses pointer capture and commits release coordinates, independent of React paint timing. Recording terminology is “mark for recording” throughout user-facing controls; the existing `armed` protocol/session field is retained for compatibility.
+Rendering.cpp chooses the last active overlapping region per track, so playback and WAV export agree with visual stacking. MIDI region transitions send panic messages and chase held notes. Region offsets/lengths are non-destructive; audio buffers are shared across copied regions and take windows, including after restore. Moving a take stack moves all alternatives; splitting creates two independent take stacks. Deleting a selected take promotes another remaining alternative.
 
-MIDI endpoints are independent of audio-device channels. `Midi.cpp` handles MIDI capture, standard MIDI assets and note playback; MIDI tracks host VST3 instruments. Multiple independent audio interfaces still need clock-drift handling or OS aggregation and remain unsupported.
+The engine uses short control locks. Its callback attempts the lock without blocking and reports dropouts if unavailable. This remains an early real-time implementation; plug-in loading, memory allocation and graph changes are not a production lock-free engine.
 
-## Session storage
+## Session files
 
-Audio-only saves use version 1; MIDI-containing saves use version 2. Both are readable. `.basement` files contain persistent arrangement values and relative media paths into the adjacent `.basement.audio` directory. Waveforms and runtime device/transport state are not saved. `SessionDocument` validates IDs, types, bounds and colors before a loaded document reaches filenames, CSS or audio math. Keep existing version-1 documents readable; introduce an explicit migration when the schema changes.
+Version 1 audio-only projects and version 2 MIDI projects remain readable. Projects containing trimmed regions or take stacks save as version 3. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
 
-Raw WAV files are retained when arrangement regions are removed. On stop, every recording writer is finalized before loading takes into memory; one failed decode must not leave other WAV headers unfinished. Saving metadata is atomic, but the entire multi-file asset copy is not transactional.
+Shared sources are copied once per save, not once per take. New asset copies have unique names so a failed save does not overwrite the previous document’s media. Metadata is written to a temporary file and renamed. Multi-file copying is not fully transactional: a failed save may leave unused media, which is deliberately not deleted automatically.
+
+Waveforms and MIDI note previews are derived rather than saved. Removing a region never deletes its source media. MIDI capture is held in memory until Stop; unfinished MIDI takes do not have crash recovery.
+
+## Export
+
+Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Plugin tails are capped at ten seconds. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
 
 ## Checks
 
-```sh
-npm run build:all
-npm test
-npm run check
-npm run test:desktop
-npm run test:visual
-```
-
-`npm run format` formats JS/TS/CSS and documentation. Use `dotnet format whitespace backend/BasementBand.csproj --no-restore` for C# and `clang-format -i native/*.cpp native/*.h` for C++. Unused TypeScript locals and parameters fail compilation.
-
-Integration tests use the real native callback with deterministic samples and the private VST3 test fixture. Shared test-process helpers bound timeouts and shutdown. Test subprocesses never record a physical microphone. `npm run test:desktop` checks the real React → Electron → C# → JUCE path with the simulated device. To check an unpacked build, pass its executable path to `node scripts/smoke.mjs`.
-
-Windows is the validated platform so far. Cross-platform source does not replace testing drivers, permissions, native plugin editors and packaging on macOS/Linux.
+Run npm run build:all, npm test, npm run check, npm run test:desktop and npm run test:visual. The native test fixtures never ship. Use npm run format for JS/TS/CSS/docs, and clang-format for native sources when available. See BUILD.md for F5 and platform packaging details.

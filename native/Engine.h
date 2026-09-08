@@ -17,6 +17,9 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   int block = 512;
   std::atomic<bool> playing{false}, recording{false};
   bool looping = false;
+  bool metronome = false, countIn = false, cycleRecording = false;
+  int64 countRemaining = 0, countTotal = 0;
+  double recordingLoopStart = 0, recordingLoopEnd = 8;
   std::atomic<bool> diskOverrun{false};
   bool testDevice = false;
   MidiBuffer midi;
@@ -54,5 +57,8 @@ private:
   void preparePlayback(double start, bool cycle);
   void prepareTrack(Track &track, double start, bool cycle);
   void sendPanic(Track &track);
+  void splitRecordedTakes(Track &track, size_t first);
+  void editClip(const var &command);
+  void click(float *const *outputs, int channels, int samples, double time);
 };
 } // namespace basement

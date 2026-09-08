@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
+import { TrackIcon, trackIcons } from "./TrackIcon";
 export function TrackInspector({
   controller,
 }: {
@@ -27,6 +28,17 @@ export function TrackInspector({
     <>
       <section
         ref={inspector}
+        onDragOver={(e) => {
+          if (panel === "plugins") e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (panel === "plugins" && track) {
+            e.preventDefault();
+            task(() =>
+              api.dropFiles(Array.from(e.dataTransfer.files), track.id, true),
+            );
+          }
+        }}
         className="inspector"
         tabIndex={-1}
         aria-label={`${track?.name || "Track"} properties`}
@@ -92,6 +104,24 @@ export function TrackInspector({
                       <Trash2 size={12} />
                       Remove
                     </button>
+                  </div>
+                  <div className="icon-choices" aria-label="Track icon">
+                    <input
+                      type="color"
+                      aria-label="Track color"
+                      value={track.color}
+                      onChange={(e) => update(track, { color: e.target.value })}
+                    />
+                    {Object.keys(trackIcons).map((icon) => (
+                      <button
+                        key={icon}
+                        aria-label={`${icon} icon`}
+                        aria-pressed={track.icon === icon}
+                        onClick={() => update(track, { icon })}
+                      >
+                        <TrackIcon icon={icon} size={16} />
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div className="input-block">
@@ -235,12 +265,19 @@ export function TrackInspector({
                         {track.kind === "midi"
                           ? "Add VST3 instrument"
                           : "Add VST3 plug-in"}
-                        <small>Choose an installed .vst3 bundle</small>
+                        <small>Choose or drop a .vst3 file or bundle</small>
                       </span>
                     </button>
                   )}
                 </div>
                 <p className="plugin-note">
+                  <button
+                    className="text-button"
+                    disabled={s.playing || busy}
+                    onClick={() => task(() => api.plugin(track.id, true))}
+                  >
+                    Choose a bundle folder…
+                  </button>
                   {track.kind === "midi"
                     ? "One instrument per MIDI track. No sounds bundled."
                     : "One effect per audio track in this iteration."}

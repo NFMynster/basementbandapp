@@ -1,4 +1,11 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  Tray,
+  Menu,
+  nativeImage,
+} = require("electron");
 const path = require("node:path");
 const { mkdirSync } = require("node:fs");
 const { startBackend } = require("./backend.cjs");
@@ -11,6 +18,7 @@ if (smoke) {
   app.setPath("userData", data);
 }
 let backend;
+let tray;
 let startupError;
 const request = (command) =>
   backend ? backend.request(command) : Promise.reject(startupError);
@@ -32,6 +40,7 @@ app.whenReady().then(() => {
     minHeight: 700,
     backgroundColor: "#191a1e",
     title: "Basement Band",
+    icon: path.join(__dirname, "assets/icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -41,6 +50,31 @@ app.whenReady().then(() => {
       backgroundThrottling: !smoke,
     },
   });
+  if (!smoke) {
+    const icon = nativeImage.createFromPath(
+      path.join(__dirname, "assets/icon.png"),
+    );
+    if (!icon.isEmpty()) {
+      tray = new Tray(icon.resize({ width: 24, height: 24 }));
+      tray.setToolTip("Basement Band");
+      tray.setContextMenu(
+        Menu.buildFromTemplate([
+          {
+            label: "Open Basement Band",
+            click: () => {
+              win.show();
+              win.focus();
+            },
+          },
+          { label: "Quit", click: () => app.quit() },
+        ]),
+      );
+      tray.on("click", () => {
+        win.show();
+        win.focus();
+      });
+    }
+  }
   let handedOff = false;
   splash.on("closed", () => {
     if (!handedOff) app.quit();

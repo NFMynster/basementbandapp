@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
+import { keyLabel } from "../hooks/useShortcuts";
 export function StatusBar({ controller }: { controller: WorkspaceController }) {
   const { s, openSetup, armed } = controller;
   return (
@@ -19,7 +20,7 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           {s.recording ? (
             <>
               <span className="record-dot" />
-              Recording {armed} tracks · cycle paused
+              Recording {armed} tracks {s.looping ? "· loop takes" : ""}
             </>
           ) : s.playing ? (
             "Playing"
@@ -28,8 +29,12 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           ) : (
             "Mark a track to get started"
           )}
-          <span className="key">R</span>record<span className="key">space</span>
+          <span className="key">{keyLabel(controller.bindings.record)}</span>
+          record
+          <span className="key">{keyLabel(controller.bindings.play)}</span>
           play
+          <span className="key">{keyLabel(controller.bindings.start)}</span>
+          start
         </div>
       </footer>
     </>

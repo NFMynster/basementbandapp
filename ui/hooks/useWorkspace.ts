@@ -1,3 +1,4 @@
+import { useShortcuts } from "./useShortcuts";
 import { errorMessage } from "../services/errors";
 import React, { useEffect, useRef, useState } from "react";
 import type {
@@ -28,6 +29,16 @@ const empty: Session = {
   diskOverrun: false,
 };
 export function useWorkspace() {
+  const [creatingTrack, setCreatingTrack] = useState(false);
+  const [welcome, setWelcome] = useState(
+    () => localStorage.getItem("basement.hideWelcome") !== "1",
+  );
+  const [settingsTab, setSettingsTab] = useState<
+    "audio" | "midi" | "shortcuts"
+  >("audio");
+  const clipboard = useRef<{ track: string; clip: string } | null>(null);
+  const previousTracks = useRef<string[] | null>(null);
+  const [trackPing, setTrackPing] = useState("");
   const [starting, setStarting] = useState(true);
   const [propertiesPing, setPropertiesPing] = useState(0);
   const rulerGesture = useRef<{ mode: "seek" | "loop"; start: number } | null>(
@@ -54,10 +65,8 @@ export function useWorkspace() {
   } | null>(null);
   const trackList = useRef<HTMLElement>(null),
     timelineScroll = useRef<HTMLDivElement>(null),
-    stateRef = useRef(s),
     polling = useRef(false),
     editing = useRef(false);
-  stateRef.current = s;
   const track = s.tracks.find((t) => t.id === selected) || s.tracks[0];
   const secondsPerBar = 240 / s.tempo,
     pxPerSecond = zoom / secondsPerBar;
@@ -139,42 +148,6 @@ export function useWorkspace() {
     return () => clearTimeout(t);
   }, [notice]);
   useEffect(() => {
-    const listener = (e: KeyboardEvent) => {
-      if (
-        e.repeat ||
-        document.querySelector('[role="dialog"], [role="menu"], [data-startup]')
-      )
-        return;
-      if (
-        (e.target as HTMLElement).closest(
-          "input,select,textarea,[contenteditable]",
-        )
-      )
-        return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        run({ op: stateRef.current.playing ? "stop" : "play" }, false);
-      }
-      if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey)
-        run({ op: stateRef.current.recording ? "stop" : "record" });
-      if (e.key.toLowerCase() === "l") {
-        const a = stateRef.current;
-        run({
-          op: "loop",
-          start: a.loopStart,
-          end: a.loopEnd,
-          enabled: !a.looping,
-        });
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        task(() => api.save(), true);
-      }
-    };
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, []);
-  useEffect(() => {
     const listener = (e: BeforeUnloadEvent) => {
       if (dirty || s.recording) {
         e.preventDefault();
@@ -184,9 +157,77 @@ export function useWorkspace() {
     window.addEventListener("beforeunload", listener);
     return () => window.removeEventListener("beforeunload", listener);
   }, [dirty, s.recording]);
+  const editSelected = (
+    action: "split" | "copy" | "move",
+    source = clipboard.current,
+  ) => {
+    const regionTrack = s.tracks.find((t) =>
+      t.clips.some((c) => c.id === clipId),
+    );
+    const target =
+      action === "copy"
+        ? source
+        : regionTrack
+          ? { track: regionTrack.id, clip: clipId }
+          : null;
+    if (target)
+      run({
+        op: "editClip",
+        ...target,
+        action,
+        position: s.position,
+        target: track?.id,
+      });
+  };
+  const shortcuts = useShortcuts({
+    play: () => run({ op: s.playing ? "stop" : "play" }, false),
+    record: () => run({ op: s.recording ? "stop" : "record" }),
+    loop: () =>
+      run({
+        op: "loop",
+        start: s.loopStart,
+        end: s.loopEnd,
+        enabled: !s.looping,
+      }),
+    metronome: () => run({ op: "metronome", value: !s.metronome }),
+    start: () => run({ op: "seek", position: 0 }, false),
+    save: () => task(() => api.save(), true),
+    split: () => editSelected("split"),
+    copy: () => {
+      const t = s.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+      if (t) {
+        clipboard.current = { track: t.id, clip: clipId };
+        setNotice("Region copied. Paste at the playhead.");
+      }
+    },
+    paste: () => editSelected("copy"),
+    delete: () => {
+      const t = s.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+      if (t) run({ op: "removeClip", track: t.id, clip: clipId });
+    },
+  });
+  useEffect(() => {
+    if (starting) return;
+    const previous = previousTracks.current;
+    const added =
+      previous && s.tracks.filter((t) => !previous.includes(t.id)).at(-1);
+    previousTracks.current = s.tracks.map((t) => t.id);
+    if (!added) return;
+    setSelected(added.id);
+    setTrackPing(added.id);
+    document
+      .querySelector(`[data-track-header="${added.id}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "instant" });
+  }, [s.tracks.map((t) => t.id).join(","), starting]);
+  async function openCreateTrack() {
+    setCreatingTrack(true);
+    const devices = await run({ op: "devices" }, false);
+    if (devices) setDevices(devices);
+  }
   const update = (t: Track, c: TrackPatch) =>
     run({ op: "track", track: t.id, ...c });
   async function openSetup() {
+    setSettingsTab(track?.kind === "midi" ? "midi" : "audio");
     setSetup(true);
     setDevices(null);
     setDeviceLoading(true);
@@ -278,6 +319,17 @@ export function useWorkspace() {
   const bar = Math.floor(s.position / secondsPerBar) + 1,
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
+    ...shortcuts,
+    creatingTrack,
+    setCreatingTrack,
+    openCreateTrack,
+    welcome,
+    setWelcome,
+    settingsTab,
+    setSettingsTab,
+    trackPing,
+    clipboard,
+    editSelected,
     openProperties,
     propertiesPing,
     rulerCancel,

@@ -1,94 +1,75 @@
 # Build and debug
 
-## First-time setup on Windows
+## Prerequisites
 
-Install:
+- Node.js 22 or newer, npm and Git.
+- Windows: Visual Studio with **Desktop development with C++**, a Windows SDK and CMake tools. No .NET development workload or runtime is required by this app.
+- macOS: Xcode command-line tools and CMake. The distribution script targets Apple Silicon.
+- Linux development additionally needs JUCE’s ALSA, X11, font and OpenGL development packages; no Linux installer script is supplied.
 
-- **Visual Studio 2026** with the **.NET desktop development** and **Desktop development with C++** workloads, including a Windows SDK and CMake tools. The backend targets .NET 10.
-- **Node.js 22 or newer** with npm on PATH.
-- **Git** on PATH so CMake can fetch the pinned JUCE dependency.
+From the repository root:
 
-Open a terminal in the repository and run:
-
-```powershell
+```sh
 npm ci
 npm run build:all
+npm start
 ```
 
-This downloads JUCE, compiles the native audio engine and private VST3 test fixture, publishes the C# service, and builds the React UI. Internet access is needed for the initial dependency downloads. No cloud service is used by the app.
+The first native build downloads JUCE. Subsequent builds are incremental. `npm run dev` starts Vite and Electron using the already-built native engine; rebuild native changes and restart the app. The splash appears once Electron starts, not during compilation.
 
-## F5 from Visual Studio
+## Visual Studio F5 (Windows)
 
-1. Open **`BasementBand.sln`**.
-2. Use **Debug / Any CPU** and make **BasementBand** the startup project if Visual Studio has not selected it.
-3. Select the **Basement Band desktop** launch profile and press **F5**.
+1. Run `npm ci` once.
+2. Open `BasementBand.sln`. It contains a C++ makefile project, not the removed C# backend.
+3. Set **Basement Band Desktop** as startup project and select **Debug | x64**.
+4. Press F5. The project invokes `scripts/vs-build.mjs`, builds JUCE with Debug symbols plus the UI/icon, and launches Electron.
 
-Visual Studio runs the actual C# backend with `--desktop`. That process starts the UI development server and Electron, then Electron connects back to the **same debugged process**. It does not create a second backend. Set breakpoints in `Sessions/SessionService.cs`, `Sessions/SessionStore.cs`, or `Audio/EngineClient.cs`; actions in the desktop UI reach those breakpoints. Requests have no desktop timeout in this mode, so you can inspect C# state while paused.
+The first Debug engine build is separate from Release and can take several minutes. F5 initially debugs Electron, **not its JUCE child**. For C++ audio breakpoints, use **Debug → Attach to Process → BasementAudio.exe**, choosing Native code. Debug symbols are copied alongside the engine. Pause the transport before stepping through real-time code. Control requests have a 60-second deadline; long debugger pauses can require restarting the app.
 
-The React UI reloads as you edit it. C# changes use Visual Studio's normal build/debug workflow. C++ changes require `npm run build:native` before relaunching; the native engine is built automatically on F5 only when its executable is missing. The first launch still requires `npm ci`.
+For a native-only workspace, open the `native` folder as a CMake project in Visual Studio. The generated `build/native/BasementAudio.sln` is also available after the command-line native build. Running BasementAudio alone waits for pipe commands; it does not display the desktop UI.
 
-Development sessions are written to **`artifacts/dev-sessions`**, separate from sessions in the installed app. Close the app window to let recording writers finalize and the debugger exit normally. Stopping the debugger forcibly can interrupt a take.
+The former .NET launch profile and TCP debug bridge have been removed. No C# build artifacts are packaged or invoked.
 
-The F5 connection binds a random **loopback-only** port and authenticates one client using a per-launch token. This is development IPC, not a web API. Normal packaged launches use process pipes and need no listening port. The UI development server also picks an available local port and reports readiness through IPC, so a leftover server on port 5173 does not block F5.
+## Commands
 
-The equivalent terminal launch is:
+| Command                                         | Result                                             |
+| ----------------------------------------------- | -------------------------------------------------- |
+| `npm run build:native`                          | Release JUCE engine and private VST3 test fixtures |
+| `npm run build:native -- --debug --engine-only` | Debug engine and symbols                           |
+| `npm run build`                                 | Type-check and build UI                            |
+| `npm run build:icons`                           | Generate PNG/ICO from the checked-in vector mark   |
+| `npm run build:all`                             | Release native engine, icon and UI                 |
+| `npm start`                                     | Launch local built app                             |
+| `npm run dev`                                   | Launch with UI hot reload                          |
+| `npm run package:win`                           | Windows x64 NSIS installer and unpacked app        |
+| `npm run package:mac`                           | macOS Apple Silicon DMG                            |
+| `npm run package`                               | Unpacked distribution for current host             |
 
-```powershell
-dotnet run --project backend/BasementBand.csproj --launch-profile "Basement Band desktop"
-```
+## Distribution
 
-## Normal development and builds
+Build Windows on Windows and macOS on macOS: JUCE needs the target platform SDK. The scripts reject the wrong host instead of bundling a Windows engine into a Mac app. The macOS script compiles the native engine with `CMAKE_OSX_ARCHITECTURES=arm64` and packages arm64 Electron. Universal/Intel distributions are not supplied.
 
-| Command                         | Purpose                                                       |
-| ------------------------------- | ------------------------------------------------------------- |
-| `dotnet build BasementBand.sln` | Build only the C# project in the solution                     |
-| `npm run build:native`          | Rebuild JUCE audio engine and VST3 test fixture               |
-| `npm run build:backend`         | Publish a self-contained C# service for the host OS/CPU       |
-| `npm run build`                 | Type-check and bundle the UI                                  |
-| `npm run build:all`             | Build all three application layers                            |
-| `npm run dev`                   | Start UI hot reload and Electron using the published service  |
-| `npm start`                     | Run the compiled desktop app                                  |
-| `npm run package`               | Build everything and assemble an unpacked app under `release` |
+Output goes to `release/`. The app bundles Electron and JUCE, but no .NET runtime or third-party plug-ins. Users install compatible VST3 plugins separately. The Windows app and installer use the waveform icon; the same mark is used for the tray and macOS packaging.
 
-On Windows, launch the unpacked app at **`release/win-unpacked/Basement Band.exe`**. Keep the whole folder together. This is an unsigned development build, not an installer. A clean Windows machine may need the Microsoft Visual C++ x64 runtime; .NET is included in the package.
+No signing/notarization credentials are configured. Supply your own electron-builder signing configuration for public distribution; OS trust warnings are otherwise expected. macOS microphone permissions and plug-in editor behavior must still be checked on a Mac. Test Windows on a clean machine for Visual C++ runtime dependencies before public release.
 
 ## Verification
 
-```powershell
+```sh
+npm run build:all
 npm test
 npm run check
 npm run test:desktop
 npm run test:visual
-```
-
-Build first. Tests cover deterministic multichannel recording, looping, VST3 processing/state, session persistence/validation, and process failures. Desktop smoke tests exercise the actual UI-to-native path with a simulated device; they do not record your microphone.
-
-To exercise the F5 launch path headlessly from a terminal:
-
-```powershell
-$env:BASEMENT_SMOKE = '1'
-$env:BASEMENT_TEST_DEVICE = '1'
-dotnet run --project backend/BasementBand.csproj --launch-profile "Basement Band desktop"
-Remove-Item Env:BASEMENT_SMOKE
-Remove-Item Env:BASEMENT_TEST_DEVICE
-```
-
-To test the packaged Windows app:
-
-```powershell
 node scripts/smoke.mjs "release/win-unpacked/Basement Band.exe"
 ```
 
-## Troubleshooting
+The deterministic tests do not use physical audio inputs. Desktop smoke tests exercise actual React → Electron → JUCE commands. Visual tests use a clearly separate synthetic fixture.
 
-- **F5 says to run npm ci:** install dependencies from the repository root. Restart Visual Studio after installing Node if its PATH is stale.
-- **C++ compiler or SDK missing:** install the Visual Studio C++ workload. `scripts/native.mjs` checks the bundled Visual Studio CMake locations, then CMake on PATH. Set `CMAKE` to a custom executable path if needed.
-- **Audio engine binary is locked:** close the desktop app and finish any debug session before rebuilding native code.
-- **Audio device unavailable:** use Audio setup to choose the interface and a supported configuration. Driver/hardware compatibility must be tested on the actual interface.
-- **UI dev server fails to start:** check Visual Studio's Debug output for the forwarded Node/Vite error. Startup failures distinguish a launcher exit from a connection timeout. Startup deadlines are disabled while the C# debugger is attached, so stepping through initialization does not cancel startup.
+To diagnose an installed MIDI instrument without opening its editor:
 
-## macOS and Linux
+```sh
+node scripts/check-plugin.mjs "C:/path/to/instrument.vst3"
+```
 
-Build natively on each target OS and architecture; the Windows binaries are not portable. macOS requires Xcode command-line tools, CMake, .NET 10 and Node. Linux additionally needs the JUCE ALSA/X11/font/OpenGL development packages. `npm run build:all` selects the C# runtime for the current platform. macOS/Linux packaging, device permissions and plugin editor behavior still need validation. Visual Studio F5 instructions above apply to Windows; the `dotnet run` launch mode is also available from a terminal.
-
-See [Architecture](ARCHITECTURE.md) for the module boundaries and extension workflow, and [README](../README.md) for current audio limitations and JUCE licensing.
+This loads third-party executable code in the native test host; use only plugins you trust.

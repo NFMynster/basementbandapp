@@ -7,29 +7,51 @@ namespace basement {
 struct Clip {
   bool isMidi = false;
   double midiLength = 0;
-  MidiMessageSequence events;
+  std::shared_ptr<MidiMessageSequence> events = std::make_shared<MidiMessageSequence>();
   int eventCursor = 0;
   double eventPosition = -1;
   String id = Uuid().toString(), name, path;
-  double start = 0, sampleRate = 48000;
-  AudioBuffer<float> audio;
+  double start = 0, sampleRate = 48000, offset = 0, length = -1;
+  String takeGroup;
+  int take = 0;
+  bool active = true;
+  std::shared_ptr<AudioBuffer<float>> audio = std::make_shared<AudioBuffer<float>>();
   Array<var> peaks;
-  double duration() const { return isMidi ? midiLength : audio.getNumSamples() / sampleRate; }
+  double sourceDuration() const {
+    return isMidi ? midiLength : audio->getNumSamples() / sampleRate;
+  }
+  double duration() const { return length >= 0 ? length : sourceDuration() - offset; }
   var json(bool full) const {
-    auto v = object(
-        {{"id", id}, {"name", name}, {"start", start}, {"duration", duration()}, {"peaks", peaks}});
+    Array<var> preview;
+    if (active && !isMidi && !peaks.isEmpty())
+      for (int i = 0; i < 400; ++i) {
+        const int index =
+            jlimit(0, peaks.size() - 1,
+                   (int)((offset + i * duration() / 400) / sourceDuration() * peaks.size()));
+        preview.add(peaks[index]);
+      }
+    auto v = object({{"id", id},
+                     {"name", name},
+                     {"start", start},
+                     {"duration", duration()},
+                     {"peaks", preview},
+                     {"offset", offset},
+                     {"length", length},
+                     {"takeGroup", takeGroup},
+                     {"take", take},
+                     {"active", active}});
     v.getDynamicObject()->setProperty("kind", isMidi ? "midi" : "audio");
-    if (isMidi) {
+    if (active && isMidi) {
       Array<var> notes;
-      for (int i = 0; i < events.getNumEvents() && notes.size() < 2048; ++i) {
-        auto *event = events.getEventPointer(i);
-        if (event->message.isNoteOn())
-          notes.add(object(
-              {{"start", event->message.getTimeStamp()},
-               {"note", event->message.getNoteNumber()},
-               {"duration", event->noteOffObject ? event->noteOffObject->message.getTimeStamp() -
-                                                       event->message.getTimeStamp()
-                                                 : 0.1}}));
+      for (int i = 0; i < events->getNumEvents() && notes.size() < 2048; ++i) {
+        auto *event = events->getEventPointer(i);
+        const double begin = event->message.getTimeStamp();
+        const double end =
+            event->noteOffObject ? event->noteOffObject->message.getTimeStamp() : begin + 0.1;
+        if (event->message.isNoteOn() && end > offset && begin < offset + duration())
+          notes.add(object({{"start", jmax(0.0, begin - offset)},
+                            {"note", event->message.getNoteNumber()},
+                            {"duration", jmin(end, offset + duration()) - jmax(begin, offset)}}));
       }
       v.getDynamicObject()->setProperty("notes", notes);
     }
@@ -55,7 +77,8 @@ struct Track {
   int64 captureSkip = 0;
   double captureOffset = 0;
   double previousMidiTime = -1;
-  String id = Uuid().toString(), name, color;
+  Clip *previousClip = nullptr;
+  String id = Uuid().toString(), name, color, icon = "guitar";
   int input = 0;
   bool armed = false, mute = false, solo = false, bypass = false;
   float gain = 0.8f, pan = 0;

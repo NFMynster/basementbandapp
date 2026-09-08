@@ -1,4 +1,8 @@
 export type Clip = {
+  offset?: number;
+  takeGroup?: string;
+  take?: number;
+  active?: boolean;
   kind?: "audio" | "midi";
   notes?: { start: number; duration: number; note: number }[];
   id: string;
@@ -8,6 +12,7 @@ export type Clip = {
   peaks: number[];
 };
 export type Track = {
+  icon?: string;
   kind?: "audio" | "midi";
   midiDevice?: string;
   midiChannel?: number;
@@ -28,6 +33,9 @@ export type Track = {
   bypass: boolean;
 };
 export type Session = {
+  metronome?: boolean;
+  countIn?: boolean;
+  countdown?: number;
   title: string;
   tracks: Track[];
   position: number;
@@ -68,6 +76,8 @@ export type TrackPatch = Partial<
     | "pan"
     | "midiDevice"
     | "midiChannel"
+    | "color"
+    | "icon"
   >
 >;
 export type DeviceConfiguration = Pick<
@@ -79,6 +89,15 @@ export type SessionCommand =
       op: "state" | "play" | "stop" | "record" | "new" | "clearWarning";
     }
   | { op: "addTrack"; kind?: "audio" | "midi" }
+  | { op: "metronome" | "countIn"; value: boolean }
+  | {
+      op: "editClip";
+      track: string;
+      clip: string;
+      action: "move" | "copy" | "split" | "take";
+      position?: number;
+      target?: string;
+    }
   | ({ op: "track"; track: string } & TrackPatch)
   | { op: "removeTrack" | "editor" | "removePlugin"; track: string }
   | { op: "removeClip"; track: string; clip: string }
@@ -97,11 +116,12 @@ export type SaveResult = { saved: string };
 export type ExportOptions = { mode: "separate" | "mix"; track?: string };
 export type ExportResult = { folder: string; files: string[] };
 export interface DesktopApi {
+  dropFiles(files: File[], track?: string, plugin?: boolean): Promise<Session>;
   command<C extends Command>(command: C): Promise<CommandResult<C>>;
   save(): Promise<SaveResult | null>;
   open(): Promise<Session | null>;
   importAudio(track: string): Promise<Session | null>;
-  plugin(track: string): Promise<Session | null>;
+  plugin(track: string, bundle?: boolean): Promise<Session | null>;
   exportAudio(options: ExportOptions): Promise<ExportResult | null>;
 }
 declare global {

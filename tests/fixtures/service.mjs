@@ -6,11 +6,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   }
   if (c.op === "hang") return;
   if (c.op === "invalid") {
-    console.log("not protocol");
+    console.log("BASEMENT:invalid");
     return;
   }
-  setTimeout(
-    () => console.log(JSON.stringify({ id: c.id, result: c.value })),
-    c.delay ?? 0,
-  );
+  setTimeout(() => {
+    console.log("plug-in diagnostic");
+    console.log("BASEMENT:" + JSON.stringify(c.value));
+  }, c.delay ?? 0);
 });

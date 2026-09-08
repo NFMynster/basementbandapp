@@ -28,7 +28,8 @@ var Engine::exportAudio(const var &c) {
             "Load an active instrument on each MIDI track before WAV export");
     selected.push_back(t.get());
     for (auto &clip : t->clips)
-      duration = jmax(duration, clip->start + clip->duration());
+      if (clip->active)
+        duration = jmax(duration, clip->start + clip->duration());
     if (t->plugin && !t->bypass)
       tail = jmax(tail, jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()));
   }

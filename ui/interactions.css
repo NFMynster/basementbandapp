@@ -35,9 +35,6 @@
 .track-list {
   width: var(--sidebar-width);
 }
-.welcome {
-  left: var(--sidebar-width);
-}
 .ruler-zone {
   position: absolute;
   left: 0;
@@ -48,6 +45,237 @@
   top: 0;
   cursor: crosshair;
   border-bottom: 1px solid #ffffff18;
+}
+.ruler,
+.track-list-title {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+.track-list-title {
+  background: #28292e;
+}
+.ruler > span {
+  top: 3px;
+  bottom: auto;
+  z-index: 1;
+}
+.ruler-loop {
+  border-bottom: 1px solid #77796c;
+}
+.ruler-seek {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #a1a49a66 0 1px,
+    transparent 1px calc(var(--bar-width) / 4)
+  );
+  background-size: 100% 7px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+.cycle-region {
+  height: 20px;
+  top: 0;
+  border-radius: 0;
+  opacity: 0.65;
+}
+.playhead {
+  z-index: 5;
+}
+.playhead::after {
+  bottom: auto;
+  height: 22px;
+}
+.track-header {
+  scroll-margin-top: 44px;
+}
+.track-list-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: #26272c;
+}
+.track-list {
+  scroll-padding-bottom: 44px;
+}
+.clip.moving {
+  z-index: 3;
+  opacity: 0.8;
+  cursor: grabbing;
+}
+.clip-title select {
+  width: auto;
+  max-width: 95px;
+  padding: 1px 4px;
+  height: 21px;
+  font-size: 10px;
+  background: #0003;
+  border: 0;
+}
+.empty-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #72757d;
+  font-size: 11px;
+}
+.track-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 24px 0;
+}
+.track-types button {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 22px;
+  gap: 12px;
+  background: #ffffff04;
+  border: 1px solid #ffffff18;
+  border-radius: 12px;
+  text-align: left;
+}
+.track-types button[aria-pressed="true"] {
+  border-color: #b0c4a7;
+  background: #b0c4a70c;
+  box-shadow: 0 0 0 2px #b0c4a718;
+}
+.track-types button span {
+  color: #979ba5;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.settings-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  margin: 18px 0;
+  background: #18191e;
+  border-radius: 9px;
+}
+.settings-tabs button {
+  flex: 1;
+  font-size: 11px;
+  padding: 9px;
+}
+.settings-tabs [aria-selected="true"] {
+  background: #3a3d42;
+  color: #e8ebe5;
+  box-shadow: 0 2px 5px #0003;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ffffff09;
+  padding: 6px 0;
+}
+.shortcut-row button {
+  min-width: 125px;
+  background: #ffffff07;
+}
+.shortcut-row .capturing {
+  color: #c4dab8;
+  outline: 1px solid #b0c4a7;
+}
+.key-capture-dialog {
+  max-width: 420px;
+}
+.welcome-dialog .welcome-icon {
+  margin-top: 8px;
+}
+.check-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px;
+}
+.check-row input {
+  width: 16px;
+  height: 16px;
+}
+.icon-choices {
+  display: flex;
+  gap: 2px;
+  margin-top: 5px;
+  align-items: center;
+}
+.icon-choices button {
+  padding: 3px;
+}
+.icon-choices [aria-pressed="true"] {
+  background: #b0c4a720;
+  color: #b0c4a7;
+}
+.icon-choices input[type="color"] {
+  width: 22px;
+  height: 22px;
+  padding: 2px;
+  border: none;
+}
+.count-in-button {
+  font-size: 12px;
+  font-weight: 650;
+}
+.count-in-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #15171a75;
+  backdrop-filter: blur(5px);
+  animation: surface-in 180ms ease-out;
+}
+.count-in-overlay > span {
+  color: #c6cabc;
+  letter-spacing: 4px;
+  font-size: 11px;
+}
+.count-in-overlay strong {
+  font-size: 120px;
+  font-weight: 300;
+  line-height: 1.5;
+  animation: count-beat 450ms ease-out;
+}
+@keyframes count-beat {
+  from {
+    opacity: 0.2;
+    transform: scale(1.15);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.region-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.toast.error {
+  border: 1px solid #ee8282;
+  animation: error-ping 1000ms ease-out;
+}
+@keyframes error-ping {
+  from {
+    box-shadow:
+      inset 0 0 30px #f1727245,
+      0 0 20px #ed777725;
+  }
+  to {
+    box-shadow: inset 0 0 0 transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .count-in-overlay,
+  .count-in-overlay strong,
+  .properties-ping,
+  .toast.error {
+    animation: none;
+  }
 }
 .ruler-seek {
   bottom: 0;

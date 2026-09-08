@@ -1,6 +1,7 @@
 import { Modal } from "./Modal";
 import { Play } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
+import { keyLabel } from "../hooks/useShortcuts";
 export function HelpDialog({
   controller,
 }: {
@@ -29,7 +30,8 @@ export function HelpDialog({
               <strong>Mark your tracks. Hit record.</strong>
               <p>
                 Click R on every track you want to capture. The red transport
-                button records them together. Press Space to stop.
+                button records them together. Press{" "}
+                {keyLabel(controller.bindings.play)} to stop.
               </p>
             </li>
             <li>
@@ -37,7 +39,9 @@ export function HelpDialog({
               <p>
                 Drag the top half of the ruler to loop a range. Drag its bottom
                 half to move the playhead. Double-click a region to loop its
-                length. Press L to toggle cycle.
+                length. Press {keyLabel(controller.bindings.loop)} to toggle
+                cycle. With looping enabled, recording starts at the loop’s
+                beginning and keeps each pass as a selectable take.
               </p>
             </li>
           </ol>

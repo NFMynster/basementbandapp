@@ -4,6 +4,7 @@ namespace basement {
 void Engine::sendPanic(Track &t) {
   t.panic = true;
   t.previousMidiTime = -1;
+  t.previousClip = nullptr;
   t.liveMidi.clear();
   if (t.plugin)
     t.plugin->reset();

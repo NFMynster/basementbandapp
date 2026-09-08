@@ -12,23 +12,28 @@ std::unique_ptr<Clip> Engine::readClip(String path, String name, double start) {
   c->path = path;
   c->start = start;
   c->sampleRate = r->sampleRate;
-  c->audio.setSize(jmin(2, (int)r->numChannels), (int)r->lengthInSamples);
-  require(r->read(&c->audio, 0, c->audio.getNumSamples(), 0, true, true), "Could not decode audio");
+  c->audio->setSize(jmin(2, (int)r->numChannels), (int)r->lengthInSamples);
+  require(r->read(c->audio.get(), 0, c->audio->getNumSamples(), 0, true, true),
+          "Could not decode audio");
   for (int i = 0; i < 400; ++i) {
     // Long takes exceed 32-bit range when multiplied by the bucket index.
-    const auto samples = static_cast<int64>(c->audio.getNumSamples());
+    const auto samples = static_cast<int64>(c->audio->getNumSamples());
     const int a = static_cast<int>(i * samples / 400);
     const int b = static_cast<int>((i + 1) * samples / 400);
-    c->peaks.add(c->audio.getMagnitude(a, jmax(1, b - a)));
+    c->peaks.add(c->audio->getMagnitude(a, jmax(1, b - a)));
   }
   return c;
 }
 
 void Engine::stop() {
+  std::vector<size_t> first;
+  for (auto &t : tracks)
+    first.push_back(t->clips.size());
   {
     const ScopedLock l(guard);
     playing = false;
     recording = false;
+    countRemaining = 0;
     for (auto &t : tracks) {
       sendPanic(*t);
     }
@@ -64,6 +69,13 @@ void Engine::stop() {
       errors.add(t->name + ": " + String(error.what()) + ". WAV retained at " + t->recordingPath);
     }
   }
+  if (cycleRecording) {
+    const ScopedLock lock(guard);
+    for (size_t i = 0; i < tracks.size(); ++i)
+      splitRecordedTakes(*tracks[i], first[i]);
+    position = recordingLoopStart;
+    cycleRecording = false;
+  }
   if (!errors.isEmpty())
     throw std::runtime_error(errors.joinIntoString("\n").toStdString());
 }
@@ -89,7 +101,13 @@ void Engine::beginRecording() {
   require(count > 0, "Mark at least one track with its record button");
   diskOverrun = false;
   const ScopedLock preparation(guard);
-  preparePlayback(position, false);
+  cycleRecording = looping;
+  recordingLoopStart = loopStart;
+  recordingLoopEnd = loopEnd;
+  if (looping)
+    position = loopStart;
+  preparePlayback(position, looping);
+  countTotal = countRemaining = countIn ? (int64)std::llround(3 * 60 / tempo * rate) : 0;
   try {
     for (auto &t : tracks)
       if (t->armed) {

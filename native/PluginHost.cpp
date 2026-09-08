@@ -7,7 +7,9 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state) {
   OwnedArray<PluginDescription> descriptions;
   for (int i = 0; i < plugins.getNumFormats(); ++i)
     plugins.getFormat(i)->findAllTypesForFile(descriptions, path);
-  require(!descriptions.isEmpty(), "No compatible VST3 plugin was found in this bundle");
+  require(!descriptions.isEmpty(),
+          "No compatible VST3 plugin found. Choose a .vst3 file or bundle matching the app "
+          "architecture (64-bit on Windows; Apple Silicon on macOS).");
   String error;
   auto p = plugins.createPluginInstance(*descriptions[0], rate, block, error);
   if (!p)
@@ -21,7 +23,8 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state) {
   if (layout.inputBuses.size() > 0)
     layout.inputBuses.set(0, t.isMidi ? AudioChannelSet::disabled() : AudioChannelSet::stereo());
   layout.outputBuses.set(0, AudioChannelSet::stereo());
-  require(p->setBusesLayout(layout), "This first version requires a stereo-compatible effect");
+  require(p->setBusesLayout(layout),
+          "This version requires a stereo-compatible instrument or effect");
   p->setRateAndBufferSizeDetails(rate, block);
   p->prepareToPlay(rate, block);
   if (state.isNotEmpty()) {

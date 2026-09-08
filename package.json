@@ -7,16 +7,18 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc --noEmit && vite build",
-    "build:backend": "node scripts/backend.mjs",
     "build:native": "node scripts/native.mjs",
-    "build:all": "npm run build:native && npm run build:backend && npm run build",
+    "build:all": "npm run build:native && npm run build:icons && npm run build",
     "start": "electron .",
     "test": "node --test tests/*.test.mjs",
     "test:desktop": "node scripts/smoke.mjs",
     "test:visual": "electron scripts/screenshot.cjs",
     "check": "tsc --noEmit && prettier --check ui desktop scripts tests package.json tsconfig.json vite.config.ts index.html docs README.md",
     "format": "prettier --write ui desktop scripts tests package.json tsconfig.json vite.config.ts index.html docs README.md",
-    "package": "npm run build:all && electron-builder --dir"
+    "package": "npm run build:all && electron-builder --dir",
+    "build:icons": "electron scripts/icons.cjs",
+    "package:win": "node scripts/package.mjs win",
+    "package:mac": "node scripts/package.mjs mac"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -46,31 +48,41 @@
     ],
     "extraResources": [
       {
-        "from": "artifacts/backend",
-        "to": "artifacts/backend",
+        "from": "artifacts/native",
+        "to": "artifacts/native",
         "filter": [
           "**/*",
           "!**/*.pdb"
         ]
-      },
-      {
-        "from": "artifacts/native",
-        "to": "artifacts/native"
       }
     ],
     "mac": {
       "category": "public.app-category.music",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Record your instruments into separate audio tracks."
-      }
+      },
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
     },
     "win": {
-      "signAndEditExecutable": false,
-      "target": "dir"
+      "signAndEditExecutable": true,
+      "target": "dir",
+      "icon": "desktop/assets/icon.ico"
     },
     "linux": {
       "target": "dir",
       "category": "AudioVideo"
+    },
+    "icon": "desktop/assets/icon.png",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }

@@ -1,7 +1,7 @@
 import { writeMonoWav } from "./helpers/wav.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { startRpc } from "./helpers/process.mjs";
+import { startSession } from "./helpers/session.mjs";
 import {
   mkdtempSync,
   mkdirSync,
@@ -10,7 +10,7 @@ import {
   existsSync,
 } from "node:fs";
 import { resolve, isAbsolute } from "node:path";
-test("C# session service saves portable audio, reopens edits, and preserves a session on missing media", async () => {
+test("Electron session service saves portable audio, reopens edits, and preserves a session on missing media", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/project-"));
   writeMonoWav(
@@ -18,21 +18,7 @@ test("C# session service saves portable audio, reopens edits, and preserves a se
     480,
     (i) => Math.sin(i * 0.2) * 0.25,
   );
-  const rpc = startRpc(
-    "dotnet",
-    [resolve("artifacts/backend/BasementBand.dll")],
-    {
-      env: {
-        ...process.env,
-        BASEMENT_NATIVE: resolve(
-          "artifacts/native/BasementAudio" +
-            (process.platform === "win32" ? ".exe" : ""),
-        ),
-        BASEMENT_DATA: folder,
-        BASEMENT_TEST_DEVICE: "1",
-      },
-    },
-  );
+  const rpc = startSession(folder);
   const send = rpc.send;
   try {
     let r = await send({ op: "state" });

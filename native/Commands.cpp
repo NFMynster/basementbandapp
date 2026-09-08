@@ -38,7 +38,19 @@ var Engine::command(const var &c) {
     const ScopedLock lock(guard);
     for (auto &t : tracks)
       if (t->latency != (t->plugin && !t->bypass ? jmax(0, t->plugin->getLatencySamples()) : 0))
-        prepareTrack(*t, position, looping && !recording);
+        prepareTrack(*t, position, looping);
+    return state();
+  }
+  if (op == "editClip") {
+    editClip(c);
+    return state();
+  }
+  if (op == "metronome" || op == "countIn") {
+    const ScopedLock lock(guard);
+    if (op == "metronome")
+      metronome = flag(c, "value");
+    else
+      countIn = flag(c, "value");
     return state();
   }
   if (op == "export")
@@ -77,12 +89,14 @@ var Engine::command(const var &c) {
     position = jmax(0.0, number(c, "position"));
     preparePlayback(position, looping);
   } else if (op == "loop") {
+    require(!recording, "Stop recording before changing the loop");
     const ScopedLock l(guard);
     loopStart = jmax(0.0, number(c, "start"));
     loopEnd = jmax(loopStart + 0.05, number(c, "end", 8));
     looping = flag(c, "enabled");
-    preparePlayback(position, looping && !recording);
+    preparePlayback(position, looping);
   } else if (op == "tempo") {
+    require(!recording, "Stop recording before changing tempo");
     const ScopedLock l(guard);
     tempo = jlimit(40.0, 240.0, number(c, "value", 120));
   } else if (op == "rename") {
@@ -96,6 +110,7 @@ var Engine::command(const var &c) {
       tracks.back()->isMidi = true;
       tracks.back()->name = "MIDI " + String(tracks.size());
       tracks.back()->color = "#b0c4a7";
+      tracks.back()->icon = "keys";
     }
   } else if (op == "track") {
     updateTrack(c);
@@ -121,6 +136,15 @@ var Engine::command(const var &c) {
     auto &t = track(c);
     const ScopedLock l(guard);
     std::erase_if(t.clips, [&](auto &clip) { return clip->id == str(c, "clip"); });
+    for (auto &clip : t.clips)
+      if (!clip->active && clip->takeGroup.isNotEmpty()) {
+        const bool selected = std::any_of(t.clips.begin(), t.clips.end(), [&](auto &other) {
+          return other->active && other->takeGroup == clip->takeGroup;
+        });
+        if (!selected)
+          clip->active = true;
+      }
+    preparePlayback(position, looping);
   } else if (op == "removePlugin") {
     require(!playing, "Stop playback before removing a plugin");
     auto &t = track(c);
@@ -140,7 +164,7 @@ var Engine::command(const var &c) {
     auto &t = track(c);
     const ScopedLock l(guard);
     t.bypass = flag(c, "value");
-    prepareTrack(t, position, looping && !recording);
+    prepareTrack(t, position, looping);
   } else if (op == "editor") {
     auto &t = track(c);
     require(t.plugin != nullptr, "Choose a plugin first");
@@ -178,6 +202,19 @@ void Engine::updateTrack(const var &c) {
   }
   if (c.hasProperty("name"))
     t.name = str(c, "name").substring(0, 80);
+  if (c.hasProperty("color")) {
+    auto color = str(c, "color");
+    require(color.length() == 7 && color.startsWithChar('#') &&
+                color.substring(1).containsOnly("0123456789abcdefABCDEF"),
+            "Invalid track color");
+    t.color = color;
+  }
+  if (c.hasProperty("icon")) {
+    auto icon = str(c, "icon");
+    require(StringArray{"guitar", "bass", "drums", "keys", "mic", "audio"}.contains(icon),
+            "Invalid track icon");
+    t.icon = icon;
+  }
   if (c.hasProperty("armed")) {
     require(!recording, "Stop recording before changing marked tracks");
     t.armed = flag(c, "armed");

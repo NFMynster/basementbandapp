@@ -24,6 +24,10 @@ app
       "*, *::before, *::after { animation: none !important; transition: none !important; }",
     );
     await new Promise((r) => setTimeout(r, 600));
+    await win.webContents.executeJavaScript(
+      `document.querySelector('.welcome-dialog .modal-close')?.click()`,
+    );
+    await new Promise((r) => setTimeout(r, 100));
     mkdirSync("artifacts/screenshots", { recursive: true });
     writeFileSync(
       "artifacts/screenshots/workspace.png",

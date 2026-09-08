@@ -2,6 +2,21 @@
 #include <cmath>
 
 namespace basement {
+void Engine::click(float *const *outputs, int channels, int samples, double time) {
+  const double beatLength = 60 / tempo;
+  for (int i = 0; i < samples; ++i) {
+    const double at = time + i / rate;
+    const double phase = std::fmod(at, beatLength);
+    if (phase < 0.025) {
+      const double frequency = ((int)std::floor(at / beatLength + 1e-8) % 4 == 0) ? 1500 : 1100;
+      const float value = (float)(0.2 * std::sin(MathConstants<double>::twoPi * frequency * phase) *
+                                  std::exp(-phase * 170));
+      for (int ch = 0; ch < jmin(2, channels); ++ch)
+        if (outputs[ch])
+          outputs[ch][i] += value;
+    }
+  }
+}
 void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
   const ScopedLock l(guard);
   rate = d->getCurrentSampleRate();
@@ -14,7 +29,7 @@ void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
     if (t->plugin)
       t->plugin->prepareToPlay(rate, block);
   }
-  preparePlayback(position, looping && !recording);
+  preparePlayback(position, looping);
 }
 
 void Engine::audioDeviceStopped() {}
@@ -29,6 +44,29 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
   if (!l.isLocked()) {
     if (playing.load())
       diskOverrun = true;
+    return;
+  }
+  if (countRemaining > 0) {
+    for (auto &t : tracks)
+      if (t->isMidi) {
+        if (!testDevice)
+          t->collector.removeNextBlockOfMessages(t->liveMidi, n);
+        t->liveMidi.clear();
+      }
+    const int prefix = (int)jmin((int64)n, countRemaining);
+    click(outputs, no, prefix, (countTotal - countRemaining) / rate);
+    countRemaining -= prefix;
+    // Split the crossing block exactly on the native sample clock.
+    if (prefix < n) {
+      const float *remainingInputs[128]{};
+      float *remainingOutputs[128]{};
+      for (int ch = 0; ch < jmin(ni, 128); ++ch)
+        remainingInputs[ch] = inputs[ch] ? inputs[ch] + prefix : nullptr;
+      for (int ch = 0; ch < jmin(no, 128); ++ch)
+        remainingOutputs[ch] = outputs[ch] ? outputs[ch] + prefix : nullptr;
+      audioDeviceIOCallbackWithContext(remainingInputs, jmin(ni, 128), remainingOutputs,
+                                       jmin(no, 128), n - prefix, {});
+    }
     return;
   }
   bool anySolo = false;
@@ -71,7 +109,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     }
     if ((!playing && !(t->isMidi && t->armed)) || n > t->scratch.getNumSamples())
       continue;
-    renderTrack(*t, playing ? position + t->latency / rate : -1, n, looping && !recording);
+    renderTrack(*t, playing ? position + t->latency / rate : -1, n, looping);
     t->liveMidi.clear();
     if (t->mute || (anySolo && !t->solo))
       continue;
@@ -84,6 +122,8 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
                                                ch == 0 ? left : right, n);
   }
   if (playing) {
+    if (metronome)
+      click(outputs, no, n, position);
     position += n / rate;
     if (looping && !recording && position >= loopEnd && loopEnd > loopStart)
       position = loopStart + std::fmod(position - loopStart, loopEnd - loopStart);
