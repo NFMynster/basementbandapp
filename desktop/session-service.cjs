@@ -217,6 +217,15 @@ class SessionService {
     return result;
   }
   async execute(command) {
+    const gainGroup =
+      command.op === "track" &&
+      typeof command.gain === "number" &&
+      typeof command.historyGroup === "string"
+        ? command.track + ":" + command.historyGroup
+        : null;
+    const continuesGain = gainGroup && gainGroup === this.lastGainGroup;
+    if (!["state", "devices", "snapshot"].includes(command.op))
+      this.lastGainGroup = null;
     if (command.op === "play")
       this.lastSnapshot = await this.engine.request({ op: "snapshot" });
     if (command.op === "undo" || command.op === "redo") {
@@ -272,7 +281,7 @@ class SessionService {
       "removePlugin",
     ].includes(command.op);
     let before;
-    if (editable) {
+    if (editable && !continuesGain) {
       const state = await this.engine.request({ op: "state" });
       if (!state.recording) {
         before = await this.engine.request({
@@ -292,6 +301,7 @@ class SessionService {
       }
     }
     const result = await this.executeRaw(command);
+    if (gainGroup) this.lastGainGroup = gainGroup;
     if (before) {
       this.undoStack.push(before);
       if (this.undoStack.length > 30) this.undoStack.shift();

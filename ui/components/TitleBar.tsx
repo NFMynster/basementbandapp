@@ -1,4 +1,12 @@
-import { AudioLines, FolderOpen, Plus, Save, Download } from "lucide-react";
+import {
+  AudioLines,
+  FolderOpen,
+  Plus,
+  Save,
+  Download,
+  Undo2,
+  Redo2,
+} from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 import { keyLabel } from "../hooks/useShortcuts";
@@ -20,15 +28,17 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
             title={`Undo · ${keyLabel(controller.bindings.undo)}`}
             disabled={busy || s.playing || !s.canUndo}
             onClick={() => run({ op: "undo" })}
+            aria-label="Undo"
           >
-            Undo
+            <Undo2 size={16} />
           </button>
           <button
             title={`Redo · ${keyLabel(controller.bindings.redo)}`}
             disabled={busy || s.playing || !s.canRedo}
             onClick={() => run({ op: "redo" })}
+            aria-label="Redo"
           >
-            Redo
+            <Redo2 size={16} />
           </button>
           <button
             disabled={busy || s.recording}

@@ -61,6 +61,7 @@ export function useWorkspace() {
     [clipId, setClipId] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
+    [noticeVersion, setNoticeVersion] = useState(0),
     [panel, setPanel] = useState<"input" | "plugins" | "export">("input"),
     [showHelp, setHelp] = useState(false),
     [devices, setDevices] = useState<Devices | null>(null),
@@ -142,6 +143,10 @@ export function useWorkspace() {
       setError("");
       const r = await api.command(c);
       accept(r);
+      if (c.op === "undo" || c.op === "redo") {
+        setNotice(c.op === "undo" ? "Undo" : "Redo");
+        setNoticeVersion((v) => v + 1);
+      }
       if (change) setDirty(true);
       return r;
     } catch (e) {
@@ -207,7 +212,7 @@ export function useWorkspace() {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 4000);
     return () => clearTimeout(t);
-  }, [notice]);
+  }, [notice, noticeVersion]);
   const editSelected = (
     action: "split" | "copy" | "move",
     source = clipboard.current,
@@ -452,6 +457,7 @@ export function useWorkspace() {
     error,
     setError,
     notice,
+    noticeVersion,
     setNotice,
     panel,
     setPanel,

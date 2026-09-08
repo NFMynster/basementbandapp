@@ -267,6 +267,20 @@
   border: 1px solid #ee8282;
   animation: error-ping 1000ms ease-out;
 }
+.toast.notice {
+  border: 1px solid #91bc91;
+  animation: notice-ping 1000ms ease-out;
+}
+@keyframes notice-ping {
+  from {
+    box-shadow:
+      inset 0 0 30px #91bc9145,
+      0 0 20px #91bc9125;
+  }
+  to {
+    box-shadow: inset 0 0 0 transparent;
+  }
+}
 @keyframes error-ping {
   from {
     box-shadow:
@@ -281,6 +295,7 @@
   .count-in-overlay,
   .count-in-overlay strong,
   .properties-ping,
+  .toast.notice,
   .toast.error {
     animation: none;
   }

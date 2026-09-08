@@ -76,7 +76,7 @@ export type Devices = {
   bufferSize: number;
 };
 
-export type TrackPatch = Partial<
+export type TrackPatch = { historyGroup?: string } & Partial<
   Pick<
     Track,
     | "name"

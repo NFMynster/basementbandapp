@@ -28,7 +28,15 @@ export function Notices({ controller }: { controller: WorkspaceController }) {
           )}
         </div>
       )}
-      {notice && <div className="toast">{notice}</div>}
+      {notice && (
+        <div
+          key={controller.noticeVersion}
+          className="toast notice"
+          role="status"
+        >
+          {notice}
+        </div>
+      )}
     </>
   );
 }

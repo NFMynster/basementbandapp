@@ -301,7 +301,9 @@ export function Arrangement({
                       value={t.gain}
                       max={1.5}
                       peak={t.peak}
-                      onChange={(gain) => update(t, { gain })}
+                      onChange={(gain, historyGroup) =>
+                        update(t, { gain, historyGroup })
+                      }
                     />
                   </div>
                 </div>

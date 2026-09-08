@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 
 /** One accessible gain control; its trough also displays the signal level. */
 export function LevelSlider({
@@ -12,8 +12,9 @@ export function LevelSlider({
   value: number;
   peak: number;
   max?: number;
-  onChange: (value: number) => void;
+  onChange: (value: number, historyGroup?: string) => void;
 }) {
+  const gesture = useRef<string | undefined>(undefined);
   return (
     <div
       className="level-slider"
@@ -34,7 +35,19 @@ export function LevelSlider({
         max={max}
         step="0.01"
         value={value}
-        onChange={(e) => onChange(+e.target.value)}
+        onPointerDown={() => {
+          gesture.current = crypto.randomUUID();
+        }}
+        onPointerUp={() => {
+          gesture.current = undefined;
+        }}
+        onPointerCancel={() => {
+          gesture.current = undefined;
+        }}
+        onBlur={() => {
+          gesture.current = undefined;
+        }}
+        onChange={(e) => onChange(+e.target.value, gesture.current)}
       />
     </div>
   );
