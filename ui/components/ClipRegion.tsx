@@ -64,10 +64,26 @@ export function ClipRegion({
     const cut =
       drag.current!.mode === "left"
         ? Math.min(
-            Math.max(0, delta),
+            Math.max(
+              Math.max(
+                -c.start,
+                ...[c, ...takes].map(
+                  (take) => (take.sourceStart ?? 0) - (take.offset ?? 0),
+                ),
+              ),
+              delta,
+            ),
             Math.max(0, shortest - 2 / w.s.sampleRate),
           )
-        : Math.max(Math.min(0, delta), -c.duration + 2 / w.s.sampleRate);
+        : Math.max(
+            Math.min(
+              (c.sourceEnd ?? (c.offset ?? 0) + c.duration) -
+                (c.offset ?? 0) -
+                c.duration,
+              delta,
+            ),
+            -c.duration + 2 / w.s.sampleRate,
+          );
     return drag.current!.mode === "left"
       ? { position: c.start + cut, duration: c.duration - cut, y: 0 }
       : { position: c.start, duration: c.duration + cut, y: 0 };
@@ -82,7 +98,7 @@ export function ClipRegion({
           ...c,
           duration: preview.duration,
           peaks: c.peaks.slice(
-            Math.floor((cutStart / c.duration) * c.peaks.length),
+            Math.max(0, Math.floor((cutStart / c.duration) * c.peaks.length)),
             Math.max(
               1,
               Math.ceil(
@@ -112,6 +128,9 @@ export function ClipRegion({
         data-clip={c.id}
         className={
           "clip " +
+          ((preview?.duration ?? c.duration) * w.pxPerSecond < 72
+            ? "compact "
+            : "") +
           (w.clipId === c.id ? "chosen " : "") +
           (preview !== null
             ? preview.duration === undefined

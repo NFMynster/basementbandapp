@@ -17,6 +17,8 @@ void Engine::splitRecordedTakes(Track &t, size_t first) {
     take->start = recordingLoopStart;
     take->offset = i * span;
     take->length = jmin(span, source->sourceDuration() - take->offset);
+    take->sourceStart = take->offset;
+    take->sourceEnd = take->offset + take->length;
     take->takeGroup = group;
     take->take = i + 1;
     take->active = i == count - 1;
@@ -42,16 +44,19 @@ void Engine::editClip(const var &c) {
   } else if (action == "trim") {
     const double start = number(c, "position"), length = number(c, "length");
     const double delta = start - clip.start;
-    require(std::isfinite(start) && std::isfinite(length) && delta >= -1e-8 &&
-                length >= 1 / rate && delta + length <= clip.duration() + 1e-8,
-            "Trim must stay inside the existing region");
+    require(std::isfinite(start) && std::isfinite(length) && start >= 0 &&
+                clip.offset + delta >= clip.sourceStart - 1e-8 &&
+                length >= 1 / rate && clip.offset + delta + length <= clip.trimEnd() + 1e-8,
+            "Trim must stay inside the original source");
     for (auto &part : t.clips)
       if (part.get() == &clip || (clip.takeGroup.isNotEmpty() && part->takeGroup == clip.takeGroup))
-        require(delta < part->duration() - 1 / rate, "Trim would remove an alternate take entirely");
+        require(part->offset + delta >= part->sourceStart - 1e-8 &&
+                    part->offset + delta < part->trimEnd() - 1 / rate,
+                "Trim would exceed an alternate take");
     const auto group = clip.takeGroup;
     for (auto &part : t.clips)
       if (part.get() == &clip || (group.isNotEmpty() && part->takeGroup == group)) {
-        part->length = jmin(length, part->duration() - delta);
+        part->length = jmin(length, part->trimEnd() - part->offset - delta);
         part->offset += delta;
         part->start = start;
       }

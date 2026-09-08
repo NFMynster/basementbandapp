@@ -190,85 +190,80 @@ export function TrackInspector({
                       : "Load an installed VST3 effect for this track’s playback."}
                   </p>
                 </div>
-                <div className="plugin-slot">
-                  {track.pluginName ? (
-                    <>
+                <div className="plugin-details">
+                  <div className="plugin-slot">
+                    {track.pluginName ? (
+                      <>
+                        <button
+                          title="Bypass plugin"
+                          className={track.bypass ? "" : "on"}
+                          onClick={() =>
+                            run({
+                              op: "bypass",
+                              track: track.id,
+                              value: !track.bypass,
+                            })
+                          }
+                        >
+                          <Power size={18} />
+                        </button>
+                        <div>
+                          <strong>{track.pluginName}</strong>
+                          <small>
+                            {track.bypass
+                              ? "Bypassed"
+                              : track.kind === "midi"
+                                ? "MIDI instrument · live & playback"
+                                : "Stereo effect · playback"}
+                          </small>
+                        </div>
+                        <button
+                          onClick={() =>
+                            run({ op: "editor", track: track.id }, false)
+                          }
+                        >
+                          Open editor
+                        </button>
+                        <button
+                          title="Replace plugin"
+                          disabled={s.playing || busy}
+                          onClick={() => task(() => api.plugin(track.id))}
+                        >
+                          Replace
+                        </button>
+                        <button
+                          title="Remove plugin"
+                          disabled={s.playing || busy}
+                          onClick={() =>
+                            run({ op: "removePlugin", track: track.id })
+                          }
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        title="Bypass plugin"
-                        className={track.bypass ? "" : "on"}
-                        onClick={() =>
-                          run({
-                            op: "bypass",
-                            track: track.id,
-                            value: !track.bypass,
-                          })
-                        }
-                      >
-                        <Power size={18} />
-                      </button>
-                      <div>
-                        <strong>{track.pluginName}</strong>
-                        <small>
-                          {track.bypass
-                            ? "Bypassed"
-                            : track.kind === "midi"
-                              ? "MIDI instrument · live & playback"
-                              : "Stereo effect · playback"}
-                        </small>
-                      </div>
-                      <button
-                        onClick={() =>
-                          run({ op: "editor", track: track.id }, false)
-                        }
-                      >
-                        Open editor
-                      </button>
-                      <button
-                        title="Replace plugin"
                         disabled={s.playing || busy}
                         onClick={() => task(() => api.plugin(track.id))}
                       >
-                        Replace
+                        <Plus size={20} />
+                        <span>
+                          {track.kind === "midi"
+                            ? "Add VST3 instrument"
+                            : "Add VST3 plug-in"}
+                          <small>Choose or drop a .vst3 file or bundle</small>
+                        </span>
                       </button>
-                      <button
-                        title="Remove plugin"
-                        disabled={s.playing || busy}
-                        onClick={() =>
-                          run({ op: "removePlugin", track: track.id })
-                        }
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      disabled={s.playing || busy}
-                      onClick={() => task(() => api.plugin(track.id))}
-                    >
-                      <Plus size={20} />
-                      <span>
-                        {track.kind === "midi"
-                          ? "Add VST3 instrument"
-                          : "Add VST3 plug-in"}
-                        <small>Choose or drop a .vst3 file or bundle</small>
-                      </span>
-                    </button>
-                  )}
+                    )}
+                  </div>
+                  <p className="plugin-note">
+                    {track.kind === "midi"
+                      ? "One instrument per MIDI track. No sounds bundled."
+                      : "One effect per audio track in this iteration."}
+                    <br />
+                    Stop playback before loading a plug-in.
+                  </p>
                 </div>
-                <p className="plugin-note">
-                  <button
-                    className="text-button"
-                    disabled={s.playing || busy}
-                    onClick={() => task(() => api.plugin(track.id, true))}
-                  >
-                    Choose a bundle folder…
-                  </button>
-                  {track.kind === "midi"
-                    ? "One instrument per MIDI track. No sounds bundled."
-                    : "One effect per audio track in this iteration."}
-                  <br />
-                  Stop playback before loading a plug-in.
-                </p>
               </>
             )}
           </div>

@@ -112,7 +112,10 @@ function registerIpc(win, request) {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
     const r = await dialog.showOpenDialog(win, {
       title: bundle ? "Choose a VST3 bundle folder" : "Choose a VST3 plugin",
-      defaultPath: app.getPath("home"),
+      defaultPath:
+        process.platform === "darwin"
+          ? "/Library/Audio/Plug-Ins/VST3"
+          : app.getPath("home"),
       filters: [{ name: "VST3 plugin", extensions: ["vst3"] }],
       properties: [bundle ? "openDirectory" : "openFile"],
     });

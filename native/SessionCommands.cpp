@@ -69,6 +69,12 @@ void Engine::restoreSession(const var &c) {
       clip->takeGroup = str(cv, "takeGroup");
       clip->take = (int)number(cv, "take");
       clip->active = flag(cv, "active", true);
+      clip->sourceStart = number(cv, "sourceStart", clip->takeGroup.isEmpty() ? 0 : clip->offset);
+      clip->sourceEnd = number(cv, "sourceEnd", clip->takeGroup.isEmpty() ? clip->sourceDuration() : clip->offset + clip->duration());
+      require(clip->sourceStart >= 0 && clip->sourceStart <= clip->offset &&
+                  clip->sourceEnd >= clip->offset + clip->duration() - 1e-8 &&
+                  clip->sourceEnd <= clip->sourceDuration() + 0.002,
+              "Invalid original source bounds");
       t->clips.push_back(std::move(clip));
     }
     if (str(v, "pluginPath").isNotEmpty())

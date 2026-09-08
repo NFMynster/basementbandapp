@@ -6,11 +6,13 @@ export function Modal({
   onClose,
   children,
   className = "",
+  footer,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  footer?: ReactNode;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -30,7 +32,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`modal ${className}`}
+        className={`modal ${footer ? "modal-with-footer" : ""} ${className}`}
         onKeyDown={(e) => {
           e.stopPropagation(); // Transport shortcuts must not run underneath dialogs.
           if (e.key === "Escape") {
@@ -57,7 +59,14 @@ export function Modal({
         <button className="modal-close" onClick={onClose} title="Close">
           <X size={20} />
         </button>
-        {children}
+        {footer ? (
+          <>
+            <div className="modal-scroll">{children}</div>
+            <div className="modal-fixed-footer">{footer}</div>
+          </>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );

@@ -91,6 +91,9 @@ function validate(session) {
       text(clip.path, 32768);
       number(clip.start, 0, Number.MAX_VALUE);
       if (clip.offset !== undefined) number(clip.offset, 0, 1200);
+      if (clip.sourceStart !== undefined) number(clip.sourceStart, 0, 1200);
+      if (clip.sourceEnd !== undefined)
+        number(clip.sourceEnd, clip.sourceStart ?? 0, 1200);
       if (clip.length !== undefined) {
         number(clip.length, -1, 1200);
         assertValid(

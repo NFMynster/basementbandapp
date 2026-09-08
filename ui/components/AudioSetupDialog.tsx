@@ -68,6 +68,29 @@ export function AudioSetupDialog({
       {setup && (
         <Modal
           title="Settings"
+          footer={
+            <div className="modal-bottom">
+              <span>
+                {applyError ||
+                  (deviceDirty
+                    ? "Changes apply when you press Done."
+                    : "Your session. Your setup.")}
+              </span>
+              <button
+                className="primary"
+                disabled={applying || (s.playing && deviceDirty)}
+                onClick={() =>
+                  deviceDirty ||
+                  (devices && controller.settingsTab === "audio" && !s.playing)
+                    ? apply(true)
+                    : setSetup(false)
+                }
+              >
+                {applying ? "Applying…" : "Done"}
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          }
           onClose={() => {
             if (!applying) setSetup(false);
           }}
@@ -97,16 +120,6 @@ export function AudioSetupDialog({
           {controller.settingsTab === "shortcuts" ? (
             <>
               <ShortcutSettings controller={controller} />
-              <div className="modal-bottom">
-                <span>Saved automatically on this computer.</span>
-                <button
-                  className="primary"
-                  disabled={applying}
-                  onClick={() => (deviceDirty ? apply(true) : setSetup(false))}
-                >
-                  Done
-                </button>
-              </div>
             </>
           ) : (
             <>
@@ -117,6 +130,27 @@ export function AudioSetupDialog({
               </p>
               {devices ? (
                 <>
+                  {controller.settingsTab === "midi" && (
+                    <p className="midi-timing">
+                      MIDI instruments share the audio output buffer:{" "}
+                      {s.bufferSize} samples (
+                      {((s.bufferSize / s.sampleRate) * 1000).toFixed(2)} ms).{" "}
+                      Driver-reported output latency:{" "}
+                      {(
+                        ((s.outputLatencySamples ?? 0) / s.sampleRate) *
+                        1000
+                      ).toFixed(1)}{" "}
+                      ms. VST delay for the selected track:{" "}
+                      {(
+                        ((controller.track?.latencySamples ?? 0) /
+                          s.sampleRate) *
+                        1000
+                      ).toFixed(1)}{" "}
+                      ms. These are reported values, not a measured
+                      pad-to-speaker total. Change the shared buffer under Audio
+                      inputs & output.
+                    </p>
+                  )}
                   <div hidden={controller.settingsTab !== "audio"}>
                     <label>
                       Audio driver
@@ -340,25 +374,6 @@ export function AudioSetupDialog({
                   >
                     + Add audio or MIDI track
                   </button>
-                  <div className="modal-bottom">
-                    <span>
-                      {controller.settingsTab === "audio"
-                        ? "One audio interface. Multiple recording channels."
-                        : "Each MIDI track can use its own device."}
-                    </span>
-                    <button
-                      className="primary"
-                      disabled={s.playing || applying}
-                      onClick={() =>
-                        controller.settingsTab === "audio" || deviceDirty
-                          ? apply(true)
-                          : setSetup(false)
-                      }
-                    >
-                      {applying ? "Applying…" : "Done"}
-                      <ChevronRight size={15} />
-                    </button>
-                  </div>
                 </>
               ) : (
                 <div className="device-status">

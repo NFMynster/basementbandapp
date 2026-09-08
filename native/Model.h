@@ -12,6 +12,8 @@ struct Clip {
   double eventPosition = -1;
   String id = Uuid().toString(), name, path;
   double start = 0, sampleRate = 48000, offset = 0, length = -1;
+  double sourceStart = 0, sourceEnd = -1;
+  double trimEnd() const { return sourceEnd < 0 ? sourceDuration() : sourceEnd; }
   String takeGroup;
   int take = 0;
   bool active = true;
@@ -43,6 +45,8 @@ struct Clip {
                      {"duration", duration()},
                      {"peaks", preview},
                      {"offset", offset},
+                     {"sourceStart", sourceStart},
+                     {"sourceEnd", trimEnd()},
                      {"length", length},
                      {"takeGroup", takeGroup},
                      {"take", take},

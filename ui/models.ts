@@ -1,5 +1,7 @@
 export type Clip = {
   offset?: number;
+  sourceStart?: number;
+  sourceEnd?: number;
   takeGroup?: string;
   take?: number;
   active?: boolean;
@@ -34,6 +36,8 @@ export type Track = {
   bypass: boolean;
 };
 export type Session = {
+  outputLatencySamples?: number;
+  inputLatencySamples?: number;
   masterGain?: number;
   masterPeak?: number;
   metronome?: boolean;

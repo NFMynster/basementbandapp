@@ -51,12 +51,14 @@ Only one stereo-compatible instrument/effect per track is supported. Plugins run
 
 ## Control defaults and diagnostics
 
-On Windows, startup explicitly requests the system's default multimedia input and output through JUCE's Windows Audio driver. Manual selections still apply for the current run; devices are not switched underneath an active recording. The VST3 picker starts in the user's home folder.
+On Windows, startup explicitly requests the system's default multimedia input and output through JUCE's Windows Audio driver. Manual selections still apply for the current run; devices are not switched underneath an active recording. The VST3 picker starts in `/Library/Audio/Plug-Ins/VST3` on macOS and the user's home folder elsewhere.
 
 Master volume defaults to unity at the slider midpoint, with up to 2× gain above it. Final output is clamped to prevent out-of-range samples, not transparently limited: excessive boost can distort. Short loop regions also expose their takes in the arrangement toolbar when selected and in their context menu, independent of zoom.
 
 Status JSON is built outside the audio lock, except for a short timing snapshot and plug-in state capture when saving. Seeking intentionally suspends transport while processors are reset/primed and then resumes; this reset is not reported as a recording dropout. Unexpected callback lock failures during transport and recording-writer/MIDI overflow still raise warnings. This reduces known contention but does not guarantee dropout-free performance with every driver or plug-in.
 
-Loop selection remains visible when disabled; click its upper-ruler range to toggle it, or drag to choose a new range. Region edges trim inward without changing source files or extending the current region. Alternate takes trim together, with left trimming bounded by the shortest take so no alternate is silently discarded. There is no undo command yet.
+Loop selection remains visible when disabled; click its upper-ruler range to toggle it, or drag to choose a new range. Region edges trim and extend within the original source without changing source files. Those bounds survive saving/reopening. Loop takes are bounded by their original pass, not the complete multi-pass file. Tiny regions show the resize cursor without floating trim handles. There is no undo command yet.
+
+MIDI tracks do not have an independent audio buffer. The shared device buffer remains 256 samples by default rather than forcing 16 for MIDI. MIDI settings show the active buffer duration, driver-reported output latency and selected track's reported plug-in latency; these are not a measured end-to-end delay. Plug-in editor windows request foreground activation on macOS, and Open editor recreates the editor window without unloading its processor.
 
 On macOS the console helper explicitly creates NSApplication before JUCE initializes its message dispatcher. JUCE's normal application entry point performs this step, but a standalone console main does not. Control messages and plug-in windows remain on the message thread; audio remains on the separate device callback, with no added audio buffering or polling delay. An unexpected event-loop exit fails immediately instead of hanging while joining the stdin reader.

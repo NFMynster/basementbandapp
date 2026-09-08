@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { startRpc } from "./helpers/process.mjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
 
-test("region edge trims preserve source, reject extension, survive restore and align playback", async () => {
+test("region trims preserve source, restore original bounds after reopening and reject over-extension", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/trim-"));
   const source = resolve(folder, "source.wav");
@@ -50,7 +50,7 @@ test("region edge trims preserve source, reject extension, survive restore and a
     });
     assert.equal(s.tracks[0].clips[0].duration, 0.25);
     for (const changes of [
-      { position: 2.4, length: 0.25 },
+      { position: 1.9, length: 0.25 },
       { position: 2.5, length: 0.6 },
       { position: 2.5, length: 0 },
     ]) {
@@ -74,6 +74,18 @@ test("region edge trims preserve source, reject extension, survive restore and a
     await send({ op: "play" });
     const out = await send({ op: "pump", frames: 128 });
     assert.ok(out.left.every((v) => Math.abs(v - 0.4) < 0.00001));
+    await send({ op: "stop" });
+    s = await send({
+      op: "editClip",
+      track,
+      clip,
+      action: "trim",
+      position: 2,
+      length: 1,
+    });
+    assert.equal(s.tracks[0].clips[0].duration, 1);
+    assert.equal(s.tracks[0].clips[0].offset, 0);
+    assert.equal(s.tracks[0].clips[0].sourceEnd, 1);
     assert.deepEqual(readFileSync(source), original);
   } finally {
     await rpc.close();
