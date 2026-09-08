@@ -66,7 +66,7 @@ export function TrackMenu({
                 `Delete ${track.name} from this session? Recorded audio files will be kept.`,
               )
             )
-              controller.run({ op: "removeTrack", track: track.id });
+              void controller.removeTrack(track);
           })
         }
       >

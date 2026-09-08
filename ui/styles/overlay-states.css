@@ -68,6 +68,14 @@
     notice-ping 1000ms ease-out,
     notice-fade 4000ms ease-in forwards;
 }
+.toast.notice.warning {
+  border-color: #d8b45e;
+  color: #f3dfaa;
+  background: #403a27;
+  animation:
+    warning-ping 1000ms ease-out,
+    notice-fade 4000ms ease-in forwards;
+}
 @keyframes notice-ping {
   from {
     box-shadow:
@@ -87,6 +95,16 @@
     opacity: 0;
   }
 }
+@keyframes warning-ping {
+  from {
+    box-shadow:
+      inset 0 0 30px #e5c45b45,
+      0 0 20px #e5c45b25;
+  }
+  to {
+    box-shadow: inset 0 0 0 transparent;
+  }
+}
 @keyframes error-ping {
   from {
     box-shadow:
@@ -102,6 +120,7 @@
   .count-in-overlay strong,
   .properties-ping,
   .toast.notice,
+  .toast.notice.warning,
   .toast.error {
     animation: none;
   }

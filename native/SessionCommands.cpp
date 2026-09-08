@@ -8,6 +8,7 @@ void Engine::resetSession(const var &c) {
   editor.reset();
   const ScopedLock l(guard);
   tracks.clear();
+  mediaCache.clear();
   folder = str(c, "folder");
   title = "Friday night";
   diskOverrun = false;

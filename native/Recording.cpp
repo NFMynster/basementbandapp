@@ -3,6 +3,18 @@
 
 namespace basement {
 std::unique_ptr<Clip> Engine::readClip(String path, String name, double start) {
+  auto clone = [&](const Clip &source) {
+    auto result = std::make_unique<Clip>(source);
+    result->id = Uuid().toString();
+    result->name = name;
+    result->start = start;
+    result->cachedKey.clear();
+    result->cachedJson = var();
+    return result;
+  };
+  if (const auto cached = mediaCache.find(path); cached != mediaCache.end())
+    return clone(*cached->second);
+
   std::unique_ptr<AudioFormatReader> r(formats.createReaderFor(File(path)));
   require(r != nullptr, "This audio file could not be opened");
   require(r->lengthInSamples > 0 && r->lengthInSamples <= r->sampleRate * 60 * 20,
@@ -22,7 +34,8 @@ std::unique_ptr<Clip> Engine::readClip(String path, String name, double start) {
     const int b = static_cast<int>((i + 1) * samples / 400);
     c->peaks.add(c->audio->getMagnitude(a, jmax(1, b - a)));
   }
-  return c;
+  mediaCache[path] = std::shared_ptr<Clip>(std::move(c));
+  return clone(*mediaCache[path]);
 }
 
 void Engine::stop() {

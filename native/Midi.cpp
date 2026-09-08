@@ -13,6 +13,18 @@ void Engine::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &mes
 }
 
 std::unique_ptr<Clip> Engine::readMidiClip(String path, String name, double start) {
+  auto clone = [&](const Clip &source) {
+    auto result = std::make_unique<Clip>(source);
+    result->id = Uuid().toString();
+    result->name = name;
+    result->start = start;
+    result->cachedKey.clear();
+    result->cachedJson = var();
+    return result;
+  };
+  if (const auto cached = mediaCache.find(path); cached != mediaCache.end())
+    return clone(*cached->second);
+
   FileInputStream input{File(path)};
   MidiFile file;
   require(File(path).getSize() <= 32 * 1024 * 1024, "MIDI file is too large");
@@ -36,7 +48,8 @@ std::unique_ptr<Clip> Engine::readMidiClip(String path, String name, double star
     }
   }
   clip->events->updateMatchedPairs();
-  return clip;
+  mediaCache[path] = std::shared_ptr<Clip>(std::move(clip));
+  return clone(*mediaCache[path]);
 }
 
 void Engine::finishMidiTake(Track &t) {

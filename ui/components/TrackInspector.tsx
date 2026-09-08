@@ -113,7 +113,7 @@ export function TrackInspector({
                       disabled={s.playing}
                       onClick={() => {
                         if (confirm(`Remove ${track.name} from this session?`))
-                          run({ op: "removeTrack", track: track.id });
+                          void controller.removeTrack(track);
                       }}
                     >
                       <Trash2 size={12} />

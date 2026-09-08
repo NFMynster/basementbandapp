@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 export function Notices({ controller }: { controller: WorkspaceController }) {
-  const { s, error, setError, notice, run, openSetup } = controller;
+  const { s, error, setError, notice, noticeTone, run, openSetup } = controller;
   return (
     <>
       {(error || s.deviceError || s.diskOverrun) && (
@@ -31,7 +31,7 @@ export function Notices({ controller }: { controller: WorkspaceController }) {
       {notice && (
         <div
           key={controller.noticeVersion}
-          className="toast notice"
+          className={`toast notice ${noticeTone}`}
           role="status"
         >
           {notice}

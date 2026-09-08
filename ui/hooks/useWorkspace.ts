@@ -2,6 +2,7 @@ import { useShortcuts } from "./useShortcuts";
 import { errorMessage } from "../services/errors";
 import React, { useEffect, useRef, useState } from "react";
 import type {
+  Clip,
   Session,
   Devices,
   Track,
@@ -29,6 +30,7 @@ const empty: Session = {
 };
 const RULER_SNAP_DIVISIONS = 4;
 const RULER_DRAG_THRESHOLD = 4;
+type NoticeTone = "notice" | "warning";
 
 function trackContainingClip(tracks: Track[], clipId: string) {
   return tracks.find((candidate) =>
@@ -106,7 +108,8 @@ export function useWorkspace() {
     [selected, setSelected] = useState(""),
     [clipId, setClipId] = useState(""),
     [error, setError] = useState(""),
-    [notice, setNotice] = useState(""),
+    [notice, setNoticeState] = useState(""),
+    [noticeTone, setNoticeTone] = useState<NoticeTone>("notice"),
     [noticeVersion, setNoticeVersion] = useState(0),
     [panel, setPanel] = useState<"input" | "plugins" | "export">("input"),
     [showHelp, setHelp] = useState(false),
@@ -157,6 +160,11 @@ export function useWorkspace() {
       if (v.recoveryError) setError(v.recoveryError);
     }
   };
+  function setNotice(message: string, tone: NoticeTone = "notice") {
+    setNoticeState(message);
+    setNoticeTone(tone);
+    setNoticeVersion((v) => v + 1);
+  }
   const recoverySeen = useRef(false);
   useEffect(() => {
     if (s.recovered && !recoverySeen.current) {
@@ -191,7 +199,6 @@ export function useWorkspace() {
       accept(r);
       if (c.op === "undo" || c.op === "redo") {
         setNotice(c.op === "undo" ? "Undo" : "Redo");
-        setNoticeVersion((v) => v + 1);
       }
       if (change) setDirty(true);
       return r;
@@ -211,6 +218,68 @@ export function useWorkspace() {
       setBusy(false);
       editing.current = false;
     }
+  }
+  async function removeTrack(track: Track) {
+    if (s.playing) return;
+    const previous = s;
+    const selectedBefore = selected;
+    const clipBefore = clipId;
+    setS({
+      ...s,
+      tracks: s.tracks.filter((candidate) => candidate.id !== track.id),
+    });
+    if (selected === track.id) {
+      const next = s.tracks.find((candidate) => candidate.id !== track.id);
+      setSelected(next?.id ?? "");
+      setClipId("");
+    }
+    setDirty(true);
+    setNotice(`Deleted track “${track.name}”.`, "warning");
+    const result = await run({ op: "removeTrack", track: track.id });
+    if (!result) {
+      setS(previous);
+      setDirty(dirty);
+      if (selected === track.id) {
+        setSelected(selectedBefore);
+        setClipId(clipBefore);
+      }
+    }
+    return result;
+  }
+  async function removeClip(track: Track, clip: Clip) {
+    if (s.recording || busy) return;
+    const previous = s;
+    const selectedClipBefore = clipId;
+    setS({
+      ...s,
+      tracks: s.tracks.map((candidate) =>
+        candidate.id === track.id
+          ? {
+              ...candidate,
+              clips: candidate.clips.filter(
+                (candidate) => candidate.id !== clip.id,
+              ),
+            }
+          : candidate,
+      ),
+    });
+    if (clipId === clip.id) setClipId("");
+    setDirty(true);
+    setNotice(
+      `Deleted recording “${clip.name}” from ${track.name}.`,
+      "warning",
+    );
+    const result = await run({
+      op: "removeClip",
+      track: track.id,
+      clip: clip.id,
+    });
+    if (!result) {
+      setS(previous);
+      setDirty(dirty);
+      if (clipId === "") setClipId(selectedClipBefore);
+    }
+    return result;
   }
   async function task(
     fn: () => Promise<Session | SaveResult | null>,
@@ -316,12 +385,13 @@ export function useWorkspace() {
         !s.playing &&
         confirm(`Delete ${track.name} and all its regions? You can undo this.`)
       )
-        run({ op: "removeTrack", track: track.id });
+        void removeTrack(track);
     },
     delete: () => {
       if (s.recording || busy) return;
       const t = trackContainingClip(s.tracks, clipId);
-      if (t) run({ op: "removeClip", track: t.id, clip: clipId });
+      const clip = t?.clips.find((candidate) => candidate.id === clipId);
+      if (t && clip) void removeClip(t, clip);
     },
   });
   useEffect(() => {
@@ -513,6 +583,7 @@ export function useWorkspace() {
     setError,
     notice,
     noticeVersion,
+    noticeTone,
     setNotice,
     panel,
     setPanel,
@@ -536,6 +607,8 @@ export function useWorkspace() {
     pxPerSecond,
     width,
     run,
+    removeTrack,
+    removeClip,
     task,
     update,
     openSetup,

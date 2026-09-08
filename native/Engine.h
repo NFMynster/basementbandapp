@@ -1,6 +1,7 @@
 #pragma once
 #include "Model.h"
 #include "PluginWindow.h"
+#include <map>
 
 namespace basement {
 class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
@@ -10,6 +11,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   TimeSliceThread disk{"Recording writer"};
   CriticalSection guard;
   std::vector<std::unique_ptr<Track>> tracks;
+  std::map<String, std::shared_ptr<Clip>> mediaCache;
   std::unique_ptr<PluginWindow> editor;
   String folder, title = "Friday night", deviceError;
   double rate = 48000, loopStart = 0, loopEnd = 8, tempo = 120;

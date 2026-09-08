@@ -124,6 +124,10 @@
   font-size: 11px;
 }
 .empty-grid {
+  position: sticky;
+  left: 0;
+  width: calc(100vw - var(--sidebar-width));
+  min-width: calc(100vw - var(--sidebar-width));
   display: flex;
   align-items: center;
   justify-content: center;

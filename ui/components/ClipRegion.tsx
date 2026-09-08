@@ -418,7 +418,7 @@ export function ClipRegion({
             role="menuitem"
             disabled={w.s.recording}
             onClick={() => {
-              w.run({ op: "removeClip", track: t.id, clip: c.id });
+              void w.removeClip(t, c);
               setMenu(null);
             }}
           >
