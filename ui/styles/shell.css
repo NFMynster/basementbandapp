@@ -1,0 +1,234 @@
+/* Window chrome, transport and arrangement toolbar layout. */
+.app {
+  height: 100vh;
+  min-height: 660px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.titlebar {
+  height: 44px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #ffffff08;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 25px;
+  background: #232428;
+}
+.brand {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.brand-icon {
+  background: #b0c6ae;
+  color: #202b23;
+  border-radius: 6px;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  margin-right: 9px;
+}
+.brand-light {
+  font-weight: 350;
+  color: #a8a9b0;
+}
+.preview-label {
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  font-weight: 500;
+  border: 1px solid #42434a;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin-left: 15px;
+  color: #92939b;
+}
+.file-actions {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #aaaab3;
+}
+.transport {
+  height: 98px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 31px;
+  background: linear-gradient(#303136, #292a2f);
+  border-bottom: 1px solid #111216;
+  box-shadow: 0 3px 6px #0002;
+  z-index: 2;
+}
+.transport-left,
+.transport-right {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.transport-left {
+  gap: 10px;
+}
+.icon-button {
+  padding: 8px;
+  color: #b9bac2;
+}
+.divider {
+  height: 26px;
+  width: 1px;
+  background: #ffffff0b;
+  margin: 0 10px;
+}
+.play-button {
+  width: 45px;
+  height: 39px;
+  background: #44464d;
+  color: #dedee2;
+  border: 1px solid #ffffff08;
+  box-shadow: 0 2px 3px #0003;
+}
+.play-button.active {
+  background: #779b72;
+  color: #fff;
+}
+.record-button {
+  width: 44px;
+  height: 44px;
+}
+.record-button > span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ed676a;
+  box-shadow:
+    inset 0 1px 1px #ffffff30,
+    0 1px 3px #0007;
+}
+.record-button.recording {
+  background: #b8444b44;
+  animation: pulse 1s infinite;
+}
+.lcd {
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  background: #181e20;
+  border: 1px solid #41464a;
+  border-radius: 7px;
+  padding: 11px 24px;
+  box-shadow:
+    inset 0 2px 4px #0005,
+    0 1px 1px #ffffff08;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #d0dad2;
+  height: 64px;
+}
+.lcd > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lcd strong,
+.lcd input {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+.lcd small {
+  font-size: 8px;
+  letter-spacing: 1.8px;
+  color: #7c8a84;
+}
+.lcd .position {
+  padding-right: 20px;
+  border-right: 1px solid #ffffff10;
+  min-width: 145px;
+}
+.position strong span {
+  font-size: 19px;
+  margin-left: 19px;
+  color: #a7b3ab;
+}
+.position small span {
+  margin-left: 55px;
+}
+.lcd input {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  width: 46px;
+}
+.lcd-tempo {
+  padding-right: 21px;
+  border-right: 1px solid #ffffff10;
+}
+.loop-active {
+  color: #e8c56e;
+  background: #e8c56e18;
+}
+.level-meter i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    #76ad79 0%,
+    #9bc180 70%,
+    #ead287 90%,
+    #ef7171
+  );
+  transition: width 0.1s;
+}
+.workspace-toolbar {
+  height: 45px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  background: #25262b;
+  border-bottom: 1px solid #131418;
+}
+.workspace-label {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 1.7px;
+  gap: 10px;
+  font-weight: 600;
+}
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9db69a;
+}
+.workspace-label > span:last-child {
+  font-size: 10px;
+  letter-spacing: 0;
+  color: #7f818a;
+  margin-left: 15px;
+  font-weight: 400;
+}
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #91929c;
+}
+.toolbar-right input {
+  width: 75px;
+}
+.snap-label {
+  font-size: 11px;
+  margin-right: 20px;
+}

@@ -27,6 +27,29 @@ const empty: Session = {
   deviceError: "",
   diskOverrun: false,
 };
+const RULER_SNAP_DIVISIONS = 4;
+const RULER_DRAG_THRESHOLD = 4;
+
+function trackContainingClip(tracks: Track[], clipId: string) {
+  return tracks.find((candidate) =>
+    candidate.clips.some((clip) => clip.id === clipId),
+  );
+}
+
+function rulerPosition(
+  clientX: number,
+  rect: DOMRect,
+  zoom: number,
+  secondsPerBar: number,
+) {
+  const bars = (clientX - rect.left) / zoom;
+  return Math.max(
+    0,
+    (Math.round(bars * RULER_SNAP_DIVISIONS) / RULER_SNAP_DIVISIONS) *
+      secondsPerBar,
+  );
+}
+
 export function useWorkspace() {
   const [creatingTrack, setCreatingTrack] = useState(false);
   const [welcome, setWelcome] = useState(
@@ -153,32 +176,35 @@ export function useWorkspace() {
       setError(errorMessage(e));
     }
   }
-  async function task(
-    fn: () => Promise<Session | SaveResult | null>,
-    saved = false,
-  ) {
+  async function withBusy<T>(fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true);
     setError("");
     editing.current = true;
     try {
-      const r = await fn();
-      accept(r);
-      if (r) {
-        setDirty(!saved);
-        if (saved)
-          setNotice(
-            "saved" in r
-              ? "Session saved with its audio files."
-              : "Session opened.",
-          );
-      }
-      return r;
+      return await fn();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setBusy(false);
       editing.current = false;
     }
+  }
+  async function task(
+    fn: () => Promise<Session | SaveResult | null>,
+    saved = false,
+  ) {
+    const result = await withBusy(fn);
+    if (result) {
+      accept(result);
+      setDirty(!saved);
+      if (saved)
+        setNotice(
+          "saved" in result
+            ? "Session saved with its audio files."
+            : "Session opened.",
+        );
+    }
+    return result;
   }
   useEffect(() => {
     let alive = true;
@@ -217,9 +243,7 @@ export function useWorkspace() {
     action: "split" | "copy" | "move",
     source = clipboard.current,
   ) => {
-    const regionTrack = s.tracks.find((t) =>
-      t.clips.some((c) => c.id === clipId),
-    );
+    const regionTrack = trackContainingClip(s.tracks, clipId);
     const target =
       action === "copy"
         ? source
@@ -250,7 +274,7 @@ export function useWorkspace() {
     save: () => task(() => api.save(), true),
     split: () => editSelected("split"),
     copy: () => {
-      const t = s.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+      const t = trackContainingClip(s.tracks, clipId);
       if (t) {
         clipboard.current = { track: t.id, clip: clipId };
         setNotice("Region copied. Paste at the playhead.");
@@ -273,7 +297,7 @@ export function useWorkspace() {
     },
     delete: () => {
       if (s.recording || busy) return;
-      const t = s.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+      const t = trackContainingClip(s.tracks, clipId);
       if (t) run({ op: "removeClip", track: t.id, clip: clipId });
     },
   });
@@ -312,24 +336,20 @@ export function useWorkspace() {
     }
   }
   async function exportAudio(target?: string) {
-    editing.current = true;
-    setBusy(true);
     setExporting(true);
     try {
-      const result = await api.exportAudio({
-        mode: target ? "separate" : exportMode,
-        track: target,
-      });
+      const result = await withBusy(() =>
+        api.exportAudio({
+          mode: target ? "separate" : exportMode,
+          track: target,
+        }),
+      );
       if (result)
         setNotice(
           `Exported ${result.files.length} file(s) to ${result.folder}`,
         );
-    } catch (error) {
-      setError(errorMessage(error));
     } finally {
       setExporting(false);
-      editing.current = false;
-      setBusy(false);
     }
   }
   function rulerDown(e: React.PointerEvent) {
@@ -337,10 +357,7 @@ export function useWorkspace() {
     ++rulerRevision.current;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const start = Math.max(
-      0,
-      (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
-    );
+    const start = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
     const mode =
       (e.target as HTMLElement).closest<HTMLElement>("[data-ruler-zone]")
         ?.dataset.rulerZone === "seek"
@@ -363,22 +380,16 @@ export function useWorkspace() {
     const gesture = rulerGesture.current;
     if (!gesture || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const end = Math.max(
-      0,
-      (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
-    );
+    const end = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
     if (gesture.mode === "seek") setDragPosition(end);
-    else if (Math.abs(e.clientX - gesture.x) > 4)
+    else if (Math.abs(e.clientX - gesture.x) > RULER_DRAG_THRESHOLD)
       setSelection({ start: gesture.start, end });
   }
   function rulerUp(e: React.PointerEvent) {
     const gesture = rulerGesture.current;
     if (!gesture) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const end = Math.max(
-      0,
-      (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
-    );
+    const end = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
     rulerGesture.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -388,7 +399,10 @@ export function useWorkspace() {
       void run({ op: "seek", position: end }, false).finally(() =>
         setDragPosition(null),
       );
-    else if (Math.abs(e.clientX - gesture.x) <= 4 && gesture.inside) {
+    else if (
+      Math.abs(e.clientX - gesture.x) <= RULER_DRAG_THRESHOLD &&
+      gesture.inside
+    ) {
       void run({
         op: "loop",
         start: s.loopStart,

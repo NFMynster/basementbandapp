@@ -1,3 +1,6 @@
+export type TrackIconName =
+  "guitar" | "bass" | "drums" | "keys" | "mic" | "audio";
+
 export type Clip = {
   offset?: number;
   sourceStart?: number;
@@ -15,7 +18,7 @@ export type Clip = {
 };
 export type Track = {
   monitor?: boolean;
-  icon?: string;
+  icon?: TrackIconName;
   kind?: "audio" | "midi";
   midiDevice?: string;
   midiChannel?: number;

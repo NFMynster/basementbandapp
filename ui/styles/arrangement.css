@@ -1,0 +1,304 @@
+/* Timeline, track lanes, clips and playhead presentation. */
+.arrangement {
+  position: relative;
+  flex: 1;
+  min-height: 245px;
+  display: flex;
+  background: #1c1d21;
+}
+.track-list {
+  overflow-y: auto;
+  scrollbar-width: none;
+  width: 280px;
+  flex-shrink: 0;
+  background: #26272c;
+  position: relative;
+  border-right: 1px solid #111216;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+.track-list-title {
+  height: 43px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px 0 23px;
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  color: #878992;
+  border-bottom: 1px solid #111216;
+}
+.track-header {
+  height: 112px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 12px 15px 12px 11px;
+  position: relative;
+  border-bottom: 1px solid #17181c;
+  gap: 13px;
+  cursor: pointer;
+}
+.track-header.selected {
+  background: #33353c;
+  box-shadow: inset 3px 0 var(--track-color);
+}
+.track-number {
+  font-size: 9px;
+  color: #7e808a;
+  position: absolute;
+  top: 12px;
+  left: 13px;
+}
+.instrument {
+  width: 44px;
+  color: var(--track-color);
+  padding-top: 10px;
+  opacity: 0.85;
+}
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+.track-name {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.track-name > span {
+  font-size: 7px;
+  color: #9597a1;
+  font-weight: 400;
+  letter-spacing: 1px;
+  align-self: center;
+}
+.track-buttons {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.track-buttons button {
+  padding: 0;
+  width: 23px;
+  height: 20px;
+  background: #222329;
+  border: 1px solid #484951;
+  color: #b1b2bb;
+  font-size: 10px;
+  font-weight: 650;
+  border-radius: 3px;
+}
+.track-buttons .armed {
+  background: #a54f58;
+  border-color: #bb6b71;
+  color: #fff;
+}
+.track-buttons .muted {
+  background: #677fad;
+  color: #fff;
+}
+.track-buttons .solo {
+  background: #c5a259;
+  color: #fff;
+}
+.input-label {
+  font-size: 10px;
+  color: #989aa5;
+  margin-left: auto;
+}
+.track-volume {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+.track-volume input {
+  width: 110px;
+}
+.add-track {
+  margin: 16px 20px;
+  border: 1px dashed #4c4d56;
+  color: #94969e;
+  font-size: 11px;
+  height: 35px;
+  flex-shrink: 0;
+}
+.timeline-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  scrollbar-color: #484a52 #202126;
+  scrollbar-width: thin;
+}
+.timeline {
+  position: relative;
+}
+.ruler {
+  height: 43px;
+  background: #28292e;
+  position: relative;
+  border-bottom: 1px solid #15161a;
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+  overflow: hidden;
+}
+.ruler > span {
+  position: absolute;
+  bottom: 5px;
+  padding-left: 8px;
+  height: 15px;
+  border-left: 1px solid #61616b;
+  font-size: 10px;
+  color: #a4a5ad;
+}
+.cycle-region {
+  position: absolute;
+  top: 2px;
+  height: 15px;
+  background: #c5a757;
+  color: #42391f;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  min-width: 2px;
+}
+.lanes {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #ffffff05 0 1px,
+      transparent 1px calc(var(--bar-width) / 4)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #ffffff07 0 1px,
+      transparent 1px var(--bar-width)
+    );
+  min-height: calc(100% - 43px);
+}
+.lane {
+  height: 112px;
+  border-bottom: 1px solid #ffffff06;
+  position: relative;
+}
+.lane.selected {
+  background: #ffffff03;
+}
+.clip {
+  height: 86px;
+  position: absolute;
+  top: 13px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--clip-color) 59%, #15212b);
+  border: 1px solid color-mix(in srgb, var(--clip-color) 90%, white);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 2px 3px #0003;
+}
+.clip.chosen {
+  outline: 2px solid #f0e3b5;
+  outline-offset: 1px;
+}
+.clip-title {
+  height: 24px;
+  background: #0002;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 10px;
+  color: #f0f1f5;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.clip svg:not(.lucide) {
+  height: 48px;
+  width: 100%;
+  margin-top: 5px;
+  fill: color-mix(in srgb, var(--clip-color) 30%, white);
+  opacity: 0.9;
+}
+.empty-grid {
+  min-height: 180px;
+}
+.welcome-icon {
+  width: 59px;
+  height: 59px;
+  border-radius: 17px;
+  background: #292d2b;
+  color: #9db29a;
+  display: grid;
+  place-items: center;
+  border: 1px solid #b3d3b013;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #9ea99c;
+  font-weight: 550;
+}
+.primary {
+  background: #b0c4a7;
+  color: #233021;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 15px;
+  border: 1px solid #c7d3bd44;
+  box-shadow: 0 2px 4px #0002;
+}
+.primary:hover {
+  background: #c3d4bb;
+  color: #182315;
+}
+.text-button {
+  color: #8f929b;
+  font-size: 10px;
+  padding: 8px 0;
+  justify-content: flex-start;
+}
+.playhead {
+  position: absolute;
+  top: 25px;
+  bottom: 0;
+  width: 1px;
+  background: #e0ddd2;
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  z-index: 2;
+}
+.playhead > span {
+  position: absolute;
+  top: 0;
+  left: -7px;
+  width: 15px;
+  height: 16px;
+  background: #e0ddd2;
+  clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+}
+.playhead.red,
+.playhead.red > span {
+  background: #f17a7a;
+}
+.recording-region {
+  background: #923b4560;
+  height: 85px;
+  top: 14px;
+  position: absolute;
+  border: 1px solid #d2646b;
+  color: #f5a4ac;
+  padding: 10px;
+  max-width: 100%;
+  overflow: hidden;
+}

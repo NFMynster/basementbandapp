@@ -6,7 +6,7 @@ import { Arrangement } from "./components/Arrangement";
 import { TrackInspector } from "./components/TrackInspector";
 import { StatusBar } from "./components/StatusBar";
 import { Notices } from "./components/Notices";
-import { AudioSetupDialog } from "./components/AudioSetupDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { CreateTrackDialog } from "./components/CreateTrackDialog";
 import { WelcomeDialog } from "./components/WelcomeDialog";
@@ -52,7 +52,7 @@ export function App() {
       <TrackInspector controller={controller} />
       <StatusBar controller={controller} />
       <Notices controller={controller} />
-      <AudioSetupDialog controller={controller} />
+      <SettingsDialog controller={controller} />
       <HelpDialog controller={controller} />
       {controller.creatingTrack && (
         <CreateTrackDialog controller={controller} />

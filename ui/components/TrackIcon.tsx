@@ -1,4 +1,5 @@
 import { AudioLines, Guitar, Drum, Piano, Mic2, Music2 } from "lucide-react";
+import type { TrackIconName } from "../models";
 export const trackIcons = {
   guitar: Guitar,
   bass: Music2,
@@ -11,9 +12,9 @@ export function TrackIcon({
   icon = "guitar",
   size = 27,
 }: {
-  icon?: string;
+  icon?: TrackIconName;
   size?: number;
 }) {
-  const Icon = trackIcons[icon as keyof typeof trackIcons] || AudioLines;
+  const Icon = trackIcons[icon ?? "audio"] || AudioLines;
   return <Icon size={size} />;
 }

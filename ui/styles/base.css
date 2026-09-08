@@ -1,0 +1,84 @@
+/* Global reset, controls and shared design primitives. */
+:root {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #dedee3;
+  background: #191a1e;
+  font-synthesis: none;
+  font-size: 13px;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  border-radius: 5px;
+  padding: 7px 10px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+button:hover {
+  background: #ffffff0c;
+  color: white;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #a6c4ff;
+  outline-offset: 3px;
+}
+input,
+select {
+  color: inherit;
+  background: #222328;
+  border: 1px solid #3c3d43;
+  border-radius: 5px;
+  padding: 8px;
+  min-width: 0;
+}
+input[type="range"] {
+  appearance: none;
+  height: 3px;
+  padding: 0;
+  background: #51535b;
+  border: 0;
+  accent-color: #d3d3db;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  background: #d2d3db;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #0008;
+}
+input[type="number"]::-webkit-inner-spin-button {
+  appearance: none;
+}

@@ -1,0 +1,211 @@
+/* Track inspector and plug-in panel layout. */
+.inspector {
+  height: 208px;
+  flex-shrink: 0;
+  background: #292a2f;
+  border-top: 1px solid #484951;
+  box-shadow: 0 -4px 10px #0002;
+  z-index: 3;
+}
+.inspector-toolbar {
+  height: 42px;
+  background: #27282d;
+  border-bottom: 1px solid #1a1b1f;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 0 23px;
+}
+.selected-track {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 11px;
+}
+.selected-track > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+.tabs {
+  display: flex;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 28px;
+  background: #1e1f24;
+  border: 1px solid #3c3d44;
+  border-radius: 5px;
+  padding: 2px;
+  gap: 2px;
+}
+.tabs .tab {
+  font-size: 10px;
+  padding: 3px 13px;
+  color: #91939e;
+  border-radius: 3px;
+}
+.tabs .active {
+  background: #41434c;
+  color: #ececf0;
+  box-shadow: 0 1px 2px #0006;
+}
+.inspector-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: #6f717b;
+}
+.inspector-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 33px;
+  padding: 29px 27px;
+}
+.input-block {
+  width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.input-block > label,
+.routing > label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #a0a2ac;
+}
+.input-block > input {
+  font-size: 11px;
+  height: 33px;
+}
+.input-block .text-button {
+  margin-top: -8px;
+  font-size: 9px;
+}
+.track-file-actions {
+  display: flex;
+  gap: 12px;
+}
+.plugin-slot {
+  min-width: 0;
+}
+.plugin-slot > div {
+  min-width: 80px;
+  max-width: 170px;
+  overflow: hidden;
+}
+.plugin-slot strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.input-selector {
+  background: #222328;
+  border: 1px solid #42434a;
+  padding: 9px;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.subtle {
+  font-size: 9px;
+  color: #747782;
+  margin-top: -4px;
+}
+.level-block {
+  width: 220px;
+}
+.pan-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  color: #9395a1;
+  margin-top: 6px;
+}
+.pan-row input {
+  width: 110px;
+}
+.gain-value {
+  margin-left: auto;
+  white-space: nowrap;
+  font-family: Consolas, monospace;
+}
+.level-meter {
+  height: 5px;
+  background: #181e1a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.record-tip {
+  border-left: 1px solid #41424b;
+  display: flex;
+  gap: 14px;
+  padding: 7px 0 7px 27px;
+  margin-left: auto;
+  min-width: 280px;
+}
+.tip-icon {
+  color: #8f9d8b;
+  padding-top: 4px;
+}
+.record-tip strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: #bcbec5;
+}
+.record-tip p {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #858892;
+  margin-bottom: 0;
+}
+.plugin-intro {
+  min-width: 290px;
+}
+.plugin-intro h3 {
+  font-weight: 500;
+  font-size: 18px;
+  margin: 8px 0;
+  letter-spacing: -0.4px;
+}
+.plugin-intro p,
+.plugin-note {
+  font-size: 11px;
+  color: #8b8d98;
+  line-height: 1.8;
+}
+.plugin-slot {
+  border: 1px dashed #53565f;
+  border-radius: 6px;
+  min-width: 300px;
+  min-height: 75px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 13px;
+}
+.plugin-slot > button {
+  justify-content: flex-start;
+}
+.plugin-slot small {
+  display: block;
+  font-size: 10px;
+  color: #8f929e;
+  margin-top: 5px;
+}
+.plugin-slot strong {
+  font-size: 12px;
+}
+.plugin-slot span {
+  text-align: left;
+}
+.plugin-slot .on {
+  color: #b0c4a7;
+}
+.plugin-slot > button:last-child {
+  font-size: 11px;
+}
+.plugin-note {
+  margin-left: auto;
+}

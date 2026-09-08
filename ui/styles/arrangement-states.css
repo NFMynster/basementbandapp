@@ -1,0 +1,132 @@
+/* Arrangement modifiers and interaction states. */
+.session-name {
+  width: 100%;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+.midi-notes {
+  width: 100%;
+  height: 60px;
+  display: block;
+  fill: #e3f1db;
+  pointer-events: none;
+}
+.routing select {
+  min-width: 0;
+}
+.workspace-toolbar {
+  padding-left: 0;
+  gap: 16px;
+}
+.workspace-label {
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
+  padding: 0 12px;
+}
+.session-summary {
+  margin-right: auto;
+  color: #7f818a;
+  font-size: 10px;
+}
+.app {
+  --sidebar-width: 280px;
+}
+.track-list {
+  width: var(--sidebar-width);
+}
+.ruler-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+}
+.ruler-loop {
+  top: 0;
+  cursor: crosshair;
+  border-bottom: 1px solid #ffffff18;
+}
+.ruler,
+.track-list-title {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+.track-list-title {
+  background: #28292e;
+}
+.ruler > span {
+  top: 3px;
+  bottom: auto;
+  z-index: 1;
+}
+.ruler-loop {
+  border-bottom: 1px solid #77796c;
+}
+.ruler-seek {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #a1a49a66 0 1px,
+    transparent 1px calc(var(--bar-width) / 4)
+  );
+  background-size: 100% 7px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+.cycle-region {
+  height: 20px;
+  top: 0;
+  border-radius: 0;
+  opacity: 0.65;
+}
+.cycle-region.inactive {
+  background-color: #85868a;
+  opacity: 0.35;
+}
+.playhead {
+  z-index: 5;
+}
+.playhead::after {
+  bottom: auto;
+  height: 22px;
+}
+.track-header {
+  scroll-margin-top: 44px;
+}
+.track-list {
+  scroll-padding-bottom: 44px;
+}
+.clip.moving {
+  z-index: 3;
+  opacity: 0.8;
+  cursor: grabbing;
+}
+.clip-title select {
+  width: auto;
+  max-width: 95px;
+  padding: 1px 4px;
+  height: 21px;
+  font-size: 10px;
+  background: #0003;
+  border: 0;
+  flex-shrink: 0;
+}
+.clip-title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.selected-take {
+  width: 135px;
+  height: 28px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.empty-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #72757d;
+  font-size: 11px;
+}

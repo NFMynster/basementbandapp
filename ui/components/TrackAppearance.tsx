@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { TrackIcon, trackIcons } from "./TrackIcon";
 import { ContextMenu } from "./ContextMenu";
-import type { Track, TrackPatch } from "../models";
+import type { Track, TrackIconName, TrackPatch } from "../models";
 
 export function TrackAppearance({
   track,
@@ -38,7 +38,7 @@ export function TrackAppearance({
           onClose={close}
         >
           <div className="appearance-icons">
-            {Object.keys(trackIcons).map((name) => (
+            {(Object.keys(trackIcons) as TrackIconName[]).map((name) => (
               <button
                 key={name}
                 role="menuitemradio"

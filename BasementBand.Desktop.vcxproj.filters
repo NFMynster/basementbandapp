@@ -10,6 +10,7 @@
     <Filter Include="React interface\components" />
     <Filter Include="React interface\hooks" />
     <Filter Include="React interface\services" />
+    <Filter Include="React interface\styles" />
   </ItemGroup>
   <ItemGroup>
     <None Include="desktop\assets\icon.svg"><Filter>Electron\Assets</Filter></None>
@@ -22,6 +23,7 @@
     <None Include="desktop\permissions.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\preload.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-service.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\session-files.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\splash.html"><Filter>Electron</Filter></None>
     <None Include="desktop\startup.cjs"><Filter>Electron</Filter></None>
@@ -47,7 +49,7 @@
     <None Include="tsconfig.json"><Filter>Configuration</Filter></None>
     <None Include="ui\App.tsx"><Filter>React interface</Filter></None>
     <None Include="ui\components\Arrangement.tsx"><Filter>React interface\components</Filter></None>
-    <None Include="ui\components\AudioSetupDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\AudioDevicePanel.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ClipRegion.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ContextMenu.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\CreateTrackDialog.tsx"><Filter>React interface\components</Filter></None>
@@ -59,26 +61,38 @@
     <None Include="ui\components\Modal.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Notices.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\SessionName.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\SettingsDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\SettingsTabs.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ShortcutSettings.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\StatusBar.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TitleBar.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackAppearance.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackIcon.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackInspector.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackHeader.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackLane.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackMenu.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackRoutingPanel.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Transport.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Waveform.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\WelcomeDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\hooks\useAnimatedPlayhead.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\hooks\useShortcuts.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\hooks\useWorkspace.ts"><Filter>React interface\hooks</Filter></None>
-    <None Include="ui\interactions.css"><Filter>React interface</Filter></None>
     <None Include="ui\main.tsx"><Filter>React interface</Filter></None>
     <None Include="ui\models.ts"><Filter>React interface</Filter></None>
     <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\startup.css"><Filter>React interface</Filter></None>
-    <None Include="ui\style.css"><Filter>React interface</Filter></None>
+    <None Include="ui\styles\app-chrome.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\arrangement-states.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\arrangement.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\base.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\dialogs.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\inspector-states.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\inspector.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\overlay-states.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\shell.css"><Filter>React interface\styles</Filter></None>
     <None Include="vite.config.ts"><Filter>Configuration</Filter></None>
   </ItemGroup>
 </Project>

@@ -11,7 +11,7 @@ const {
 const path = require("node:path");
 const { mkdirSync } = require("node:fs");
 const { startBackend } = require("./backend.cjs");
-const { registerIpc } = require("./ipc.cjs");
+const { assertSender, registerIpc } = require("./ipc.cjs");
 const { createSplash } = require("./startup.cjs");
 const { initializeLogging } = require("./logging.cjs");
 const { microphoneAccess } = require("./permissions.cjs");
@@ -118,11 +118,11 @@ app.whenReady().then(() => {
 
   registerIpc(win, request);
   ipcMain.handle("logs", (event) => {
-    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    assertSender(event, win);
     return shell.openPath(app.getPath("logs"));
   });
   ipcMain.handle("licenses", (event) => {
-    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    assertSender(event, win);
     return shell.openPath(
       app.isPackaged
         ? path.join(process.resourcesPath, "licenses")
@@ -130,7 +130,7 @@ app.whenReady().then(() => {
     );
   });
   ipcMain.handle("restart", (event) => {
-    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    assertSender(event, win);
     app.relaunch();
     app.quit();
   });
