@@ -12,6 +12,7 @@ import {
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 import { TrackAppearance } from "./TrackAppearance";
+import { ExportSettings } from "./ExportSettings";
 export function TrackInspector({
   controller,
 }: {
@@ -57,6 +58,12 @@ export function TrackInspector({
           </div>
           <div className="tabs">
             <button
+              className={panel === "export" ? "tab active" : "tab"}
+              onClick={() => setPanel("export")}
+            >
+              Export
+            </button>
+            <button
               className={panel === "input" ? "tab active" : "tab"}
               onClick={() => setPanel("input")}
             >
@@ -75,7 +82,9 @@ export function TrackInspector({
         </div>
         {track && (
           <div className="inspector-content">
-            {panel === "input" ? (
+            {panel === "export" ? (
+              <ExportSettings controller={controller} />
+            ) : panel === "input" ? (
               <>
                 <div className="input-block">
                   <label>TRACK NAME</label>

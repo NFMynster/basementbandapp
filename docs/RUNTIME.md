@@ -24,7 +24,7 @@ MIDI capture supports channel messages up to three bytes, including notes/contro
 
 On Stop, MIDI becomes a standard .mid asset with millisecond SMPTE timing. A note held at the end is closed. Until then, unfinished MIDI capture has no crash recovery.
 
-Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping or undo history.
+Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping.
 
 Count-in is three beats (3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is currently fixed at 4/4.
 
@@ -39,7 +39,7 @@ Count-in is three beats (3, 2, 1) at the current tempo. JUCE generates its click
 
 The default requested device buffer is 256 samples for live playing (the driver may choose another supported size). Settings offers Live playing (nearest to 256) and Stable mixing (nearest to 1,024); Apply/Done confirms the selection. At 48 kHz these represent 5.3 ms and 21.3 ms per buffer, not total round-trip latency. Lower buffers can increase dropouts with heavy plug-ins. Region UI previews are cached so polling does not rebuild waveforms/notes under the audio lock. Meters refresh every 50 ms with native peak decay to retain short hits; playhead animation extrapolates between engine updates and freezes if updates stall. These display changes do not reduce hardware latency. The native callback still has control-lock contention risks; a larger buffer cannot fix every overloaded plug-in.
 
-Monitoring and recording selection are independent. Audio monitoring defaults off to avoid speaker feedback or doubling hardware direct monitoring; new MIDI tracks default on. Monitoring feeds live input through the track plug-in, volume and pan. Mute/solo also affect monitoring. Arrangement playback remains audible with monitoring off. Master output volume scales playback, monitored input and clicks, not captured source files or exports.
+Monitoring and recording selection are independent. Audio monitoring defaults off to avoid speaker feedback or doubling hardware direct monitoring; new MIDI tracks default on. Monitoring feeds live input through the track plug-in, volume and pan. Mute/solo also affect monitoring. Arrangement playback remains audible with monitoring off. Master output volume scales playback, monitored input, clicks and merged exports, not captured source files or separate stems.
 
 No external MIDI device is required to load/audition a plug-in using its editor. Keyboard support depends on the plug-in editor itself; the host gives its window focus. Editor clicks are not recorded as MIDI by this implementation. Use an actual MIDI input to capture notes. Count-in temporarily plays only the count clicks.
 
@@ -57,7 +57,17 @@ Master volume defaults to unity at the slider midpoint, with up to 2× gain abov
 
 Status JSON is built outside the audio lock, except for a short timing snapshot and plug-in state capture when saving. Seeking intentionally suspends transport while processors are reset/primed and then resumes; this reset is not reported as a recording dropout. Unexpected callback lock failures during transport and recording-writer/MIDI overflow still raise warnings. This reduces known contention but does not guarantee dropout-free performance with every driver or plug-in.
 
-Loop selection remains visible when disabled; click its upper-ruler range to toggle it, or drag to choose a new range. Region edges trim and extend within the original source without changing source files. Those bounds survive saving/reopening. Loop takes are bounded by their original pass, not the complete multi-pass file. Tiny regions show the resize cursor without floating trim handles. There is no undo command yet.
+Loop selection remains visible when disabled; click its upper-ruler range to toggle it, or drag to choose a new range. Region edges trim and extend within the original source without changing source files. Those bounds survive saving/reopening. Loop takes are bounded by their original pass, not the complete multi-pass file. Tiny regions show the resize cursor without floating trim handles.
+
+## Export, recovery and undo
+
+Export opens the destination folder picker directly, then shows a waiting overlay while rendering. Settings → Export and the track inspector's Export tab share a remembered preference for separate 24-bit WAV stems or a merged mix. A single-track export always exports that track. Merged exports respect mute, solo and master gain; separate stems include muted tracks and omit master gain. Exports use the arrangement rather than repeating the loop, exclude metronome clicks and append reported plug-in tails capped at ten seconds.
+
+The desktop service checkpoints completed edits while stopped, on Stop and on normal exit to `Sessions/recovery.json` under Electron's user-data directory. The next launch restores that session even without an explicit Save. Media stays in retained working folders; use Save to create a portable project with its media. Changes made during playback are checkpointed on Stop. A forced shutdown during recording can lose the unfinished take. Unreadable recovery files are preserved with a unique backup name and a warning instead of silently overwritten.
+
+Undo/redo retains up to 30 edits in the running session, including region moves, trims, deletions and recording takes. It requires stopped playback because restoring an arrangement can recreate plug-in instances. History references existing media instead of copying audio; it is not retained across restarts. Plug-in editor parameter changes are not individual undo actions. History snapshots during playback omit live processor-state capture to avoid interrupting DSP.
+
+Delete or Backspace removes the selected region; Ctrl/Cmd + Delete or Backspace asks to remove the entire selected track. Ctrl/Cmd + Z undoes, Ctrl/Cmd + Shift + Z redoes (Ctrl/Cmd + Y also works with the default redo binding). Bindings are editable in Settings. Ctrl-wheel and Chromium trackpad pinch zoom the timeline around the pointer. Dropping audio into the sidebar creates a new track; timeline drops target the lane, and imports smoothly reveal the insertion position.
 
 MIDI tracks do not have an independent audio buffer. The shared device buffer remains 256 samples by default rather than forcing 16 for MIDI. MIDI settings show the active buffer duration, driver-reported output latency and selected track's reported plug-in latency; these are not a measured end-to-end delay. Plug-in editor windows request foreground activation on macOS, and Open editor recreates the editor window without unloading its processor.
 

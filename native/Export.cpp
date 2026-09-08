@@ -80,7 +80,7 @@ var Engine::exportAudio(const var &c) {
       }
       for (int ch = 0; ch < 2; ++ch)
         for (int i = 0; i < n; ++i)
-          mix.setSample(ch, i, jlimit(-1.0f, 1.0f, mix.getSample(ch, i)));
+          mix.setSample(ch, i, jlimit(-1.0f, 1.0f, mix.getSample(ch, i) * (mode == "mix" ? masterGain : 1.0f)));
       require(writer->writeFromAudioSampleBuffer(mix, 0, n),
               "Could not write export audio; check free disk space");
     }

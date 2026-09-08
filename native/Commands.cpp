@@ -80,7 +80,7 @@ var Engine::command(const var &c) {
   }
   if (op == "snapshot") {
     require(!recording, "Stop recording before saving");
-    return state(true);
+    return state(true, !flag(c, "metadataOnly"));
   }
   if (op == "devices") {
     return listDevices();

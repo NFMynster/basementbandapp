@@ -1,7 +1,7 @@
 import { LevelSlider } from "./LevelSlider";
 import { useAnimatedPlayhead } from "../hooks/useAnimatedPlayhead";
 import type React from "react";
-import { useState, useCallback, useLayoutEffect } from "react";
+import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { ContextMenu } from "./ContextMenu";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
@@ -42,6 +42,34 @@ export function Arrangement({
     pxPerSecond,
     task,
   } = controller;
+  const zoomScroll = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (zoomScroll.current !== null && timelineScroll.current) {
+      timelineScroll.current.scrollLeft = zoomScroll.current;
+      zoomScroll.current = null;
+    }
+    const view = timelineScroll.current;
+    if (!view) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const x = e.clientX - view.getBoundingClientRect().left;
+      const next = Math.max(
+        40,
+        Math.min(
+          200,
+          zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.04 : 0.004)),
+        ),
+      );
+      zoomScroll.current = Math.max(
+        0,
+        ((view.scrollLeft + x) / zoom) * next - x,
+      );
+      setZoom(next);
+    };
+    view.addEventListener("wheel", wheel, { passive: false });
+    return () => view.removeEventListener("wheel", wheel);
+  }, [zoom]);
   useLayoutEffect(() => {
     const timeline = timelineScroll.current,
       sidebar = trackList.current;
@@ -144,7 +172,18 @@ export function Arrangement({
         </div>
       </div>
       <main className="arrangement">
-        <div className="track-sidebar">
+        <div
+          className="track-sidebar"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void controller.dropAudio(Array.from(e.dataTransfer.files));
+          }}
+        >
           <aside className="track-list" ref={trackList}>
             <div className="track-list-title">
               TRACKS
@@ -334,8 +373,9 @@ export function Arrangement({
                   onDrop={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    task(() =>
-                      api.dropFiles(Array.from(e.dataTransfer.files), t.id),
+                    void controller.dropAudio(
+                      Array.from(e.dataTransfer.files),
+                      t.id,
                     );
                   }}
                   className={"lane " + (t.id === track?.id ? "selected" : "")}
@@ -402,7 +442,7 @@ export function Arrangement({
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  task(() => api.dropFiles(Array.from(e.dataTransfer.files)));
+                  void controller.dropAudio(Array.from(e.dataTransfer.files));
                 }}
               >
                 <span>Drop audio or MIDI files here to create tracks</span>

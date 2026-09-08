@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { MidiRouting } from "./MidiRouting";
 import { ShortcutSettings } from "./ShortcutSettings";
+import { ExportSettings } from "./ExportSettings";
 import type { Devices } from "../models";
 import { AudioLines, ChevronRight } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
@@ -102,7 +103,7 @@ export function AudioSetupDialog({
             role="tablist"
             aria-label="Settings sections"
           >
-            {(["audio", "midi", "shortcuts"] as const).map((tab) => (
+            {(["audio", "midi", "shortcuts", "export"] as const).map((tab) => (
               <button
                 key={tab}
                 role="tab"
@@ -113,11 +114,15 @@ export function AudioSetupDialog({
                   ? "Audio inputs & output"
                   : tab === "midi"
                     ? "MIDI tracks"
-                    : "Keyboard shortcuts"}
+                    : tab === "export"
+                      ? "Export"
+                      : "Keyboard shortcuts"}
               </button>
             ))}
           </div>
-          {controller.settingsTab === "shortcuts" ? (
+          {controller.settingsTab === "export" ? (
+            <ExportSettings controller={controller} />
+          ) : controller.settingsTab === "shortcuts" ? (
             <>
               <ShortcutSettings controller={controller} />
             </>

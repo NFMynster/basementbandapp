@@ -28,6 +28,7 @@ function startBackend(root, dataDirectory, inputAllowed = true) {
       ),
     ),
     dataDirectory,
+    { recover: process.env.BASEMENT_SMOKE !== "1" },
   );
 }
 module.exports = { startBackend };

@@ -108,18 +108,11 @@ app.whenReady().then(() => {
     app.quit();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-prevent-unload", (event) => {
-    const choice = dialog.showMessageBoxSync(win, {
-      type: "question",
-      buttons: ["Keep working", "Close without saving"],
-      defaultId: 0,
-      cancelId: 0,
-      title: "Unsaved session",
-      message: "Close this session without saving your latest edits?",
-      detail:
-        "Recording will stop. Captured WAV files remain in the local session folder.",
-    });
-    if (choice === 1) event.preventDefault();
+  win.on("close", (event) => {
+    if (!recoveryFlushed && backend) {
+      event.preventDefault();
+      app.quit();
+    }
   });
   win.webContents.on("will-navigate", (e) => e.preventDefault());
 
@@ -152,4 +145,34 @@ app.whenReady().then(() => {
   } else win.loadFile(path.join(__dirname, "../dist/index.html"));
 });
 app.on("window-all-closed", () => app.quit());
-app.on("will-quit", () => backend?.close());
+let recoveryFlushed = false;
+let quitPending = false;
+app.on("before-quit", (event) => {
+  if (recoveryFlushed || !backend) return;
+  event.preventDefault();
+  if (quitPending) return;
+  quitPending = true;
+  void backend
+    .close()
+    .then(() => {
+      recoveryFlushed = true;
+      app.quit();
+    })
+    .catch((error) => {
+      quitPending = false;
+      console.error("Session recovery on exit failed", error);
+      const choice = dialog.showMessageBoxSync({
+        type: "error",
+        buttons: ["Keep app open", "Quit without recovery"],
+        defaultId: 0,
+        cancelId: 0,
+        message: "Your latest session could not be preserved.",
+        detail: error.message,
+      });
+      if (choice === 1) {
+        backend.engine.close();
+        recoveryFlushed = true;
+        app.quit();
+      }
+    });
+});

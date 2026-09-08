@@ -51,7 +51,7 @@
     <None Include="ui\components\ClipRegion.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ContextMenu.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\CreateTrackDialog.tsx"><Filter>React interface\components</Filter></None>
-    <None Include="ui\components\ExportDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ExportSettings.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\HelpDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\LevelSlider.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\MidiNotes.tsx"><Filter>React interface\components</Filter></None>

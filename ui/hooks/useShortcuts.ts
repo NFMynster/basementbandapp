@@ -10,6 +10,9 @@ export const defaultBindings = {
   copy: "Mod+KeyC",
   paste: "Mod+KeyV",
   delete: "Delete",
+  deleteTrack: "Mod+Delete",
+  undo: "Mod+KeyZ",
+  redo: "Mod+Shift+KeyZ",
 };
 export type Shortcut = keyof typeof defaultBindings;
 export const shortcutNames: Record<Shortcut, string> = {
@@ -23,6 +26,9 @@ export const shortcutNames: Record<Shortcut, string> = {
   copy: "Copy region",
   paste: "Paste region at playhead",
   delete: "Delete region",
+  deleteTrack: "Delete track",
+  undo: "Undo",
+  redo: "Redo",
 };
 export const keyBinding = (
   e: Pick<
@@ -76,9 +82,14 @@ export function useShortcuts(actions: Record<Shortcut, () => void>) {
         )
       )
         return;
-      const action = (Object.keys(bindings) as Shortcut[]).find(
-        (key) => bindings[key] === keyBinding(e),
-      );
+      const pressed = keyBinding(e).replace("Backspace", "Delete");
+      const action =
+        (Object.keys(bindings) as Shortcut[]).find(
+          (key) => bindings[key].replace("Backspace", "Delete") === pressed,
+        ) ||
+        (pressed === "Mod+KeyY" && bindings.redo === defaultBindings.redo
+          ? "redo"
+          : undefined);
       if (action) {
         e.preventDefault();
         current.current[action]();

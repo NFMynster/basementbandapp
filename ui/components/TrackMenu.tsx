@@ -47,7 +47,11 @@ export function TrackMenu({
       <button
         role="menuitem"
         disabled={controller.s.playing || !track.clips.length}
-        onClick={() => act(() => controller.setExportTarget(track.id))}
+        onClick={() =>
+          act(() => {
+            void controller.exportAudio(track.id);
+          })
+        }
       >
         Export track…
       </button>

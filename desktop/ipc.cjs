@@ -5,6 +5,8 @@ function registerIpc(win, request) {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
     const allowed = [
       "state",
+      "undo",
+      "redo",
       "devices",
       "configure",
       "track",

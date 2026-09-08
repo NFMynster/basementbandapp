@@ -165,18 +165,7 @@ function verifyDesktop(win, request) {
       await new Promise((r) => setTimeout(r, 250));
       if (!(await request({ op: "state" })).tracks[0].armed)
         throw new Error("UI did not mark native track for recording");
-      // Cancel an actual close request. The service must still answer afterward.
-      const showMessageBox = dialog.showMessageBoxSync;
-      try {
-        dialog.showMessageBoxSync = () => 0;
-        app.quit();
-        await new Promise((r) => setTimeout(r, 250));
-        if (win.isDestroyed())
-          throw new Error("Cancelling close destroyed the window");
-        await request({ op: "state" });
-      } finally {
-        dialog.showMessageBoxSync = showMessageBox;
-      }
+
       await win.webContents.executeJavaScript(
         `document.querySelector('[title="Quick guide"]').click()`,
       );
@@ -195,7 +184,7 @@ function verifyDesktop(win, request) {
       )
         throw new Error("Escape did not close the dialog");
       console.log(
-        "Desktop smoke passed: UI-to-JUCE commands, cancelled close preserves service, dialog shortcuts and Escape.",
+        "Desktop smoke passed: UI-to-JUCE commands, dialog shortcuts and Escape.",
       );
       await win.webContents.executeJavaScript(
         `document.querySelector('[title="Add track"]').click()`,
@@ -629,6 +618,86 @@ function verifyDesktop(win, request) {
       )
         throw new Error("Toolbar take selection did not reach the engine");
       console.log("Short loop takes remain selectable without zooming.");
+      await win.webContents.executeJavaScript(
+        `document.activeElement?.blur(); document.querySelector('[data-clip="${takeChoice}"]').click()`,
+      );
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Backspace" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Backspace" });
+      await new Promise((r) => setTimeout(r, 150));
+      if (
+        (await request({ op: "state" })).tracks.some((t) =>
+          t.clips.some((c) => c.id === takeChoice),
+        )
+      )
+        throw new Error("Backspace did not delete the selected region");
+      win.webContents.sendInputEvent({
+        type: "keyDown",
+        keyCode: "Z",
+        modifiers: ["control"],
+      });
+      win.webContents.sendInputEvent({
+        type: "keyUp",
+        keyCode: "Z",
+        modifiers: ["control"],
+      });
+      await new Promise((r) => setTimeout(r, 180));
+      if (
+        !(await request({ op: "state" })).tracks.some((t) =>
+          t.clips.some((c) => c.id === takeChoice),
+        )
+      )
+        throw new Error("Undo shortcut did not restore the deleted region");
+      const zoomBefore = await win.webContents.executeJavaScript(
+        `Number(document.querySelector('[aria-label="Timeline zoom"]').value)`,
+      );
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.timeline-scroll').dispatchEvent(new WheelEvent('wheel', { deltaY: -50, ctrlKey: true, clientX: 650, bubbles: true, cancelable: true }))`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        (await win.webContents.executeJavaScript(
+          `Number(document.querySelector('[aria-label="Timeline zoom"]').value)`,
+        )) <= zoomBefore
+      )
+        throw new Error("Ctrl-wheel/pinch zoom did not change timeline scale");
+      const originalPicker = dialog.showOpenDialog;
+      let pickerCalled = false;
+      let cancelExport;
+      try {
+        dialog.showOpenDialog = async () => {
+          pickerCalled = true;
+          return new Promise((resolve) => {
+            cancelExport = () => resolve({ canceled: true, filePaths: [] });
+          });
+        };
+        await win.webContents.executeJavaScript(
+          `[...document.querySelectorAll('.file-actions button')].find(b => b.textContent.trim() === 'Export').click()`,
+        );
+        await new Promise((r) => setTimeout(r, 100));
+        if (
+          !pickerCalled ||
+          !(await win.webContents.executeJavaScript(
+            `!!document.querySelector('.export-wait') && !document.querySelector('.modal[aria-label="Export audio"]')`,
+          ))
+        )
+          throw new Error(
+            "Export must open picker directly with waiting UI, not a settings dialog",
+          );
+        cancelExport();
+        await new Promise((r) => setTimeout(r, 100));
+        if (
+          await win.webContents.executeJavaScript(
+            `!!document.querySelector('.export-wait')`,
+          )
+        )
+          throw new Error("Cancelled export did not dismiss waiting UI");
+      } finally {
+        dialog.showOpenDialog = originalPicker;
+        cancelExport?.();
+      }
+      console.log(
+        "Direct export, delete/undo shortcuts and Ctrl-wheel zoom passed.",
+      );
       win.destroy();
       app.quit();
     } catch (e) {

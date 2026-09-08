@@ -9,7 +9,6 @@ import type {
   Command,
   CommandResult,
   SaveResult,
-  ExportOptions,
 } from "../models";
 import { desktop as api } from "../services/desktop";
 const empty: Session = {
@@ -34,7 +33,7 @@ export function useWorkspace() {
     () => localStorage.getItem("basement.hideWelcome") !== "1",
   );
   const [settingsTab, setSettingsTab] = useState<
-    "audio" | "midi" | "shortcuts"
+    "audio" | "midi" | "shortcuts" | "export"
   >("audio");
   const clipboard = useRef<{ track: string; clip: string } | null>(null);
   const previousTracks = useRef<string[] | null>(null);
@@ -48,14 +47,21 @@ export function useWorkspace() {
     x: number;
     inside: boolean;
   } | null>(null);
-  const [exportTarget, setExportTarget] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
+    localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
+  );
+  useEffect(
+    () => localStorage.setItem("basement.exportMode", exportMode),
+    [exportMode],
+  );
   const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
     [clipId, setClipId] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [panel, setPanel] = useState<"input" | "plugins">("input"),
+    [panel, setPanel] = useState<"input" | "plugins" | "export">("input"),
     [showHelp, setHelp] = useState(false),
     [devices, setDevices] = useState<Devices | null>(null),
     [deviceLoading, setDeviceLoading] = useState(false),
@@ -99,8 +105,35 @@ export function useWorkspace() {
     wasRecording.current = s.recording;
   }, [s.recording, s.position, pxPerSecond]);
   const accept = (v: Session | Devices | SaveResult | null) => {
-    if (v && "tracks" in v) setS(v);
+    if (v && "tracks" in v) {
+      setS(v);
+      if (v.recoveryError) setError(v.recoveryError);
+    }
   };
+  const recoverySeen = useRef(false);
+  useEffect(() => {
+    if (s.recovered && !recoverySeen.current) {
+      recoverySeen.current = true;
+      setDirty(true);
+      setWelcome(false);
+      setNotice("Restored your previous session, including unsaved edits.");
+    }
+  }, [s.recovered]);
+  async function dropAudio(files: File[], target?: string) {
+    const at = s.position;
+    const result = await task(() => api.dropFiles(files, target));
+    if (!result) return;
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+    timelineScroll.current?.scrollTo({
+      left: Math.max(
+        0,
+        at * pxPerSecond - (timelineScroll.current?.clientWidth ?? 0) * 0.2,
+      ),
+      behavior: "smooth",
+    });
+  }
   async function run<C extends Command>(
     c: C,
     change = true,
@@ -134,6 +167,7 @@ export function useWorkspace() {
               : "Session opened.",
           );
       }
+      return r;
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -174,16 +208,6 @@ export function useWorkspace() {
     const t = setTimeout(() => setNotice(""), 4000);
     return () => clearTimeout(t);
   }, [notice]);
-  useEffect(() => {
-    const listener = (e: BeforeUnloadEvent) => {
-      if (dirty || s.recording) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", listener);
-    return () => window.removeEventListener("beforeunload", listener);
-  }, [dirty, s.recording]);
   const editSelected = (
     action: "split" | "copy" | "move",
     source = clipboard.current,
@@ -228,7 +252,22 @@ export function useWorkspace() {
       }
     },
     paste: () => editSelected("copy"),
+    undo: () => {
+      if (!s.playing) run({ op: "undo" });
+    },
+    redo: () => {
+      if (!s.playing) run({ op: "redo" });
+    },
+    deleteTrack: () => {
+      if (
+        track &&
+        !s.playing &&
+        confirm(`Delete ${track.name} and all its regions? You can undo this.`)
+      )
+        run({ op: "removeTrack", track: track.id });
+    },
     delete: () => {
+      if (s.recording || busy) return;
       const t = s.tracks.find((t) => t.clips.some((c) => c.id === clipId));
       if (t) run({ op: "removeClip", track: t.id, clip: clipId });
     },
@@ -267,12 +306,23 @@ export function useWorkspace() {
       setDeviceLoading(false);
     }
   }
-  async function exportAudio(options: ExportOptions) {
+  async function exportAudio(target?: string) {
     editing.current = true;
     setBusy(true);
+    setExporting(true);
     try {
-      return await api.exportAudio(options);
+      const result = await api.exportAudio({
+        mode: target ? "separate" : exportMode,
+        track: target,
+      });
+      if (result)
+        setNotice(
+          `Exported ${result.files.length} file(s) to ${result.folder}`,
+        );
+    } catch (error) {
+      setError(errorMessage(error));
     } finally {
+      setExporting(false);
       editing.current = false;
       setBusy(false);
     }
@@ -373,6 +423,7 @@ export function useWorkspace() {
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
     ...shortcuts,
+    dropAudio,
     creatingTrack,
     setCreatingTrack,
     openCreateTrack,
@@ -386,9 +437,10 @@ export function useWorkspace() {
     openProperties,
     propertiesPing,
     rulerCancel,
-    exportTarget,
+    exporting,
+    exportMode,
+    setExportMode,
     exportAudio,
-    setExportTarget,
     dragPosition,
     setDragPosition,
     starting,

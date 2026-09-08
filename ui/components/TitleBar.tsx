@@ -17,6 +17,20 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
         </div>
         <div className="file-actions">
           <button
+            title={`Undo · ${keyLabel(controller.bindings.undo)}`}
+            disabled={busy || s.playing || !s.canUndo}
+            onClick={() => run({ op: "undo" })}
+          >
+            Undo
+          </button>
+          <button
+            title={`Redo · ${keyLabel(controller.bindings.redo)}`}
+            disabled={busy || s.playing || !s.canRedo}
+            onClick={() => run({ op: "redo" })}
+          >
+            Redo
+          </button>
+          <button
             disabled={busy || s.recording}
             title="New session"
             onClick={async () => {
@@ -60,7 +74,7 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
           </button>
           <button
             disabled={busy || s.playing || !controller.hasClips}
-            onClick={() => controller.setExportTarget("")}
+            onClick={() => controller.exportAudio()}
           >
             <Download size={16} />
             Export

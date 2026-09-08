@@ -36,6 +36,10 @@ export type Track = {
   bypass: boolean;
 };
 export type Session = {
+  canUndo?: boolean;
+  canRedo?: boolean;
+  recovered?: boolean;
+  recoveryError?: string;
   audioInputActive?: boolean;
   outputLatencySamples?: number;
   inputLatencySamples?: number;
@@ -95,7 +99,15 @@ export type DeviceConfiguration = Pick<
 >;
 export type SessionCommand =
   | {
-      op: "state" | "play" | "stop" | "record" | "new" | "clearWarning";
+      op:
+        | "state"
+        | "play"
+        | "stop"
+        | "record"
+        | "new"
+        | "clearWarning"
+        | "undo"
+        | "redo";
     }
   | { op: "addTrack"; kind?: "audio" | "midi" }
   | { op: "metronome" | "countIn"; value: boolean }

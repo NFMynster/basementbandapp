@@ -44,7 +44,10 @@ class NativeClient {
     const result = this.queue.then(() => {
       if (this.failure) throw this.failure;
       return new Promise((resolve, reject) => {
-        if (command.op && !["state", "pump", "testMidi"].includes(command.op))
+        if (
+          command.op &&
+          !["state", "pump", "testMidi", "snapshot"].includes(command.op)
+        )
           console.log("Audio command:", command.op);
         const timer = setTimeout(
           () =>

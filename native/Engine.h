@@ -48,7 +48,7 @@ public:
   void audioDeviceIOCallbackWithContext(const float *const *inputs, int inputChannels,
                                         float *const *outputs, int outputChannels, int samples,
                                         const AudioIODeviceCallbackContext &context) override;
-  var state(bool full = false);
+  var state(bool full = false, bool pluginState = true);
   var command(const var &command);
 
 private:

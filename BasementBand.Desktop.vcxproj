@@ -59,7 +59,7 @@
     <None Include="ui\components\ClipRegion.tsx" />
     <None Include="ui\components\ContextMenu.tsx" />
     <None Include="ui\components\CreateTrackDialog.tsx" />
-    <None Include="ui\components\ExportDialog.tsx" />
+    <None Include="ui\components\ExportSettings.tsx" />
     <None Include="ui\components\HelpDialog.tsx" />
     <None Include="ui\components\LevelSlider.tsx" />
     <None Include="ui\components\MidiNotes.tsx" />

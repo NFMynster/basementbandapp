@@ -70,7 +70,7 @@ Engine::~Engine() {
   disk.stopThread(5000);
 }
 
-var Engine::state(bool full) {
+var Engine::state(bool full, bool pluginState) {
   // Session metadata and region JSON belong to the message thread. Do not
   // block the audio callback while allocating/serializing the UI snapshot.
   double snapshotRate;
@@ -110,7 +110,7 @@ var Engine::state(bool full) {
                      {"bypass", t->bypass}});
     if (full) {
       v.getDynamicObject()->setProperty("pluginPath", t->pluginPath);
-      if (t->plugin) {
+      if (t->plugin && pluginState) {
         const ScopedLock lock(guard);
         MemoryBlock b;
         t->plugin->getStateInformation(b);

@@ -27,7 +27,10 @@ export function ShortcutSettings({
       if (/^(Control|Alt|Shift|Meta)/.test(event.code) || event.repeat) return;
       const binding = keyBinding(event);
       const conflict = (Object.keys(controller.bindings) as Shortcut[]).find(
-        (key) => key !== capture && controller.bindings[key] === binding,
+        (key) =>
+          key !== capture &&
+          controller.bindings[key].replace("Backspace", "Delete") ===
+            binding.replace("Backspace", "Delete"),
       );
       if (conflict) {
         setError(

@@ -379,6 +379,26 @@
   padding: 0;
   overflow: hidden;
 }
+.export-settings {
+  max-width: 620px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #adb0ba;
+}
+.export-settings select {
+  margin-left: 12px;
+  padding: 8px;
+}
+.export-settings p {
+  margin: 8px 0;
+}
+.export-wait {
+  z-index: 30;
+}
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 html:has(.modal-backdrop),
 body:has(.modal-backdrop) {
   overflow: hidden;

@@ -86,10 +86,11 @@ test("WAV export preserves alignment, processing, mute/solo and existing exports
       "Mix excludes muted guitar",
     );
     await send({ op: "track", track: g.id, mute: false, solo: true });
+    await send({ op: "master", value: 0.5 });
     const solo = await send({ op: "export", mode: "mix", path: folder });
     assert.ok(
-      Math.abs(wav(solo.files[0]).sample(5000) - 0.0625) < 0.0001,
-      "Mix respects solo",
+      Math.abs(wav(solo.files[0]).sample(5000) - 0.03125) < 0.0001,
+      "Mix respects solo and master output volume",
     );
     await send({ op: "bypass", track: g.id, value: true });
     const single = await send({

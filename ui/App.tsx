@@ -8,7 +8,6 @@ import { StatusBar } from "./components/StatusBar";
 import { Notices } from "./components/Notices";
 import { AudioSetupDialog } from "./components/AudioSetupDialog";
 import { HelpDialog } from "./components/HelpDialog";
-import { ExportDialog } from "./components/ExportDialog";
 import { CreateTrackDialog } from "./components/CreateTrackDialog";
 import { WelcomeDialog } from "./components/WelcomeDialog";
 export function App() {
@@ -66,8 +65,21 @@ export function App() {
           <button onClick={() => controller.run({ op: "stop" })}>Cancel</button>
         </div>
       )}
-      {controller.exportTarget !== null && (
-        <ExportDialog controller={controller} />
+      {controller.exporting && (
+        <div
+          className="count-in-overlay export-wait"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Exporting audio"
+        >
+          <span>EXPORTING AUDIO</span>
+          <div
+            className="startup-spinner"
+            role="progressbar"
+            aria-label="Rendering audio"
+          />
+          <p>Please wait while your audio is rendered…</p>
+        </div>
       )}
     </div>
   );
