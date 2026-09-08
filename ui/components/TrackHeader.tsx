@@ -102,7 +102,7 @@ export function TrackHeader({
             label={`${track.name} volume`}
             value={track.gain}
             max={1.5}
-            peak={track.peak}
+            peak={track.armed ? track.peak : 0}
             onChange={(gain, historyGroup) =>
               update(track, { gain, historyGroup })
             }

@@ -252,7 +252,10 @@ export function useWorkspace() {
     try {
       setError("");
       const r = await api.command(c);
-      accept(r);
+      // Drag gestures can queue several optimistic track updates. Only the
+      // newest optimistic reply should repaint the slider, otherwise the
+      // controlled range input visibly walks through every queued value.
+      if (!optimistic || revision === optimisticRevision.current) accept(r);
       if (c.op === "undo" || c.op === "redo") {
         setNotice(c.op === "undo" ? "Undo" : "Redo");
       }

@@ -186,11 +186,6 @@ export function TrackInspector({
                       dB
                     </span>
                   </div>
-                  <div className="level-meter">
-                    <i
-                      style={{ width: `${Math.min(100, track.peak * 100)}%` }}
-                    />
-                  </div>
                 </div>
                 <div className="record-tip">
                   <span className="tip-icon">

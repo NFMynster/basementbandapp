@@ -175,17 +175,9 @@
   color: #e8c56e;
   background: #e8c56e18;
 }
-.level-meter i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    #76ad79 0%,
-    #9bc180 70%,
-    #ead287 90%,
-    #ef7171
-  );
-  transition: width 0.1s;
+.icon-button.loop-active:hover {
+  color: #f4d885;
+  background: #e8c56e30;
 }
 .workspace-toolbar {
   height: 45px;

@@ -130,13 +130,6 @@
   white-space: nowrap;
   font-family: Consolas, monospace;
 }
-.level-meter {
-  height: 5px;
-  background: #181e1a;
-  border-radius: 2px;
-  overflow: hidden;
-  margin-top: 8px;
-}
 .record-tip {
   border-left: 1px solid #41424b;
   display: flex;

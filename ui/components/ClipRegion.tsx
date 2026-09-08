@@ -276,7 +276,10 @@ export function ClipRegion({
           const targetId = target?.id ?? t.id;
           if (!target || target.kind !== t.kind) {
             setPreview(null);
-            w.setNotice("Move regions to a matching audio or MIDI track.");
+            w.setNotice(
+              "Move regions to a matching audio or MIDI track.",
+              "warning",
+            );
             return;
           }
           void w
