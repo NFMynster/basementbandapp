@@ -99,7 +99,8 @@ export type SessionCommand =
       op: "editClip";
       track: string;
       clip: string;
-      action: "move" | "copy" | "split" | "take";
+      action: "move" | "copy" | "split" | "take" | "trim";
+      length?: number;
       position?: number;
       target?: string;
     }

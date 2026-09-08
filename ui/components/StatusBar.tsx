@@ -37,7 +37,7 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           <span className="key">{keyLabel(controller.bindings.play)}</span>
           play / stop
           <span className="key">{keyLabel(controller.bindings.start)}</span>
-          start
+          back to start
         </div>
       </footer>
     </>

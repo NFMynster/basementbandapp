@@ -39,6 +39,22 @@ void Engine::editClip(const var &c) {
     for (auto &other : t.clips)
       if (other->takeGroup == clip.takeGroup)
         other->active = other->id == clip.id;
+  } else if (action == "trim") {
+    const double start = number(c, "position"), length = number(c, "length");
+    const double delta = start - clip.start;
+    require(std::isfinite(start) && std::isfinite(length) && delta >= -1e-8 &&
+                length >= 1 / rate && delta + length <= clip.duration() + 1e-8,
+            "Trim must stay inside the existing region");
+    for (auto &part : t.clips)
+      if (part.get() == &clip || (clip.takeGroup.isNotEmpty() && part->takeGroup == clip.takeGroup))
+        require(delta < part->duration() - 1 / rate, "Trim would remove an alternate take entirely");
+    const auto group = clip.takeGroup;
+    for (auto &part : t.clips)
+      if (part.get() == &clip || (group.isNotEmpty() && part->takeGroup == group)) {
+        part->length = jmin(length, part->duration() - delta);
+        part->offset += delta;
+        part->start = start;
+      }
   } else if (action == "split") {
     const double at = number(c, "position") - clip.start;
     require(at > 1 / rate && at < clip.duration() - 1 / rate,

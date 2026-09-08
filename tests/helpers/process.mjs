@@ -8,7 +8,11 @@ export function startRpc(
   args,
   { env = process.env, framed = false } = {},
 ) {
-  const child = spawn(executable, args, { windowsHide: true, env });
+  const selected =
+    env.BASEMENT_NATIVE_TEST && /[\\/]BasementAudio(?:\.exe)?$/.test(executable)
+      ? env.BASEMENT_NATIVE_TEST
+      : executable;
+  const child = spawn(selected, args, { windowsHide: true, env });
   const pending = [];
   let failure,
     sequence = 0,

@@ -4,10 +4,11 @@ import { NativeClient } from "../../desktop/native-client.cjs";
 import { SessionService } from "../../desktop/session-service.cjs";
 export function startSession(folder) {
   const child = spawn(
-    resolve(
-      "artifacts/native/BasementAudio" +
-        (process.platform === "win32" ? ".exe" : ""),
-    ),
+    process.env.BASEMENT_NATIVE_TEST ||
+      resolve(
+        "artifacts/native/BasementAudio" +
+          (process.platform === "win32" ? ".exe" : ""),
+      ),
     ["--test-device"],
     { windowsHide: true },
   );

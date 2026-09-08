@@ -72,7 +72,7 @@ export function useShortcuts(actions: Record<Shortcut, () => void>) {
           '[role="dialog"], [role="menu"], [data-startup]',
         ) ||
         (e.target as HTMLElement).closest(
-          "input,select,textarea,[contenteditable]",
+          'input:not([type="range"]):not([type="checkbox"]):not([type="button"]),select,textarea,[contenteditable]',
         )
       )
         return;

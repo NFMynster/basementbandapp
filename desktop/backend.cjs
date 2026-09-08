@@ -4,11 +4,14 @@ const path = require("node:path");
 const { NativeClient } = require("./native-client.cjs");
 const { SessionService } = require("./session-service.cjs");
 function startBackend(root, dataDirectory, inputAllowed = true) {
-  const native = path.join(
-    root,
-    "artifacts/native",
-    process.platform === "win32" ? "BasementAudio.exe" : "BasementAudio",
-  );
+  const native =
+    process.env.BASEMENT_TEST_DEVICE === "1" && process.env.BASEMENT_NATIVE_TEST
+      ? path.resolve(process.env.BASEMENT_NATIVE_TEST)
+      : path.join(
+          root,
+          "artifacts/native",
+          process.platform === "win32" ? "BasementAudio.exe" : "BasementAudio",
+        );
   if (!existsSync(native))
     throw new Error("Run npm run build:all to build the audio engine.");
   console.log("Launching audio engine", native, { inputAllowed });

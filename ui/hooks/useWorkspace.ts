@@ -41,9 +41,13 @@ export function useWorkspace() {
   const [trackPing, setTrackPing] = useState("");
   const [starting, setStarting] = useState(true);
   const [propertiesPing, setPropertiesPing] = useState(0);
-  const rulerGesture = useRef<{ mode: "seek" | "loop"; start: number } | null>(
-    null,
-  );
+  const rulerRevision = useRef(0);
+  const rulerGesture = useRef<{
+    mode: "seek" | "loop";
+    start: number;
+    x: number;
+    inside: boolean;
+  } | null>(null);
   const [exportTarget, setExportTarget] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
@@ -139,8 +143,9 @@ export function useWorkspace() {
   }
   useEffect(() => {
     let alive = true;
+    let failed = false;
     const tick = async () => {
-      if (polling.current || editing.current) return;
+      if (failed || polling.current || editing.current) return;
       polling.current = true;
       try {
         const v = await api.command({ op: "state" });
@@ -149,7 +154,10 @@ export function useWorkspace() {
           setStarting(false);
         }
       } catch (e) {
-        if (alive) setError(errorMessage(e));
+        const message = errorMessage(e);
+        if (/audio engine.*(timed out|stopped|closing)/i.test(message))
+          failed = true;
+        if (alive) setError(message);
       } finally {
         polling.current = false;
       }
@@ -271,6 +279,7 @@ export function useWorkspace() {
   }
   function rulerDown(e: React.PointerEvent) {
     if (s.recording || e.button !== 0) return;
+    ++rulerRevision.current;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const start = Math.max(
@@ -282,9 +291,17 @@ export function useWorkspace() {
         ?.dataset.rulerZone === "seek"
         ? "seek"
         : "loop";
-    rulerGesture.current = { mode, start };
-    if (mode === "seek") setDragPosition(start);
-    else setSelection({ start, end: start });
+    const raw = (e.clientX - rect.left) / pxPerSecond;
+    rulerGesture.current = {
+      mode,
+      start,
+      x: e.clientX,
+      inside: raw >= s.loopStart && raw <= s.loopEnd,
+    };
+    if (mode === "seek") {
+      setSelection(null);
+      setDragPosition(start);
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
   }
   function rulerMove(e: React.PointerEvent) {
@@ -296,7 +313,8 @@ export function useWorkspace() {
       (Math.round(((e.clientX - rect.left) / zoom) * 4) / 4) * secondsPerBar,
     );
     if (gesture.mode === "seek") setDragPosition(end);
-    else setSelection({ start: gesture.start, end });
+    else if (Math.abs(e.clientX - gesture.x) > 4)
+      setSelection({ start: gesture.start, end });
   }
   function rulerUp(e: React.PointerEvent) {
     const gesture = rulerGesture.current;
@@ -315,11 +333,25 @@ export function useWorkspace() {
       void run({ op: "seek", position: end }, false).finally(() =>
         setDragPosition(null),
       );
-    else if (b - a >= 0.05)
-      run({ op: "loop", start: a, end: b, enabled: true });
-    setSelection(null);
+    else if (Math.abs(e.clientX - gesture.x) <= 4 && gesture.inside) {
+      void run({
+        op: "loop",
+        start: s.loopStart,
+        end: s.loopEnd,
+        enabled: !s.looping,
+      });
+      setSelection(null);
+    } else if (b - a >= 0.05) {
+      const revision = rulerRevision.current;
+      setSelection({ start: a, end: b });
+      // Keep the final preview until the native reply replaces the old range.
+      void run({ op: "loop", start: a, end: b, enabled: true }).finally(() => {
+        if (revision === rulerRevision.current) setSelection(null);
+      });
+    } else setSelection(null);
   }
   function rulerCancel() {
+    ++rulerRevision.current;
     rulerGesture.current = null;
     setSelection(null);
     setDragPosition(null);

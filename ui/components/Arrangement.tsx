@@ -181,9 +181,6 @@ export function Arrangement({
                 }}
                 onKeyDown={(e) => {
                   if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter") {
-                    controller.openProperties(t.id);
-                  }
                   if (
                     e.key === "ContextMenu" ||
                     (e.shiftKey && e.key === "F10")
@@ -309,9 +306,12 @@ export function Arrangement({
                   {i + 1}
                 </span>
               ))}
-              {(s.looping || selection) && (
+              {loop.end > loop.start && (
                 <div
-                  className="cycle-region"
+                  className={
+                    "cycle-region " +
+                    (!s.looping && !selection ? "inactive" : "")
+                  }
                   style={{
                     left: loop.start * pxPerSecond,
                     width: (loop.end - loop.start) * pxPerSecond,
@@ -354,7 +354,10 @@ export function Arrangement({
                       controller.openProperties(t.id);
                     }
                   }}
-                  onClick={() => setSelected(t.id)}
+                  onClick={() => {
+                    setSelected(t.id);
+                    controller.setClipId("");
+                  }}
                 >
                   {t.clips
                     .filter((c) => c.active !== false)
@@ -384,6 +387,7 @@ export function Arrangement({
               ))}
               <div
                 className="empty-grid"
+                onClick={() => controller.setClipId("")}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setMenu({

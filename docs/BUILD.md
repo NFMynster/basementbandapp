@@ -92,4 +92,8 @@ Logs rotate on launch at 4 MiB. Review before sharing: driver and plug-in diagno
 
 If it still stalls on Mac, send `main.log`, the macOS version, CPU architecture, audio interface and whether it was `npm start` or a packaged .app. The changes have been built/tested on Windows, not confirmed against your Mac's failure.
 
+For the reported Mac stall before “Opening audio device”, rebuild the native helper as well as Electron: `npm run package:mac`. The fix initializes NSApplication for the console helper. New logs should show “macOS application event dispatcher initialized”, then “Message loop dispatched audio initialization”, followed by device initialization. The Mac-specific branch still needs verification on a Mac.
+
+If a running Windows app locks `artifacts/native/BasementAudio.exe`, close it before rebuilding/F5. For isolated regression tests, `BASEMENT_NATIVE_TEST` can point to a newly compiled engine; desktop smoke tests honor that override only with their test-device mode enabled. Normal app launches ignore it.
+
 For public signed Mac releases, packaging includes microphone/JIT/third-party-library entitlements for the app and helper. Third-party VST3 code is trusted executable code, not sandboxed. Supply Developer ID credentials and notarize before distribution. See [licensing release checklist](LICENSING.md).

@@ -65,6 +65,25 @@ function verifyDesktop(win, request) {
         ))
       )
         throw new Error("Properties did not retrigger inspector feedback");
+      await request({ op: "seek", position: 12 });
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.track-header').focus()`,
+      );
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await new Promise((r) => setTimeout(r, 150));
+      if ((await request({ op: "state" })).position !== 0)
+        throw new Error("Enter on a focused track did not return to start");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Output volume"]').focus()`,
+      );
+      await request({ op: "seek", position: 12 });
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await new Promise((r) => setTimeout(r, 150));
+      if ((await request({ op: "state" })).position !== 0)
+        throw new Error("Enter on a focused slider did not return to start");
+      await win.webContents.executeJavaScript(`document.activeElement.blur()`);
       const head = await win.webContents.executeJavaScript(
         `(() => { const r = document.querySelector('.playhead > span').getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2 + 3), y: Math.round(r.y + 4) }; })()`,
       );
@@ -454,6 +473,134 @@ function verifyDesktop(win, request) {
       console.log(
         "New controls passed: selector, monitor, output gain, menus, bidirectional vertical alignment and recording scroll.",
       );
+      for (const value of ["1", "12", "120"]) {
+        await win.webContents.executeJavaScript(`(() => {
+          const input = document.querySelector('[aria-label="Tempo"]');
+          input.focus();
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '${value}');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        })()`);
+        await new Promise((r) => setTimeout(r, 80));
+        if (
+          (await win.webContents.executeJavaScript(
+            `document.querySelector('[aria-label="Tempo"]').value`,
+          )) !== value
+        )
+          throw new Error("Tempo draft was overwritten by engine polling");
+      }
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+      await new Promise((r) => setTimeout(r, 150));
+      if ((await request({ op: "state" })).tempo !== 120)
+        throw new Error("Tempo did not commit");
+      await win.webContents.executeJavaScript(`(() => {
+        document.querySelector('.timeline-scroll').scrollLeft = 0;
+        document.querySelector('.timeline-scroll').scrollTop = 0;
+        document.querySelector('.clip').click();
+      })()`);
+      await new Promise((r) => setTimeout(r, 80));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.lane').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      if (
+        await win.webContents.executeJavaScript(
+          `!!document.querySelector('.clip.chosen')`,
+        )
+      )
+        throw new Error("Empty lane click did not clear region selection");
+      await request({ op: "loop", start: 0, end: 2, enabled: true });
+      await new Promise((r) => setTimeout(r, 100));
+      await win.webContents.capturePage();
+      const cyclePoint = await win.webContents.executeJavaScript(`(() => {
+        const r = document.querySelector('.ruler-loop').getBoundingClientRect();
+        return { x: Math.round(r.left + 30), y: Math.round(r.top + 10) };
+      })()`);
+      for (const enabled of [false, true]) {
+        win.webContents.sendInputEvent({
+          type: "mouseDown",
+          ...cyclePoint,
+          button: "left",
+          clickCount: 1,
+        });
+        win.webContents.sendInputEvent({
+          type: "mouseUp",
+          ...cyclePoint,
+          button: "left",
+          clickCount: 1,
+        });
+        await new Promise((r) => setTimeout(r, 120));
+        const cycle = await request({ op: "state" });
+        if (
+          cycle.looping !== enabled ||
+          cycle.loopStart !== 0 ||
+          cycle.loopEnd !== 2
+        )
+          throw new Error("Clicking a loop must toggle without moving it");
+        if (
+          !(await win.webContents.executeJavaScript(
+            `!!document.querySelector('.cycle-region${enabled ? "" : ".inactive"}')`,
+          ))
+        )
+          throw new Error("Disabled loop disappeared");
+      }
+      console.log(
+        "Tempo drafts, empty-space deselection and loop toggling passed.",
+      );
+      const trimState = await request({ op: "state" });
+      const trimTrack = trimState.tracks.find((t) =>
+        t.clips.some((c) => c.active !== false && c.duration > 0.4),
+      );
+      const trimClip = trimTrack.clips.find(
+        (c) => c.active !== false && c.duration > 0.4,
+      );
+      await win.webContents.capturePage();
+      const edge = await win.webContents.executeJavaScript(`(() => {
+        const r = document.querySelector('[data-clip="${trimClip.id}"]').getBoundingClientRect();
+        return { x: Math.round(r.left + 2), y: Math.round(r.top + r.height / 2) };
+      })()`);
+      win.webContents.sendInputEvent({ type: "mouseMove", ...edge });
+      await win.webContents.capturePage();
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('[data-clip="${trimClip.id}"]').style.cursor === 'ew-resize'`,
+        ))
+      )
+        throw new Error("Region edge did not show a trim cursor");
+      win.webContents.sendInputEvent({
+        type: "mouseDown",
+        ...edge,
+        button: "left",
+        clickCount: 1,
+      });
+      win.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: edge.x + 8,
+        y: edge.y,
+        modifiers: ["leftButtonDown"],
+      });
+      await win.webContents.capturePage();
+      win.webContents.sendInputEvent({
+        type: "mouseUp",
+        x: edge.x + 8,
+        y: edge.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 150));
+      const trimmed = (await request({ op: "state" })).tracks
+        .find((t) => t.id === trimTrack.id)
+        .clips.find((c) => c.id === trimClip.id);
+      if (!(
+        trimmed.start > trimClip.start &&
+        trimmed.duration < trimClip.duration &&
+        Math.abs(
+          trimmed.start + trimmed.duration - trimClip.start - trimClip.duration,
+        ) < 0.001
+      ))
+        throw new Error("Dragging left edge did not trim in place");
+      console.log("Region edge cursor and live trim gesture passed.");
       await request({ op: "loop", start: 0, end: 0.05, enabled: true });
       await request({ op: "record" });
       await request({ op: "pump", frames: 8192, left: 0.2 });

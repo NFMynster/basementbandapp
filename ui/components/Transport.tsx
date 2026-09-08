@@ -1,4 +1,5 @@
 import { LevelSlider } from "./LevelSlider";
+import { useState } from "react";
 import {
   HelpCircle,
   Timer,
@@ -13,6 +14,21 @@ import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
 export function Transport({ controller }: { controller: WorkspaceController }) {
   const { s, run, busy, bar, beat, openSetup, showHelp, setHelp } = controller;
+  const [tempoDraft, setTempoDraft] = useState<string | null>(null);
+  const commitTempo = () => {
+    if (tempoDraft === null) return;
+    const value = Number(tempoDraft);
+    if (
+      tempoDraft.trim() &&
+      Number.isFinite(value) &&
+      value >= 40 &&
+      value <= 240
+    )
+      void run({ op: "tempo", value }).finally(() =>
+        setTempoDraft((current) => (current === tempoDraft ? null : current)),
+      );
+    else setTempoDraft(null);
+  };
   return (
     <>
       <section className="transport">
@@ -76,11 +92,22 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
               type="number"
               min="40"
               max="240"
-              value={s.tempo}
+              value={tempoDraft ?? s.tempo}
               disabled={s.recording}
-              onChange={(e) =>
-                run({ op: "tempo", value: Number(e.target.value) })
-              }
+              onChange={(e) => setTempoDraft(e.target.value)}
+              onBlur={commitTempo}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.blur();
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTempoDraft(null);
+                }
+              }}
             />
             <small>TEMPO</small>
           </div>
