@@ -64,7 +64,9 @@
 }
 .toast.notice {
   border: 1px solid #91bc91;
-  animation: notice-ping 1000ms ease-out;
+  animation:
+    notice-ping 1000ms ease-out,
+    notice-fade 4000ms ease-in forwards;
 }
 @keyframes notice-ping {
   from {
@@ -74,6 +76,15 @@
   }
   to {
     box-shadow: inset 0 0 0 transparent;
+  }
+}
+@keyframes notice-fade {
+  0%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 @keyframes error-ping {

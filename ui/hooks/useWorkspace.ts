@@ -90,9 +90,16 @@ export function useWorkspace() {
   const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
     localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
   );
+  const [exportFormat, setExportFormat] = useState<"wav" | "flac">(() =>
+    localStorage.getItem("basement.exportFormat") === "flac" ? "flac" : "wav",
+  );
   useEffect(
     () => localStorage.setItem("basement.exportMode", exportMode),
     [exportMode],
+  );
+  useEffect(
+    () => localStorage.setItem("basement.exportFormat", exportFormat),
+    [exportFormat],
   );
   const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
@@ -371,6 +378,7 @@ export function useWorkspace() {
       const result = await withBusy(() =>
         api.exportAudio({
           mode: target ? "separate" : exportMode,
+          format: exportFormat,
           track: target,
         }),
       );
@@ -490,6 +498,8 @@ export function useWorkspace() {
     exporting,
     exportMode,
     setExportMode,
+    exportFormat,
+    setExportFormat,
     exportAudio,
     dragPosition,
     setDragPosition,

@@ -6,6 +6,8 @@ var Engine::exportAudio(const var &c) {
   require(!playing, "Stop playback before exporting");
   const auto mode = str(c, "mode");
   require(mode == "separate" || mode == "mix", "Unknown export mode");
+  const auto formatName = str(c, "format", "wav");
+  require(formatName == "wav" || formatName == "flac", "Unknown export format");
   const auto target = str(c, "track");
   if (target.isNotEmpty())
     track(c); // Validate before creating output.
@@ -25,7 +27,7 @@ var Engine::exportAudio(const var &c) {
     if (mode == "mix" && (t->mute || (anySolo && !t->solo)))
       continue;
     require(!t->isMidi || (t->plugin && !t->bypass),
-            "Load an active instrument on each MIDI track before WAV export");
+            "Load an active instrument on each MIDI track before export");
     selected.push_back(t.get());
     for (auto &clip : t->clips)
       if (clip->active)
@@ -56,13 +58,19 @@ var Engine::exportAudio(const var &c) {
             ? "Mix"
             : String(fileIndex + 1).paddedLeft('0', 2) + " - " +
                   File::createLegalFileName(selected[(size_t)fileIndex]->name).substring(0, 80);
-    auto file = destination.getChildFile(name + ".wav");
+    const auto extension = formatName == "flac" ? ".flac" : ".wav";
+    auto file = destination.getChildFile(name + extension);
     auto stream = file.createOutputStream();
-    require(stream != nullptr, "Could not create export WAV");
-    WavAudioFormat format;
-    std::unique_ptr<AudioFormatWriter> writer(
-        format.createWriterFor(stream.get(), rate, 2, 24, {}, 0));
-    require(writer != nullptr, "Could not initialize export WAV");
+    require(stream != nullptr, "Could not create export file");
+    std::unique_ptr<AudioFormatWriter> writer;
+    if (formatName == "flac") {
+      FlacAudioFormat format;
+      writer.reset(format.createWriterFor(stream.get(), rate, 2, 24, {}, 5));
+    } else {
+      WavAudioFormat format;
+      writer.reset(format.createWriterFor(stream.get(), rate, 2, 24, {}, 0));
+    }
+    require(writer != nullptr, "Could not initialize export file");
     stream.release();
     AudioBuffer<float> mix(2, frames);
     for (int64 offset = 0; offset < total; offset += frames) {

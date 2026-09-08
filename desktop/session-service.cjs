@@ -129,14 +129,22 @@ class SessionService {
     return result;
   }
   async execute(command) {
-    const gainGroup =
-      command.op === "track" &&
-      typeof command.gain === "number" &&
-      typeof command.historyGroup === "string"
-        ? command.track + ":" + command.historyGroup
+    const historyGroup =
+      typeof command.historyGroup === "string" &&
+      ((command.op === "master" && typeof command.value === "number") ||
+        (command.op === "track" &&
+          ((typeof command.gain === "number" && command.gain !== undefined) ||
+            (typeof command.pan === "number" && command.pan !== undefined))))
+        ? command.op === "master"
+          ? "master:" + command.historyGroup
+          : command.track +
+            ":" +
+            ("gain" in command ? "gain:" : "pan:") +
+            command.historyGroup
         : null;
-    const continuesGain = gainGroup && gainGroup === this.lastGainGroup;
-    if (!NON_STATE_COMMANDS.has(command.op)) this.lastGainGroup = null;
+    const continuesHistory =
+      historyGroup && historyGroup === this.lastHistoryGroup;
+    if (!NON_STATE_COMMANDS.has(command.op)) this.lastHistoryGroup = null;
     if (command.op === "play")
       this.lastSnapshot = await this.engine.request({ op: "snapshot" });
     if (command.op === "undo" || command.op === "redo") {
@@ -175,7 +183,7 @@ class SessionService {
     }
     const editable = EDITABLE_COMMANDS.has(command.op);
     let before;
-    if (editable && !continuesGain) {
+    if (editable && !continuesHistory) {
       const state = await this.engine.request({ op: "state" });
       if (!state.recording) {
         before = await this.engine.request({
@@ -195,7 +203,7 @@ class SessionService {
       }
     }
     const result = await this.executeRaw(command);
-    if (gainGroup) this.lastGainGroup = gainGroup;
+    if (historyGroup) this.lastHistoryGroup = historyGroup;
     if (before) {
       this.undoStack.push(before);
       if (this.undoStack.length > MAX_UNDO_STEPS) this.undoStack.shift();

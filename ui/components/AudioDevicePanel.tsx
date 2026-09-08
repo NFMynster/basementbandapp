@@ -5,12 +5,6 @@ function sortedUnique(values: number[]) {
   return [...new Set(values)].sort((a, b) => a - b);
 }
 
-function nearestPreset(values: number[], target: number) {
-  return (values.length ? values : [256, 1024]).reduce((closest, value) =>
-    Math.abs(value - target) < Math.abs(closest - target) ? value : closest,
-  );
-}
-
 export function AudioDevicePanel({
   controller,
   devices,
@@ -120,36 +114,16 @@ export function AudioDevicePanel({
           </select>
         </label>
       </div>
-      <div className="buffer-presets">
-        {[
-          { label: "Live playing", target: 256 },
-          { label: "Stable mixing", target: 1024 },
-        ].map(({ label, target }) => (
-          <button
-            key={label}
-            disabled={s.playing || applying}
-            onClick={() =>
-              editDevices({
-                ...devices,
-                bufferSize: nearestPreset(devices.buffers, target),
-              })
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="subtle">
-        Live playing favors fast response; Stable mixing gives heavy plug-ins
-        more time. Apply or Done confirms the change. Driver and plug-in latency
-        still apply.
+      <p className="buffer-help">
+        Hearing a delay? Choose a smaller buffer. If you hear clicks or
+        dropouts, choose a larger one. Apply or Done confirms the change.
       </p>
       <button
         className="apply-device"
         disabled={s.playing || applying}
         onClick={() => void apply(false)}
       >
-        Apply & refresh inputs
+        Apply audio settings
       </button>
       {applyError && <p role="alert">{applyError}</p>}
     </div>

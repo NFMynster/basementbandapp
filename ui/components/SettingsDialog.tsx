@@ -80,16 +80,13 @@ export function SettingsDialog({
               {applyError ||
                 (deviceDirty
                   ? "Changes apply when you press Done."
-                  : "Your session. Your setup.")}
+                  : "Apply audio settings tests changes without closing this window.")}
             </span>
             <button
               className="primary"
               disabled={applying || (s.playing && deviceDirty)}
               onClick={() =>
-                deviceDirty ||
-                (devices && controller.settingsTab === "audio" && !s.playing)
-                  ? void apply(true)
-                  : setSetup(false)
+                devices && !s.playing ? void apply(true) : setSetup(false)
               }
             >
               {applying ? "Applying…" : "Done"}
@@ -164,23 +161,6 @@ function SettingsContent({
       </p>
       {devices ? (
         <>
-          {midi && (
-            <p className="midi-timing">
-              MIDI instruments share the audio output buffer: {s.bufferSize}{" "}
-              samples ({((s.bufferSize / s.sampleRate) * 1000).toFixed(2)} ms).
-              Driver-reported output latency:{" "}
-              {(((s.outputLatencySamples ?? 0) / s.sampleRate) * 1000).toFixed(
-                1,
-              )}
-              ms. VST delay for the selected track:{" "}
-              {(
-                ((controller.track?.latencySamples ?? 0) / s.sampleRate) *
-                1000
-              ).toFixed(1)}
-              ms. These are reported values, not a measured pad-to-speaker
-              total. Change the shared buffer under Audio inputs & output.
-            </p>
-          )}
           {!midi && (
             <AudioDevicePanel
               controller={controller}

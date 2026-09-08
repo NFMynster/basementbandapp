@@ -14,19 +14,27 @@ export function ExportSettings({
             c.setExportMode(e.target.value as "mix" | "separate")
           }
         >
-          <option value="separate">Separate tracks · WAV files</option>
-          <option value="mix">Merged mix · one WAV file</option>
+          <option value="separate">Separate tracks · one file per track</option>
+          <option value="mix">Merged mix · one file</option>
+        </select>
+      </label>
+      <label>
+        Output format
+        <select
+          value={c.exportFormat}
+          onChange={(e) => c.setExportFormat(e.target.value as "wav" | "flac")}
+        >
+          <option value="wav">WAV · 24-bit stereo</option>
+          <option value="flac">FLAC · 24-bit stereo</option>
         </select>
       </label>
       <p>
-        Remembered on this computer. Merged export follows mute, solo, plug-ins
-        and master volume. Separate tracks include muted tracks and remain
-        aligned.
+        Merged export follows mute, solo, plug-ins and master volume. Separate
+        tracks include muted tracks and remain aligned.
       </p>
       <p>
-        24-bit stereo WAV. Loops are ignored; plug-in tails are included. Export
-        asks for a folder and creates a new subfolder, preserving previous
-        exports.
+        Loops are ignored and plug-in tails are included. Export asks for a
+        folder and creates a new subfolder, preserving previous exports.
       </p>
       {c.track && (
         <button

@@ -213,6 +213,8 @@ function registerIpc(win, request) {
     if (
       !options ||
       !["separate", "mix"].includes(options.mode) ||
+      (options.format !== undefined &&
+        !["wav", "flac"].includes(options.format)) ||
       (options.track !== undefined && typeof options.track !== "string")
     )
       throw new Error("Invalid export options");
@@ -226,6 +228,7 @@ function registerIpc(win, request) {
           op: "export",
           path: r.filePaths[0],
           mode: options.mode,
+          format: options.format || "wav",
           track: options.track,
         });
   });

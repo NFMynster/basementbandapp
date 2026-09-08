@@ -25,6 +25,7 @@ export function TrackInspector({
   }, [controller.propertiesPing]);
   const { track, panel, setPanel, s, update, run, openSetup, busy, task } =
     controller;
+  const panGesture = useRef<string | undefined>(undefined);
   return (
     <>
       <section
@@ -146,7 +147,24 @@ export function TrackInspector({
                       max="1"
                       step="0.01"
                       value={track.pan}
-                      onChange={(e) => update(track, { pan: +e.target.value })}
+                      onPointerDown={() => {
+                        panGesture.current = crypto.randomUUID();
+                      }}
+                      onPointerUp={() => {
+                        panGesture.current = undefined;
+                      }}
+                      onPointerCancel={() => {
+                        panGesture.current = undefined;
+                      }}
+                      onBlur={() => {
+                        panGesture.current = undefined;
+                      }}
+                      onChange={(e) =>
+                        update(track, {
+                          pan: +e.target.value,
+                          historyGroup: panGesture.current,
+                        })
+                      }
                     />
                     <span>R</span>
                     <span className="gain-value">

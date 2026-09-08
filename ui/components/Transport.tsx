@@ -161,7 +161,9 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
               s.masterPeak ??
               Math.max(...s.tracks.map((t) => t.peak), 0) * (s.masterGain ?? 1)
             }
-            onChange={(value) => run({ op: "master", value })}
+            onChange={(value, historyGroup) =>
+              run({ op: "master", value, historyGroup })
+            }
           />
           <button
             className="icon-button"

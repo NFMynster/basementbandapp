@@ -125,7 +125,7 @@ export type SessionCommand =
     }
   | { op: "addTrack"; kind?: "audio" | "midi" }
   | { op: "metronome" | "countIn"; value: boolean }
-  | { op: "master"; value: number }
+  | { op: "master"; value: number; historyGroup?: string }
   | {
       op: "editClip";
       track: string;
@@ -150,7 +150,11 @@ export type CommandResult<C extends Command> = C extends DeviceCommand
   ? Devices
   : Session;
 export type SaveResult = { saved: string };
-export type ExportOptions = { mode: "separate" | "mix"; track?: string };
+export type ExportOptions = {
+  mode: "separate" | "mix";
+  format?: "wav" | "flac";
+  track?: string;
+};
 export type ExportResult = { folder: string; files: string[] };
 export interface DesktopApi {
   openLicenses(): Promise<string>;
