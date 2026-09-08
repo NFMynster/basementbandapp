@@ -25,7 +25,9 @@ export function TrackInspector({
   }, [controller.propertiesPing]);
   const { track, panel, setPanel, s, update, run, openSetup, busy, task } =
     controller;
-  const panGesture = useRef<string | undefined>(undefined);
+  const panGesture = useRef<{ id: string; released: boolean } | undefined>(
+    undefined,
+  );
   return (
     <>
       <section
@@ -148,10 +150,14 @@ export function TrackInspector({
                       step="0.01"
                       value={track.pan}
                       onPointerDown={() => {
-                        panGesture.current = crypto.randomUUID();
+                        panGesture.current = {
+                          id: crypto.randomUUID(),
+                          released: false,
+                        };
                       }}
                       onPointerUp={() => {
-                        panGesture.current = undefined;
+                        if (panGesture.current)
+                          panGesture.current.released = true;
                       }}
                       onPointerCancel={() => {
                         panGesture.current = undefined;
@@ -159,12 +165,18 @@ export function TrackInspector({
                       onBlur={() => {
                         panGesture.current = undefined;
                       }}
-                      onChange={(e) =>
+                      onKeyDown={() => {
+                        if (panGesture.current?.released)
+                          panGesture.current = undefined;
+                      }}
+                      onChange={(e) => {
+                        const current = panGesture.current;
                         update(track, {
                           pan: +e.target.value,
-                          historyGroup: panGesture.current,
-                        })
-                      }
+                          historyGroup: current?.id,
+                        });
+                        if (current?.released) panGesture.current = undefined;
+                      }}
                     />
                     <span>R</span>
                     <span className="gain-value">

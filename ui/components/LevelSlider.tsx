@@ -14,7 +14,9 @@ export function LevelSlider({
   max?: number;
   onChange: (value: number, historyGroup?: string) => void;
 }) {
-  const gesture = useRef<string | undefined>(undefined);
+  const gesture = useRef<{ id: string; released: boolean } | undefined>(
+    undefined,
+  );
   return (
     <div
       className="level-slider"
@@ -36,10 +38,12 @@ export function LevelSlider({
         step="0.01"
         value={value}
         onPointerDown={() => {
-          gesture.current = crypto.randomUUID();
+          gesture.current = { id: crypto.randomUUID(), released: false };
         }}
         onPointerUp={() => {
-          gesture.current = undefined;
+          // Range inputs can dispatch their final change after pointerup.
+          // Keep the group until that change has been sent.
+          if (gesture.current) gesture.current.released = true;
         }}
         onPointerCancel={() => {
           gesture.current = undefined;
@@ -47,7 +51,15 @@ export function LevelSlider({
         onBlur={() => {
           gesture.current = undefined;
         }}
-        onChange={(e) => onChange(+e.target.value, gesture.current)}
+        onKeyDown={() => {
+          // A keyboard adjustment after a pointer drag starts a new gesture.
+          if (gesture.current?.released) gesture.current = undefined;
+        }}
+        onChange={(e) => {
+          const current = gesture.current;
+          onChange(+e.target.value, current?.id);
+          if (current?.released) gesture.current = undefined;
+        }}
       />
     </div>
   );
