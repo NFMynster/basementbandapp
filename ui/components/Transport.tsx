@@ -121,10 +121,21 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           </button>
           <span className="divider" />
           <Volume2 size={18} />
+          <input
+            className="master-volume"
+            aria-label="Output volume"
+            title="Output volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={s.masterGain ?? 1}
+            onChange={(e) => run({ op: "master", value: +e.target.value })}
+          />
           <div className="master-meter">
             <i
               style={{
-                width: `${Math.min(100, Math.max(...s.tracks.map((t) => t.peak), 0) * 100)}%`,
+                width: `${Math.min(100, Math.max(...s.tracks.map((t) => t.peak), 0) * (s.masterGain ?? 1) * 100)}%`,
               }}
             />
           </div>

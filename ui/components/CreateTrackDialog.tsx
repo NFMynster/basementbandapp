@@ -61,9 +61,9 @@ export function CreateTrackDialog({
         </label>
       ) : (
         <label>
-          MIDI device
+          MIDI device (optional)
           <select value={device} onChange={(e) => setDevice(e.target.value)}>
-            <option value="">Choose later</option>
+            <option value="">No external input · plug-in preview</option>
             {c.devices?.midiInputs?.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}

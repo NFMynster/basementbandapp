@@ -105,23 +105,34 @@ export function TrackInspector({
                       Remove
                     </button>
                   </div>
-                  <div className="icon-choices" aria-label="Track icon">
+                  <div className="icon-choices">
                     <input
                       type="color"
                       aria-label="Track color"
                       value={track.color}
                       onChange={(e) => update(track, { color: e.target.value })}
                     />
-                    {Object.keys(trackIcons).map((icon) => (
-                      <button
-                        key={icon}
-                        aria-label={`${icon} icon`}
-                        aria-pressed={track.icon === icon}
-                        onClick={() => update(track, { icon })}
-                      >
-                        <TrackIcon icon={icon} size={16} />
-                      </button>
-                    ))}
+                    <TrackIcon
+                      icon={
+                        track.icon ||
+                        (track.kind === "midi" ? "keys" : "guitar")
+                      }
+                      size={18}
+                    />
+                    <select
+                      aria-label="Track icon"
+                      value={
+                        track.icon ||
+                        (track.kind === "midi" ? "keys" : "guitar")
+                      }
+                      onChange={(e) => update(track, { icon: e.target.value })}
+                    >
+                      {Object.keys(trackIcons).map((icon) => (
+                        <option key={icon} value={icon}>
+                          {icon.charAt(0).toUpperCase() + icon.slice(1)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="input-block">
@@ -137,7 +148,7 @@ export function TrackInspector({
                   </button>
                   <span className="subtle">
                     {track.kind === "midi"
-                      ? "Mark track to hear your instrument"
+                      ? "Enable monitoring to hear your instrument"
                       : "Mono · one instrument per track"}
                   </span>
                 </div>
@@ -180,11 +191,11 @@ export function TrackInspector({
                     </strong>
                     <p>
                       {track.kind === "midi"
-                        ? "Choose a MIDI input and load a VST3 instrument."
+                        ? "Load a VST3 instrument. MIDI hardware is optional."
                         : "Use direct monitoring on your audio interface."}
                       <br />
                       {track.kind === "midi"
-                        ? "Mark this track to play and record MIDI."
+                        ? "Monitor to audition; mark to record incoming MIDI."
                         : "Audio recording uses device-latency correction."}
                     </p>
                   </div>

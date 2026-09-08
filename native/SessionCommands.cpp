@@ -37,6 +37,7 @@ void Engine::restoreSession(const var &c) {
     t->icon = str(v, "icon", "guitar");
     t->input = (int)number(v, "input");
     t->isMidi = str(v, "kind") == "midi";
+    t->monitor = flag(v, "monitor", t->isMidi);
     t->midiDevice = str(v, "midiDevice");
     t->midiChannel = jlimit(0, 16, (int)number(v, "midiChannel"));
     t->collector.reset(rate);
@@ -83,6 +84,7 @@ void Engine::restoreSession(const var &c) {
   title = str(session, "title");
   position = 0;
   tempo = number(session, "tempo", 120);
+  masterGain = (float)jlimit(0.0, 1.0, number(session, "masterGain", 1));
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd", 8);
   looping = flag(session, "looping");

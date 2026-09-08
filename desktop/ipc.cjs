@@ -1,4 +1,5 @@
-const { ipcMain, dialog, systemPreferences } = require("electron");
+const { ipcMain, dialog } = require("electron");
+const { microphoneAccess } = require("./permissions.cjs");
 function registerIpc(win, request) {
   ipcMain.handle("command", async (event, cmd) => {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
@@ -25,14 +26,24 @@ function registerIpc(win, request) {
       "editClip",
       "metronome",
       "countIn",
+      "master",
     ];
     if (!cmd || !allowed.includes(cmd.op)) throw new Error("Unknown command");
     if (
-      cmd.op === "record" &&
       process.platform === "darwin" &&
-      !(await systemPreferences.askForMediaAccess("microphone"))
-    )
-      throw new Error("Allow microphone access in System Settings to record.");
+      (cmd.op === "record" || cmd.op === "configure")
+    ) {
+      const needsInput =
+        cmd.op === "configure"
+          ? !!cmd.input
+          : (await request({ op: "state" })).tracks.some(
+              (t) => t.armed && t.kind !== "midi",
+            );
+      if (needsInput && !(await microphoneAccess()))
+        throw new Error(
+          "Allow microphone access in System Settings, then restart the app to record audio.",
+        );
+    }
     return request(cmd);
   });
   ipcMain.handle("save", async (event) => {
@@ -52,9 +63,14 @@ function registerIpc(win, request) {
     });
     return r.canceled ? null : request({ op: "open", path: r.filePaths[0] });
   });
-  ipcMain.handle("import", async (event, track) => {
+  ipcMain.handle("import", async (event, track, position) => {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
     const state = await request({ op: "state" });
+    if (state.recording) throw new Error("Stop recording before importing");
+    if (track !== undefined && !state.tracks.some((t) => t.id === track))
+      throw new Error("Track no longer exists");
+    if (position !== undefined && (!Number.isFinite(position) || position < 0))
+      throw new Error("Invalid import position");
     const midi = state.tracks.find((t) => t.id === track)?.kind === "midi";
     const r = await dialog.showOpenDialog(win, {
       filters: midi
@@ -67,9 +83,30 @@ function registerIpc(win, request) {
           ],
       properties: ["openFile"],
     });
-    return r.canceled
-      ? null
-      : request({ op: "import", track, path: r.filePaths[0] });
+    if (r.canceled) return null;
+    const created = track === undefined;
+    if (created) {
+      const next = await request({ op: "addTrack", kind: "audio" });
+      track = next.tracks.at(-1).id;
+    }
+    try {
+      if (created)
+        await request({
+          op: "track",
+          track,
+          name: require("node:path").parse(r.filePaths[0]).name,
+        });
+      return await request({
+        op: "import",
+        track,
+        path: r.filePaths[0],
+        position,
+      });
+    } catch (error) {
+      if (created && !state.playing)
+        await request({ op: "removeTrack", track });
+      throw error;
+    }
   });
   ipcMain.handle("plugin", async (event, track, bundle = false) => {
     if (event.sender !== win.webContents) throw new Error("Unknown window");

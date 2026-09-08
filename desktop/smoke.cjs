@@ -16,8 +16,8 @@ function verifyDesktop(win, request) {
       const layout = await win.webContents.executeJavaScript(`(() => {
         const welcome = document.querySelector('.welcome-dialog').getBoundingClientRect();
         const footer = document.querySelector('.track-list-bottom').getBoundingClientRect();
-        const sidebar = document.querySelector('.track-list').getBoundingClientRect();
-        return { centered: Math.abs((welcome.left + welcome.right) / 2 - innerWidth / 2) < 2, bottom: Math.abs(footer.bottom - sidebar.bottom) < 2 };
+        const sidebar = document.querySelector('.track-sidebar').getBoundingClientRect();
+        return { centered: Math.abs((welcome.left + welcome.right) / 2 - innerWidth / 2) < 2, bottom: Math.abs(footer.bottom - sidebar.bottom) <= 10 };
       })()`);
       if (!layout.centered || !layout.bottom)
         throw new Error("Large-window layout is misaligned");
@@ -54,11 +54,11 @@ function verifyDesktop(win, request) {
       if (
         (await win.webContents.executeJavaScript(
           `document.querySelectorAll('[role="menuitem"]').length`,
-        )) !== 3
+        )) !== 4
       )
         throw new Error("Track actions missing");
       await win.webContents.executeJavaScript(
-        `window.previousPing = document.querySelector('.properties-ping'); document.querySelector('[role="menuitem"]').click()`,
+        `window.previousPing = document.querySelector('.properties-ping'); [...document.querySelectorAll('[role="menuitem"]')].find(b => b.textContent.trim() === 'Properties').click()`,
       );
       await new Promise((r) => setTimeout(r, 50));
       if (
@@ -312,6 +312,102 @@ function verifyDesktop(win, request) {
         throw new Error("Welcome returned after editing");
       console.log(
         "Settings and arrangement check passed: rebind, footer labels, return to start, auto-scroll and sticky ruler.",
+      );
+      // Compact selector and native monitor/master controls.
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.track-header').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('[aria-label="Track icon"]')?.tagName === 'SELECT'`,
+        ))
+      )
+        throw new Error("Track icon is not a selector");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Monitor Guitar"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 150));
+      if (!(await request({ op: "state" })).tracks[0].monitor)
+        throw new Error("Monitor button did not update native state");
+      await win.webContents.executeJavaScript(`(() => {
+        const slider = document.querySelector('[aria-label="Output volume"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(slider, '0.35');
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await new Promise((r) => setTimeout(r, 150));
+      if (Math.abs((await request({ op: "state" })).masterGain - 0.35) > 0.001)
+        throw new Error("Master slider did not update native state");
+      // Both scroll endpoints and intermediate window heights must stay aligned.
+      for (const height of [700, 810, 1080]) {
+        win.setSize(1280, height);
+        await new Promise((r) => setTimeout(r, 100));
+        for (const selector of [".timeline-scroll", ".track-list"]) {
+          for (const top of [99999, 240, 0]) {
+            await win.webContents.executeJavaScript(
+              `document.querySelector('${selector}').scrollTop = ${top}`,
+            );
+            await win.webContents.capturePage(); // Flush a compositor frame in the hidden smoke window.
+            await new Promise((r) => setTimeout(r, 100));
+            const offsets = await win.webContents.executeJavaScript(`(() => {
+              const sidebar = document.querySelector('.track-list'), timeline = document.querySelector('.timeline-scroll');
+              return { height: innerHeight, sidebarHeight: sidebar.clientHeight, timelineHeight: timeline.clientHeight, sidebarContent: sidebar.scrollHeight, timelineContent: timeline.scrollHeight, sidebar: sidebar.scrollTop, timeline: timeline.scrollTop,
+                difference: document.querySelector('.track-header').getBoundingClientRect().top -
+                  document.querySelector('.lane').getBoundingClientRect().top };
+            })()`);
+            if (Math.abs(offsets.difference) > 1)
+              throw new Error(
+                "Track/lane scroll mismatch: " + JSON.stringify(offsets),
+              );
+          }
+        }
+      }
+      // Region actions are an anchored menu, not a modal.
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.clip').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 600, clientY: 350 }))`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `!!document.querySelector('[role="menu"][aria-label="Region edits"]') && !document.querySelector('[role="dialog"]')`,
+        ))
+      )
+        throw new Error("Region edits did not open a context menu");
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+      await new Promise((r) => setTimeout(r, 50));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.empty-grid').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 800, clientY: 500 }))`,
+      );
+      await new Promise((r) => setTimeout(r, 50));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('[role="menu"][aria-label="Timeline actions"]')?.textContent.includes('Add audio file')`,
+        ))
+      )
+        throw new Error("Timeline import context menu missing");
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+      await request({ op: "loop", start: 0, end: 8, enabled: false });
+      await request({ op: "seek", position: 48 });
+      await new Promise((r) => setTimeout(r, 150));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.timeline-scroll').scrollLeft = 0`,
+      );
+      await request({ op: "record" });
+      for (let frame = 0; frame < 10; ++frame) {
+        await win.webContents.capturePage();
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (
+        !(await win.webContents.executeJavaScript(`(() => {
+        const view = document.querySelector('.timeline-scroll').getBoundingClientRect();
+        const head = document.querySelector('.playhead').getBoundingClientRect();
+        return head.left >= view.left && head.left <= view.right && document.querySelector('.timeline-scroll').scrollLeft > 0;
+      })()`))
+      )
+        throw new Error("Recording did not reveal the playhead");
+      await request({ op: "stop" });
+      console.log(
+        "New controls passed: selector, monitor, output gain, menus, bidirectional vertical alignment and recording scroll.",
       );
       win.destroy();
       app.quit();

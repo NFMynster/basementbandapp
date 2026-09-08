@@ -1,3 +1,4 @@
+import { desktop as api } from "./services/desktop";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { TitleBar } from "./components/TitleBar";
 import { Transport } from "./components/Transport";
@@ -16,14 +17,20 @@ export function App() {
     return (
       <main className="startup" data-startup role="status" aria-live="polite">
         <div className="startup-mark" aria-hidden="true">
-          ♫
+          <img
+            src={new URL("../desktop/assets/icon.svg", import.meta.url).href}
+            width="72"
+            height="72"
+            alt=""
+          />
         </div>
         <h1>Basement Band</h1>
         {controller.error ? (
           <>
             <p>We couldn’t connect to your recording room.</p>
             <pre role="alert">{controller.error}</pre>
-            <button onClick={() => window.location.reload()}>Try again</button>
+            <button onClick={() => void api.restart()}>Restart app</button>
+            <button onClick={() => void api.openLogs()}>Open logs</button>
           </>
         ) : (
           <>

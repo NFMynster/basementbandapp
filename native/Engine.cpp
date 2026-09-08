@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include <cmath>
+#include <iostream>
 
 namespace basement {
 Track &Engine::track(const var &c) {
@@ -27,11 +28,18 @@ Engine::Engine(bool testing) : testDevice(testing) {
   addDefaultFormatsToManager(plugins);
   disk.startThread();
   midi.ensureSize(65536);
-  if (!testing) {
-    deviceError = devices.initialise(2, 2, nullptr, true);
-    devices.addAudioCallback(this);
-    devices.addMidiInputDeviceCallback({}, this);
-  }
+}
+
+void Engine::initializeAudio(bool inputAllowed) {
+  if (testDevice)
+    return;
+  std::cerr << "Opening audio device (inputs " << (inputAllowed ? 2 : 0) << ")" << std::endl;
+  AudioDeviceManager::AudioDeviceSetup preferred;
+  preferred.bufferSize = 1024;
+  deviceError = devices.initialise(inputAllowed ? 2 : 0, 2, nullptr, true, {}, &preferred);
+  devices.addAudioCallback(this);
+  devices.addMidiInputDeviceCallback({}, this);
+  std::cerr << "Audio device initialization finished: " << deviceError << std::endl;
 }
 
 Engine::~Engine() {
@@ -60,6 +68,7 @@ var Engine::state(bool full) {
                      {"midiChannel", t->midiChannel},
                      {"latencySamples", t->latency},
                      {"armed", t->armed},
+                     {"monitor", t->monitor},
                      {"recordStart", t->recordStart},
                      {"mute", t->mute},
                      {"solo", t->solo},
@@ -94,6 +103,7 @@ var Engine::state(bool full) {
        {"loopStart", loopStart},
        {"loopEnd", loopEnd},
        {"tempo", tempo},
+       {"masterGain", masterGain},
        {"metronome", metronome},
        {"countIn", countIn},
        {"countdown", countRemaining > 0 ? (int)std::ceil(countRemaining / (rate * 60 / tempo)) : 0},

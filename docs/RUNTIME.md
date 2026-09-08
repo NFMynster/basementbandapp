@@ -18,7 +18,7 @@ Removing C# reduces process/runtime and control-hop overhead, but does not direc
 
 ## MIDI and loop takes
 
-MIDI endpoints are per track and independent of the single audio interface. Mark a MIDI track to hear its VST3 instrument live; choose device/channel under Settings → MIDI tracks. Multiple independent audio interfaces are not supported.
+MIDI endpoints are per track and independent of the single audio interface. Enable a MIDI track’s headphone (monitor) button to hear its VST3 instrument live, including while stopped; choose device/channel under Settings → MIDI tracks. Multiple independent audio interfaces are not supported.
 
 MIDI capture supports channel messages up to three bytes, including notes/controllers/pitch bend. SysEx, MIDI clock sync, external MIDI output, piano-roll editing, quantization and tempo-relative region timing are not implemented. Capture is limited to 262,144 events and 20-minute source regions. Overflow raises a dropout warning.
 
@@ -37,7 +37,11 @@ Count-in is three beats (3, 2, 1) at the current tempo. JUCE generates its click
 - Live MIDI cannot be read ahead: the instrument, output buffer and device still add delay. For externally processed guitar/bass, use the interface’s direct monitoring.
 - These corrections depend on truthful driver/plugin reports, not hardware loopback calibration. Extra external hardware delays still require measurement. Compensation is not a promise of zero latency.
 
-The native callback still has control-lock contention risks, which are unrelated to the removed C# layer.
+The default requested device buffer is 1,024 samples (the driver may choose its nearest supported size). This favors stability over minimum live latency. Region UI previews are cached so polling does not rebuild waveforms/notes under the audio lock. The native callback still has control-lock contention risks; a larger buffer cannot fix every overloaded plug-in.
+
+Monitoring and recording selection are independent. Audio monitoring defaults off to avoid speaker feedback or doubling hardware direct monitoring; new MIDI tracks default on. Monitoring feeds live input through the track plug-in, volume and pan. Mute/solo also affect monitoring. Arrangement playback remains audible with monitoring off. Master output volume scales playback, monitored input and clicks, not captured source files or exports.
+
+No external MIDI device is required to load/audition a plug-in using its editor. Keyboard support depends on the plug-in editor itself; the host gives its window focus. Editor clicks are not recorded as MIDI by this implementation. Use an actual MIDI input to capture notes. Count-in temporarily plays only the count clicks.
 
 ## Plugins
 

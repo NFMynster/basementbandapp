@@ -12,6 +12,7 @@ export type Clip = {
   peaks: number[];
 };
 export type Track = {
+  monitor?: boolean;
   icon?: string;
   kind?: "audio" | "midi";
   midiDevice?: string;
@@ -33,6 +34,7 @@ export type Track = {
   bypass: boolean;
 };
 export type Session = {
+  masterGain?: number;
   metronome?: boolean;
   countIn?: boolean;
   countdown?: number;
@@ -78,6 +80,7 @@ export type TrackPatch = Partial<
     | "midiChannel"
     | "color"
     | "icon"
+    | "monitor"
   >
 >;
 export type DeviceConfiguration = Pick<
@@ -90,6 +93,7 @@ export type SessionCommand =
     }
   | { op: "addTrack"; kind?: "audio" | "midi" }
   | { op: "metronome" | "countIn"; value: boolean }
+  | { op: "master"; value: number }
   | {
       op: "editClip";
       track: string;
@@ -116,11 +120,14 @@ export type SaveResult = { saved: string };
 export type ExportOptions = { mode: "separate" | "mix"; track?: string };
 export type ExportResult = { folder: string; files: string[] };
 export interface DesktopApi {
+  openLicenses(): Promise<string>;
+  openLogs(): Promise<string>;
+  restart(): Promise<void>;
   dropFiles(files: File[], track?: string, plugin?: boolean): Promise<Session>;
   command<C extends Command>(command: C): Promise<CommandResult<C>>;
   save(): Promise<SaveResult | null>;
   open(): Promise<Session | null>;
-  importAudio(track: string): Promise<Session | null>;
+  importAudio(track?: string, position?: number): Promise<Session | null>;
   plugin(track: string, bundle?: boolean): Promise<Session | null>;
   exportAudio(options: ExportOptions): Promise<ExportResult | null>;
 }

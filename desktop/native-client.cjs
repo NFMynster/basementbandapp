@@ -6,7 +6,10 @@ class NativeClient {
     this.queue = Promise.resolve();
     this.timeout = timeout;
     createInterface({ input: child.stdout }).on("line", (line) => {
-      if (!line.startsWith("BASEMENT:")) return;
+      if (!line.startsWith("BASEMENT:")) {
+        console.log("Native:", line);
+        return;
+      }
       try {
         const result = JSON.parse(line.slice(9)),
           pending = this.pending;
@@ -23,23 +26,31 @@ class NativeClient {
     child.stderr.on("data", (data) => console.error(data.toString()));
     child.on("error", (error) => this.fail(error));
     child.stdin.on("error", (error) => this.fail(error));
-    child.on("close", () =>
+    child.on("close", (code, signal) => {
+      console.log("Audio engine exited", {
+        code,
+        signal,
+        expected: !!this.closing,
+      });
       this.fail(
         new Error(
           "The audio engine stopped. Restart the app. Completed recordings remain in the session folder.",
         ),
-      ),
-    );
+        this.closing,
+      );
+    });
   }
   request(command) {
     const result = this.queue.then(() => {
       if (this.failure) throw this.failure;
       return new Promise((resolve, reject) => {
+        if (command.op && !["state", "pump", "testMidi"].includes(command.op))
+          console.log("Audio command:", command.op);
         const timer = setTimeout(
           () =>
             this.fail(
               new Error(
-                "The audio engine timed out. Restart the app before continuing.",
+                `The audio engine timed out during ${command.op}. Open logs for startup/device details, then restart the app.`,
               ),
             ),
           command.op === "export" ? 1800000 : this.timeout,
@@ -51,7 +62,8 @@ class NativeClient {
     this.queue = result.catch(() => {});
     return result;
   }
-  fail(error) {
+  fail(error, quiet = false) {
+    if (!this.failure && !quiet) console.error("Audio engine failure", error);
     this.failure ??= error;
     if (this.pending) {
       clearTimeout(this.pending.timer);
@@ -60,6 +72,7 @@ class NativeClient {
     }
   }
   close() {
+    this.closing = true;
     this.child.stdin.end();
     const timer = setTimeout(() => this.child.kill(), 5000);
     timer.unref();

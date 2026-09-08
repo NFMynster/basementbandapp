@@ -55,6 +55,9 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
       }
     const int prefix = (int)jmin((int64)n, countRemaining);
     click(outputs, no, prefix, (countTotal - countRemaining) / rate);
+    for (int ch = 0; ch < no; ++ch)
+      if (outputs[ch])
+        FloatVectorOperations::multiply(outputs[ch], masterGain, prefix);
     countRemaining -= prefix;
     // Split the crossing block exactly on the native sample clock.
     if (prefix < n) {
@@ -107,9 +110,11 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
           diskOverrun = true;
       }
     }
-    if ((!playing && !(t->isMidi && t->armed)) || n > t->scratch.getNumSamples())
+    if ((!playing && !t->monitor) || n > t->scratch.getNumSamples())
       continue;
-    renderTrack(*t, playing ? position + t->latency / rate : -1, n, looping);
+    const float *liveInput =
+        !t->isMidi && t->monitor && t->input >= 0 && t->input < ni ? inputs[t->input] : nullptr;
+    renderTrack(*t, playing ? position + t->latency / rate : -1, n, looping, liveInput);
     t->liveMidi.clear();
     if (t->mute || (anySolo && !t->solo))
       continue;
@@ -131,6 +136,6 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
   for (int ch = 0; ch < no; ++ch)
     if (outputs[ch])
       for (int i = 0; i < n; ++i)
-        outputs[ch][i] = jlimit(-1.0f, 1.0f, outputs[ch][i]);
+        outputs[ch][i] = jlimit(-1.0f, 1.0f, outputs[ch][i] * masterGain);
 }
 } // namespace basement

@@ -1,9 +1,9 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, useCallback, type CSSProperties } from "react";
 import type { Clip, Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
-import { Modal } from "./Modal";
+import { ContextMenu } from "./ContextMenu";
 export function ClipRegion({
   clip: c,
   track: t,
@@ -14,7 +14,8 @@ export function ClipRegion({
   controller: WorkspaceController;
 }) {
   const [preview, setPreview] = useState<number | null>(null),
-    [menu, setMenu] = useState(false);
+    [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   const drag = useRef<{ x: number; moved: boolean } | null>(null);
   const select = () => {
     w.setSelected(t.id);
@@ -67,7 +68,16 @@ export function ClipRegion({
           e.preventDefault();
           e.stopPropagation();
           select();
-          setMenu(true);
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+            e.preventDefault();
+            e.stopPropagation();
+            select();
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenu({ x: r.left + 20, y: r.top + 20 });
+          }
         }}
         onPointerDown={(e) => {
           if (
@@ -152,61 +162,63 @@ export function ClipRegion({
         )}
       </div>
       {menu && (
-        <Modal
-          title="Region edits"
-          className="region-edits"
-          onClose={() => setMenu(false)}
+        <ContextMenu
+          label="Region edits"
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
         >
-          <h2>{c.name}</h2>
-          <p>
-            Edits are non-destructive. The last moved region plays on top of
-            overlaps.
-          </p>
-          <div className="region-actions">
-            <button
-              disabled={w.s.recording}
-              onClick={() => {
-                w.run({
-                  op: "editClip",
-                  track: t.id,
-                  clip: c.id,
-                  action: "split",
-                  position: w.s.position,
-                });
-                setMenu(false);
-              }}
-            >
-              Split at playhead
-            </button>
-            <button
-              onClick={() => {
-                w.clipboard.current = { track: t.id, clip: c.id };
-                w.setNotice("Region copied. Paste at the playhead.");
-                setMenu(false);
-              }}
-            >
-              Copy
-            </button>
-            <button
-              disabled={w.s.recording || !w.clipboard.current}
-              onClick={() => {
-                w.editSelected("copy");
-                setMenu(false);
-              }}
-            >
-              Paste at playhead
-            </button>
-            <button
-              disabled={w.s.recording}
-              onClick={() => {
-                w.run({ op: "removeClip", track: t.id, clip: c.id });
-                setMenu(false);
-              }}
-            >
-              Delete region
-            </button>
-          </div>
-        </Modal>
+          <button
+            role="menuitem"
+            disabled={
+              w.s.recording ||
+              w.s.position <= c.start ||
+              w.s.position >= c.start + c.duration
+            }
+            onClick={() => {
+              w.run({
+                op: "editClip",
+                track: t.id,
+                clip: c.id,
+                action: "split",
+                position: w.s.position,
+              });
+              setMenu(null);
+            }}
+          >
+            Split at playhead
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              w.clipboard.current = { track: t.id, clip: c.id };
+              w.setNotice("Region copied. Paste at the playhead.");
+              setMenu(null);
+            }}
+          >
+            Copy
+          </button>
+          <button
+            role="menuitem"
+            disabled={w.s.recording || !w.clipboard.current}
+            onClick={() => {
+              w.editSelected("copy");
+              setMenu(null);
+            }}
+          >
+            Paste at playhead
+          </button>
+          <button
+            role="menuitem"
+            disabled={w.s.recording}
+            onClick={() => {
+              w.run({ op: "removeClip", track: t.id, clip: c.id });
+              setMenu(null);
+            }}
+          >
+            Delete region
+          </button>
+        </ContextMenu>
       )}
     </>
   );

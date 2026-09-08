@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'unsafe-inline'"
+      content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'"
     />
     <title>Starting Basement Band</title>
     <style>
@@ -60,7 +60,9 @@
   </head>
   <body>
     <main role="status" aria-live="polite">
-      <div class="mark" aria-hidden="true">♫</div>
+      <div class="mark" aria-hidden="true">
+        <img src="assets/icon.png" width="72" height="72" alt="" />
+      </div>
       <h1>Basement Band</h1>
       <p>Getting your recording room ready…</p>
       <span class="spinner" aria-hidden="true"></span>

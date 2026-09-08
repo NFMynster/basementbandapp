@@ -1,9 +1,13 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("basement", {
+  openLicenses: () => ipcRenderer.invoke("licenses"),
+  openLogs: () => ipcRenderer.invoke("logs"),
+  restart: () => ipcRenderer.invoke("restart"),
   command: (command) => ipcRenderer.invoke("command", command),
   save: () => ipcRenderer.invoke("save"),
   open: () => ipcRenderer.invoke("open"),
-  importAudio: (track) => ipcRenderer.invoke("import", track),
+  importAudio: (track, position) =>
+    ipcRenderer.invoke("import", track, position),
   plugin: (track, bundle = false) =>
     ipcRenderer.invoke("plugin", track, bundle),
   exportAudio: (options) => ipcRenderer.invoke("export", options),

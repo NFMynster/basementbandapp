@@ -8,7 +8,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "tsc --noEmit && vite build",
     "build:native": "node scripts/native.mjs",
-    "build:all": "npm run build:native && npm run build:icons && npm run build",
+    "build:all": "npm run build:native && npm run build:licenses && npm run build:icons && npm run build",
     "start": "electron .",
     "test": "node --test tests/*.test.mjs",
     "test:desktop": "node scripts/smoke.mjs",
@@ -18,7 +18,8 @@
     "package": "npm run build:all && electron-builder --dir",
     "build:icons": "electron scripts/icons.cjs",
     "package:win": "node scripts/package.mjs win",
-    "package:mac": "node scripts/package.mjs mac"
+    "package:mac": "node scripts/package.mjs mac",
+    "build:licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -54,6 +55,10 @@
           "**/*",
           "!**/*.pdb"
         ]
+      },
+      {
+        "from": "artifacts/licenses",
+        "to": "licenses"
       }
     ],
     "mac": {
@@ -68,6 +73,11 @@
             "arm64"
           ]
         }
+      ],
+      "entitlements": "desktop/entitlements.mac.plist",
+      "entitlementsInherit": "desktop/entitlements.mac.plist",
+      "binaries": [
+        "Contents/Resources/artifacts/native/BasementAudio"
       ]
     },
     "win": {
@@ -84,5 +94,6 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
-  }
+  },
+  "license": "AGPL-3.0-only"
 }

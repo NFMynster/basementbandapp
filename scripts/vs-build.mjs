@@ -10,6 +10,7 @@ const commands = [
       "--engine-only",
     ],
   ],
+  ["npm.cmd", ["run", "build:licenses"]],
   ["npm.cmd", ["run", "build:icons"]],
   ["npm.cmd", ["run", "build"]],
 ];

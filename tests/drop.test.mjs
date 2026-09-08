@@ -23,8 +23,16 @@ test("dropped audio imports to existing/new tracks, rejects mismatches and clean
       name === "electron"
         ? {
             ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
+            dialog: {
+              showOpenDialog: async () => ({
+                canceled: false,
+                filePaths: [file],
+              }),
+            },
           }
-        : require(name),
+        : name === "./permissions.cjs"
+          ? { microphoneAccess: async () => true }
+          : require(name),
   });
   const send = async (command) => {
     const result = await session.send(command);
@@ -52,6 +60,20 @@ test("dropped audio imports to existing/new tracks, rejects mismatches and clean
     await assert.rejects(
       handlers.get("drop")({ sender: {} }, [file]),
       /Unknown window/,
+    );
+    const imported = await handlers.get("import")(
+      { sender },
+      initial.tracks[0].id,
+      3.5,
+    );
+    assert.equal(imported.tracks[0].clips.at(-1).start, 3.5);
+    assert.equal(imported.position, initial.position);
+    const created = await handlers.get("import")({ sender }, undefined, 4.5);
+    assert.equal(created.tracks.at(-1).name, "My riff");
+    assert.equal(created.tracks.at(-1).clips[0].start, 4.5);
+    await assert.rejects(
+      handlers.get("import")({ sender }, initial.tracks[0].id, -1),
+      /Invalid import position/,
     );
   } finally {
     await session.close();

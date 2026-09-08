@@ -11,6 +11,7 @@ function createSplash(hidden) {
     backgroundColor: "#191a1e",
     autoHideMenuBar: true,
     title: "Basement Band",
+    icon: path.join(__dirname, "assets/icon.png"),
     webPreferences: {
       sandbox: true,
       contextIsolation: true,

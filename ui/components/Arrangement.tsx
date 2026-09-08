@@ -1,5 +1,6 @@
 import type React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useLayoutEffect } from "react";
+import { ContextMenu } from "./ContextMenu";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
 import { ClipRegion } from "./ClipRegion";
@@ -13,9 +14,12 @@ export function Arrangement({
   controller: WorkspaceController;
 }) {
   const [scrollY, setScrollY] = useState(0);
-  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(
-    null,
-  );
+  const [menu, setMenu] = useState<{
+    id?: string;
+    x: number;
+    y: number;
+    position?: number;
+  } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const {
     s,
@@ -36,6 +40,46 @@ export function Arrangement({
     pxPerSecond,
     task,
   } = controller;
+  useLayoutEffect(() => {
+    const timeline = timelineScroll.current,
+      sidebar = trackList.current;
+    if (!timeline || !sidebar) return;
+    const fromTimeline = () => {
+      if (sidebar.scrollTop !== timeline.scrollTop)
+        sidebar.scrollTop = timeline.scrollTop;
+      setScrollY(timeline.scrollTop);
+    };
+    const fromSidebar = () => {
+      if (timeline.scrollTop !== sidebar.scrollTop)
+        timeline.scrollTop = sidebar.scrollTop;
+      setScrollY(sidebar.scrollTop);
+    };
+    timeline.addEventListener("scroll", fromTimeline, { passive: true });
+    sidebar.addEventListener("scroll", fromSidebar, { passive: true });
+    const resize = new ResizeObserver(() => {
+      sidebar.style.setProperty(
+        "--track-tail-height",
+        Math.max(0, 180 + sidebar.clientHeight - timeline.clientHeight) + "px",
+      );
+    });
+    resize.observe(timeline);
+    resize.observe(sidebar);
+    return () => {
+      resize.disconnect();
+      timeline.removeEventListener("scroll", fromTimeline);
+      sidebar.removeEventListener("scroll", fromSidebar);
+    };
+  }, []);
+  const atPointer = (e: React.MouseEvent<HTMLElement>) =>
+    Math.max(
+      0,
+      Math.round(
+        (e.clientX - e.currentTarget.getBoundingClientRect().left) /
+          pxPerSecond /
+          (60 / s.tempo),
+      ) *
+        (60 / s.tempo),
+    );
   return (
     <>
       <div className="workspace-toolbar">
@@ -70,153 +114,155 @@ export function Arrangement({
         </div>
       </div>
       <main className="arrangement">
-        <aside
-          className="track-list"
-          ref={trackList}
-          onScroll={(e) => {
-            setScrollY(e.currentTarget.scrollTop);
-            if (
-              timelineScroll.current &&
-              timelineScroll.current.scrollTop !== e.currentTarget.scrollTop
-            )
-              timelineScroll.current.scrollTop = e.currentTarget.scrollTop;
-          }}
-        >
-          <div className="track-list-title">
-            TRACKS
-            <button
-              title="Add track"
-              disabled={s.recording}
-              onClick={controller.openCreateTrack}
-            >
-              <Plus size={17} />
-            </button>
-          </div>
-          {s.tracks.map((t, i) => (
-            <div
-              key={t.id}
-              data-track-header={t.id}
-              className={
-                "track-header " + (track?.id === t.id ? "selected" : "")
-              }
-              style={{ "--track-color": t.color } as React.CSSProperties}
-              onClick={() => setSelected(t.id)}
-              tabIndex={0}
-              onDoubleClick={() => {
-                controller.openProperties(t.id);
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setSelected(t.id);
-                setMenu({ id: t.id, x: e.clientX, y: e.clientY });
-              }}
-              onKeyDown={(e) => {
-                if (e.target !== e.currentTarget) return;
-                if (e.key === "Enter") {
+        <div className="track-sidebar">
+          <aside className="track-list" ref={trackList}>
+            <div className="track-list-title">
+              TRACKS
+              <button
+                title="Add track"
+                disabled={s.recording}
+                onClick={controller.openCreateTrack}
+              >
+                <Plus size={17} />
+              </button>
+            </div>
+            {s.tracks.map((t, i) => (
+              <div
+                key={t.id}
+                data-track-header={t.id}
+                className={
+                  "track-header " + (track?.id === t.id ? "selected" : "")
+                }
+                style={{ "--track-color": t.color } as React.CSSProperties}
+                onClick={() => setSelected(t.id)}
+                tabIndex={0}
+                onDoubleClick={() => {
                   controller.openProperties(t.id);
-                }
-                if (
-                  e.key === "ContextMenu" ||
-                  (e.shiftKey && e.key === "F10")
-                ) {
+                }}
+                onContextMenu={(e) => {
                   e.preventDefault();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  setMenu({ id: t.id, x: r.left + 30, y: r.top + 30 });
-                }
-              }}
-            >
-              {controller.trackPing === t.id && (
-                <span className="properties-ping" aria-hidden="true" />
-              )}
-              <span className="track-number">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div className="instrument">
-                <TrackIcon
-                  icon={
-                    t.icon ||
-                    (t.kind === "midi" ? "keys" : i === 1 ? "bass" : "guitar")
+                  setSelected(t.id);
+                  setMenu({
+                    id: t.id,
+                    x: e.clientX,
+                    y: e.clientY,
+                    position: s.position,
+                  });
+                }}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter") {
+                    controller.openProperties(t.id);
                   }
-                />
-              </div>
-              <div className="track-info">
-                <div className="track-name">
-                  {t.name}
-                  <span>{t.kind === "midi" ? "MIDI" : "MONO"}</span>
-                </div>
-                <div className="track-buttons">
-                  <button
-                    aria-label={`Mark ${t.name} for recording`}
-                    title="Mark for recording"
-                    className={t.armed ? "armed" : ""}
-                    disabled={s.recording}
-                    onClick={() => update(t, { armed: !t.armed })}
-                  >
-                    R
-                  </button>
-                  <button
-                    title="Mute"
-                    className={t.mute ? "muted" : ""}
-                    onClick={() => update(t, { mute: !t.mute })}
-                  >
-                    M
-                  </button>
-                  <button
-                    title="Solo"
-                    className={t.solo ? "solo" : ""}
-                    onClick={() => update(t, { solo: !t.solo })}
-                  >
-                    S
-                  </button>
-                  <span className="input-label">
-                    {t.kind === "midi"
-                      ? t.midiChannel
-                        ? `Ch ${t.midiChannel}`
-                        : "All ch"
-                      : `In ${t.input + 1}`}
-                  </span>
-                </div>
-                <div className="track-volume">
-                  <input
-                    aria-label={`${t.name} volume`}
-                    type="range"
-                    min="0"
-                    max="1.5"
-                    step="0.01"
-                    value={t.gain}
-                    onChange={(e) => update(t, { gain: +e.target.value })}
+                  if (
+                    e.key === "ContextMenu" ||
+                    (e.shiftKey && e.key === "F10")
+                  ) {
+                    e.preventDefault();
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setMenu({
+                      id: t.id,
+                      x: r.left + 30,
+                      y: r.top + 30,
+                      position: s.position,
+                    });
+                  }
+                }}
+              >
+                {controller.trackPing === t.id && (
+                  <span className="properties-ping" aria-hidden="true" />
+                )}
+                <span className="track-number">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="instrument">
+                  <TrackIcon
+                    icon={
+                      t.icon ||
+                      (t.kind === "midi" ? "keys" : i === 1 ? "bass" : "guitar")
+                    }
                   />
-                  <div className="tiny-meter">
-                    <i style={{ width: `${Math.min(100, t.peak * 100)}%` }} />
+                </div>
+                <div className="track-info">
+                  <div className="track-name">
+                    {t.name}
+                    <span>{t.kind === "midi" ? "MIDI" : "MONO"}</span>
+                  </div>
+                  <div className="track-buttons">
+                    <button
+                      aria-label={`Mark ${t.name} for recording`}
+                      title="Mark for recording"
+                      className={t.armed ? "armed" : ""}
+                      disabled={s.recording}
+                      onClick={() => update(t, { armed: !t.armed })}
+                    >
+                      R
+                    </button>
+                    <button
+                      title="Mute"
+                      className={t.mute ? "muted" : ""}
+                      onClick={() => update(t, { mute: !t.mute })}
+                    >
+                      M
+                    </button>
+                    <button
+                      title="Solo"
+                      className={t.solo ? "solo" : ""}
+                      onClick={() => update(t, { solo: !t.solo })}
+                    >
+                      S
+                    </button>
+                    <button
+                      title="Monitor live input · use headphones to avoid feedback"
+                      aria-label={`Monitor ${t.name}`}
+                      aria-pressed={!!t.monitor}
+                      className={t.monitor ? "solo" : ""}
+                      onClick={() => update(t, { monitor: !t.monitor })}
+                    >
+                      <Headphones size={12} />
+                    </button>
+                    <span className="input-label">
+                      {t.kind === "midi"
+                        ? t.midiChannel
+                          ? `Ch ${t.midiChannel}`
+                          : "All ch"
+                        : `In ${t.input + 1}`}
+                    </span>
+                  </div>
+                  <div className="track-volume">
+                    <input
+                      aria-label={`${t.name} volume`}
+                      type="range"
+                      min="0"
+                      max="1.5"
+                      step="0.01"
+                      value={t.gain}
+                      onChange={(e) => update(t, { gain: +e.target.value })}
+                    />
+                    <div className="tiny-meter">
+                      <i style={{ width: `${Math.min(100, t.peak * 100)}%` }} />
+                    </div>
                   </div>
                 </div>
               </div>
+            ))}
+            <div className="track-list-tail">
+              <button
+                className="add-track"
+                disabled={s.recording}
+                onClick={controller.openCreateTrack}
+              >
+                <Plus size={17} />
+                Add track
+              </button>
             </div>
-          ))}
-          <button
-            className="add-track"
-            disabled={s.recording}
-            onClick={controller.openCreateTrack}
-          >
-            <Plus size={17} />
-            Add track
-          </button>
+          </aside>
           <div className="track-list-bottom">
             <Headphones size={16} />
             <span>Made for playing together.</span>
           </div>
-        </aside>
-        <div
-          className="timeline-scroll"
-          ref={timelineScroll}
-          onScroll={(e) => {
-            if (
-              trackList.current &&
-              trackList.current.scrollTop !== e.currentTarget.scrollTop
-            )
-              trackList.current.scrollTop = e.currentTarget.scrollTop;
-          }}
-        >
+        </div>
+        <div className="timeline-scroll" ref={timelineScroll}>
           <div className="timeline" style={{ width, minHeight: "100%" }}>
             <div
               className="ruler"
@@ -275,7 +321,12 @@ export function Arrangement({
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setSelected(t.id);
-                    setMenu({ id: t.id, x: e.clientX, y: e.clientY });
+                    setMenu({
+                      id: t.id,
+                      x: e.clientX,
+                      y: e.clientY,
+                      position: atPointer(e),
+                    });
                   }}
                   onDoubleClick={(e) => {
                     if (e.target === e.currentTarget) {
@@ -312,6 +363,14 @@ export function Arrangement({
               ))}
               <div
                 className="empty-grid"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    position: atPointer(e),
+                  });
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "copy";
@@ -398,11 +457,31 @@ export function Arrangement({
           </div>
         </div>
       </main>
+      {menu && !menu.id && (
+        <ContextMenu
+          label="Timeline actions"
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+        >
+          <button
+            role="menuitem"
+            disabled={s.recording || controller.busy}
+            onClick={() => {
+              closeMenu();
+              void task(() => api.importAudio(undefined, menu.position));
+            }}
+          >
+            Add audio file…
+          </button>
+        </ContextMenu>
+      )}
       {menu && s.tracks.find((t) => t.id === menu.id) && (
         <TrackMenu
           track={s.tracks.find((t) => t.id === menu.id)!}
           x={menu.x}
           y={menu.y}
+          position={menu.position}
           onClose={closeMenu}
           controller={controller}
         />

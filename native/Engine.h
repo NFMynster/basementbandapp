@@ -14,9 +14,10 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   String folder, title = "Friday night", deviceError;
   double rate = 48000, loopStart = 0, loopEnd = 8, tempo = 120;
   std::atomic<double> position{0};
-  int block = 512;
+  int block = 1024;
   std::atomic<bool> playing{false}, recording{false};
   bool looping = false;
+  float masterGain = 1.0f;
   bool metronome = false, countIn = false, cycleRecording = false;
   int64 countRemaining = 0, countTotal = 0;
   double recordingLoopStart = 0, recordingLoopEnd = 8;
@@ -32,6 +33,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   void loadPlugin(Track &track, const String &path, const String &state = {});
 
 public:
+  void initializeAudio(bool inputAllowed = true);
   explicit Engine(bool testing = false);
   ~Engine() override;
   void handleIncomingMidiMessage(MidiInput *source, const MidiMessage &message) override;
@@ -50,7 +52,8 @@ private:
   void restoreSession(const var &command);
   void beginRecording();
   void updateTrack(const var &command);
-  void renderTrack(Track &track, double start, int samples, bool cycle);
+  void renderTrack(Track &track, double start, int samples, bool cycle,
+                   const float *liveInput = nullptr);
   var exportAudio(const var &command);
   std::unique_ptr<Clip> readMidiClip(String path, String name, double start);
   void finishMidiTake(Track &track);

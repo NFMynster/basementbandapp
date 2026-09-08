@@ -42,6 +42,7 @@ function validate(session) {
       );
   text(session.title, 100);
   number(session.tempo, 40, 240);
+  if (session.masterGain !== undefined) number(session.masterGain, 0, 1);
   number(session.loopStart, 0, Number.MAX_VALUE);
   number(session.loopEnd, session.loopStart, Number.MAX_VALUE);
   assertValid(
@@ -55,6 +56,11 @@ function validate(session) {
   for (const track of session.tracks) {
     id(track.id);
     text(track.name, 80);
+    if (track.monitor !== undefined)
+      assertValid(
+        typeof track.monitor === "boolean",
+        "Invalid monitor setting",
+      );
     if (track.icon !== undefined)
       assertValid(
         ["guitar", "bass", "drums", "keys", "mic", "audio"].includes(

@@ -23,7 +23,7 @@ const empty: Session = {
   loopEnd: 8,
   tempo: 120,
   sampleRate: 48000,
-  bufferSize: 512,
+  bufferSize: 1024,
   device: "Connecting to audio engine…",
   deviceError: "",
   diskOverrun: false,
@@ -75,6 +75,25 @@ export function useWorkspace() {
       ...s.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration + 8)),
     ),
     width = Math.ceil(end / secondsPerBar) * zoom;
+  const wasRecording = useRef(false);
+  useEffect(() => {
+    const timeline = timelineScroll.current;
+    if (s.recording && !wasRecording.current && timeline) {
+      const x = s.position * pxPerSecond;
+      if (
+        x < timeline.scrollLeft + 24 ||
+        x > timeline.scrollLeft + timeline.clientWidth - 64
+      )
+        timeline.scrollTo({
+          left: Math.max(0, x - timeline.clientWidth * 0.2),
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "instant"
+            : "smooth",
+        });
+    }
+    wasRecording.current = s.recording;
+  }, [s.recording, s.position, pxPerSecond]);
   const accept = (v: Session | Devices | SaveResult | null) => {
     if (v && "tracks" in v) setS(v);
   };

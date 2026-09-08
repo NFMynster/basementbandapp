@@ -6,7 +6,8 @@ void Engine::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &mes
     return;
   const ScopedLock lock(guard);
   for (auto &t : tracks)
-    if (t->isMidi && t->armed && source && t->midiDevice == source->getIdentifier() &&
+    if (t->isMidi && (t->armed || t->monitor) && source &&
+        t->midiDevice == source->getIdentifier() &&
         (t->midiChannel == 0 || t->midiChannel == message.getChannel()))
       t->collector.addMessageToQueue(message);
 }

@@ -20,7 +20,8 @@ test("file dialogs validate the sender and forward chosen paths, including VST3 
   };
   const module = { exports: {} };
   runInNewContext(readFileSync("desktop/ipc.cjs", "utf8"), {
-    require: () => electron,
+    require: (name) =>
+      name === "electron" ? electron : { microphoneAccess: async () => true },
     module,
     process,
   });

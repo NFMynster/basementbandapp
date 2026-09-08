@@ -5,12 +5,16 @@ const {
   Tray,
   Menu,
   nativeImage,
+  shell,
+  ipcMain,
 } = require("electron");
 const path = require("node:path");
 const { mkdirSync } = require("node:fs");
 const { startBackend } = require("./backend.cjs");
 const { registerIpc } = require("./ipc.cjs");
 const { createSplash } = require("./startup.cjs");
+const { initializeLogging } = require("./logging.cjs");
+const { microphoneAccess } = require("./permissions.cjs");
 const smoke = process.env.BASEMENT_SMOKE === "1";
 if (smoke) {
   const data = path.resolve("artifacts/smoke-user");
@@ -20,18 +24,32 @@ if (smoke) {
 let backend;
 let tray;
 let startupError;
+let backendReady;
 const request = (command) =>
-  backend ? backend.request(command) : Promise.reject(startupError);
+  backendReady.then(() =>
+    backend ? backend.request(command) : Promise.reject(startupError),
+  );
 app.whenReady().then(() => {
+  app.setAppLogsPath(
+    process.platform === "darwin"
+      ? path.join(app.getPath("home"), "Library", "Logs", "Basement Band")
+      : path.join(app.getPath("userData"), "logs"),
+  );
+  initializeLogging(app.getPath("logs"));
   const splash = createSplash(smoke);
-  try {
-    backend = startBackend(
-      app.isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
-      path.join(app.getPath("userData"), "Sessions"),
-    );
-  } catch (error) {
-    startupError = error;
-  }
+  backendReady = (async () => {
+    try {
+      const inputAllowed = await microphoneAccess();
+      backend = startBackend(
+        app.isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
+        path.join(app.getPath("userData"), "Sessions"),
+        inputAllowed,
+      );
+    } catch (error) {
+      startupError = error;
+      console.error("Audio startup failed", error);
+    }
+  })();
   const win = new BrowserWindow({
     show: false,
     width: 1440,
@@ -106,6 +124,23 @@ app.whenReady().then(() => {
   win.webContents.on("will-navigate", (e) => e.preventDefault());
 
   registerIpc(win, request);
+  ipcMain.handle("logs", (event) => {
+    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    return shell.openPath(app.getPath("logs"));
+  });
+  ipcMain.handle("licenses", (event) => {
+    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    return shell.openPath(
+      app.isPackaged
+        ? path.join(process.resourcesPath, "licenses")
+        : path.join(__dirname, "../artifacts/licenses"),
+    );
+  });
+  ipcMain.handle("restart", (event) => {
+    if (event.sender !== win.webContents) throw new Error("Unknown window");
+    app.relaunch();
+    app.quit();
+  });
   if (smoke) require("./smoke.cjs").verifyDesktop(win, request);
   if (process.env.BASEMENT_DEV === "1") {
     const url = new URL(

@@ -4,6 +4,11 @@
 namespace basement {
 var Engine::command(const var &c) {
   auto op = str(c, "op");
+  if (op == "master") {
+    const ScopedLock lock(guard);
+    masterGain = (float)jlimit(0.0, 1.0, number(c, "value", 1));
+    return state();
+  }
   if (op == "testLatency" && testDevice) {
     inputLatency = jlimit(0, 48000, (int)number(c, "input"));
     outputLatency = jlimit(0, 48000, (int)number(c, "output"));
@@ -12,7 +17,7 @@ var Engine::command(const var &c) {
   if (op == "testMidi" && testDevice) {
     auto &t = track(c);
     const int channel = jlimit(1, 16, (int)number(c, "channel", 1));
-    if (t.armed && (t.midiChannel == 0 || t.midiChannel == channel))
+    if ((t.armed || t.monitor) && (t.midiChannel == 0 || t.midiChannel == channel))
       t.liveMidi.addEvent(
           flag(c, "off") ? MidiMessage::noteOff(channel, (int)number(c, "note", 60))
                          : MidiMessage::noteOn(channel, (int)number(c, "note", 60), (uint8)100),
@@ -108,6 +113,7 @@ var Engine::command(const var &c) {
     add("Audio " + String(tracks.size() + 1), tracks.size() % 2 ? "#c093eb" : "#58a9e8", 0);
     if (str(c, "kind") == "midi") {
       tracks.back()->isMidi = true;
+      tracks.back()->monitor = true;
       tracks.back()->name = "MIDI " + String(tracks.size());
       tracks.back()->color = "#b0c4a7";
       tracks.back()->icon = "keys";
@@ -125,10 +131,11 @@ var Engine::command(const var &c) {
     auto source = File(str(c, "path"));
     auto dest = File(folder).getChildFile(Uuid().toString() + source.getFileExtension());
     require(source.copyFileTo(dest), "Could not copy imported audio into this session");
-    auto clip =
-        t.isMidi
-            ? readMidiClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), position)
-            : readClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), position);
+    const auto at = number(c, "position", position);
+    require(std::isfinite(at) && at >= 0, "Invalid import position");
+    auto clip = t.isMidi
+                    ? readMidiClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), at)
+                    : readClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), at);
     const ScopedLock l(guard);
     t.clips.push_back(std::move(clip));
   } else if (op == "removeClip") {
@@ -190,6 +197,11 @@ void Engine::updateTrack(const var &c) {
     }
   }
   const ScopedLock l(guard);
+  if (c.hasProperty("monitor")) {
+    t.monitor = flag(c, "monitor");
+    if (t.isMidi)
+      sendPanic(t);
+  }
   if (c.hasProperty("midiDevice")) {
     t.midiDevice = str(c, "midiDevice");
     t.collector.reset(rate);

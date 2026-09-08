@@ -11,6 +11,9 @@ public:
         p.createEditorIfNeeded() ? p.getActiveEditor() : new GenericAudioProcessorEditor(p), true);
     centreWithSize(getWidth(), getHeight());
     setVisible(true);
+    toFront(true);
+    if (auto *content = getContentComponent(); content && content->getWantsKeyboardFocus())
+      content->grabKeyboardFocus();
   }
   void closeButtonPressed() override { setVisible(false); }
 };

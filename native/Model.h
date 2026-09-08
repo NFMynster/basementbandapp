@@ -17,11 +17,18 @@ struct Clip {
   bool active = true;
   std::shared_ptr<AudioBuffer<float>> audio = std::make_shared<AudioBuffer<float>>();
   Array<var> peaks;
+  mutable String cachedKey;
+  mutable var cachedJson;
   double sourceDuration() const {
     return isMidi ? midiLength : audio->getNumSamples() / sampleRate;
   }
   double duration() const { return length >= 0 ? length : sourceDuration() - offset; }
   var json(bool full) const {
+    const auto key = id + name + path + takeGroup + String(take) + String(start, 15) +
+                     String(offset, 15) + String(length, 15) + String((int)active) +
+                     String((int)full);
+    if (key == cachedKey && !cachedJson.isVoid())
+      return cachedJson;
     Array<var> preview;
     if (active && !isMidi && !peaks.isEmpty())
       for (int i = 0; i < 400; ++i) {
@@ -57,6 +64,8 @@ struct Clip {
     }
     if (full)
       v.getDynamicObject()->setProperty("path", path);
+    cachedKey = key;
+    cachedJson = v;
     return v;
   }
 };
@@ -80,7 +89,7 @@ struct Track {
   Clip *previousClip = nullptr;
   String id = Uuid().toString(), name, color, icon = "guitar";
   int input = 0;
-  bool armed = false, mute = false, solo = false, bypass = false;
+  bool armed = false, mute = false, solo = false, bypass = false, monitor = false;
   float gain = 0.8f, pan = 0;
   std::atomic<float> peak{0};
   std::vector<std::unique_ptr<Clip>> clips;

@@ -1,8 +1,16 @@
 # Basement Band
 
-A local, cross-platform recording room for jamming together. React/TypeScript provides the desktop UI, Electron owns session files, and C++/JUCE handles audio, MIDI and VST3 hosting. No C# or .NET runtime is used.
+A small, local recording room for jamming together. Record audio and MIDI tracks, loop takes, and bring your own VST3 instruments/effects. React + Electron for the desktop UI; C++/JUCE for audio. No cloud, C# or .NET runtime.
 
-## Run
+## Build and run
+
+Install **Node.js 22.12+**, npm and Git, plus your platform's native tools:
+
+- **Windows x64:** Visual Studio 2022/2026 with **Desktop development with C++**, Windows SDK and **C++ CMake tools for Windows** (or install CMake 3.22+ separately).
+- **macOS:** Install Xcode command-line tools with `xcode-select --install`. Install CMake 3.22+ and Node, for example `brew install cmake node` if you use Homebrew. Use a native arm64 Node installation on Apple Silicon.
+- **Linux (development):** Install a C++20 compiler, CMake, ALSA, X11 and OpenGL development libraries. See [platform details](docs/BUILD.md).
+
+Then, in the repository root:
 
 ```sh
 npm ci
@@ -10,42 +18,37 @@ npm run build:all
 npm start
 ```
 
-Use `npm run dev` for UI hot reload. On Windows, open [BasementBand.sln](BasementBand.sln), set **Basement Band Desktop** as startup project, select x64, and press F5. This is now a C++ makefile/desktop-launch project; attach the native debugger to BasementAudio.exe for audio-engine breakpoints. See [Build and debugging](docs/BUILD.md).
+**Electron is installed locally by `npm ci`**; no separate global Electron install is needed. The first build downloads JUCE and takes a few minutes. Use `npm run dev` for UI hot reload.
 
-## Make a recording
+**Windows / Visual Studio:** Open `BasementBand.sln`, choose **Debug | x64**, and press F5. For audio-engine breakpoints, attach the native debugger to `BasementAudio.exe`.
 
-1. Open Settings → Audio inputs & output. Choose your interface and output, assign separate channels to audio tracks, then click Done.
-2. Use **+ Add track** to choose Audio or MIDI instrument. MIDI pads/keyboards are selected per MIDI track under Settings → MIDI tracks, separately from the audio driver.
-3. Load your VST3 instrument for MIDI sound. Choose a .vst3 file, choose a bundle folder, or drop it on the Plug-ins inspector. On Windows use 64-bit plugins; the Apple Silicon build requires compatible arm64 plugins.
-4. Mark each track you want to record with its R button. Press the red transport button to capture them together. Enable **123** for a three-beat count-in and the metronome button for playback/recording clicks.
-5. Drag the ruler’s upper strip to select a loop; its lower tick-mark strip moves the playhead. Recording with a loop starts at its beginning. On Stop, use the region’s Take selector to choose a pass.
-6. Drag regions to move them, including between matching track types. Right-click a region for split/copy/paste/delete. Split happens at the playhead; paste uses the selected track and playhead. The last moved region plays on top of overlaps. Earlier media remains intact.
-7. Save to keep the project and its adjacent media folder together. Export next to New/Open/Save defaults to separate aligned WAV stems; choose a mix when wanted.
-
-Drop audio/MIDI from Explorer or Finder onto a matching track to import it, or empty arrangement space to create a track named after the file. Double-click a track for properties; change its color/icon in Recording. Right-click tracks for properties, deletion and export.
-
-Default shortcuts: Space play/stop, R record/stop, L loop, M metronome, Enter return to start, Ctrl/Cmd+S save, Ctrl/Cmd+T split, Ctrl/Cmd+C/V copy/paste, Delete remove region. Rebind in Settings → Keyboard shortcuts. The welcome dialog appears once per app launch, not whenever tracks are deleted; “Don’t show again” disables it on this computer.
-
-## Build applications
+## Package
 
 ```sh
-npm run package:win
-npm run package:mac
+npm run package:win  # on Windows: x64 installer
+npm run package:mac  # on macOS: Apple Silicon DMG
 ```
 
-Run the Windows command on Windows for an x64 installer; run the macOS command on macOS for an Apple Silicon DMG. Output is in `release/`. Signing/notarization credentials are not included. Windows has been tested here; macOS still requires native build and device validation.
+Build on the target OS. Files go to `release/`. Signing/notarization needs your own credentials; Mac hardware and permissions still need platform validation. [Build, debugging and troubleshooting](docs/BUILD.md)
 
-## Checks and limitations
+## First recording
 
-```sh
-npm test
-npm run check
-npm run test:desktop
-npm run test:visual
-```
+1. In **Input settings**, choose your audio interface/output and each track's input channel. Click **Done**.
+2. Use **+** to choose Audio or MIDI. A MIDI track needs a VST3 instrument for sound; external MIDI hardware is optional for plug-in preview.
+3. The headphone button enables live monitoring. Use headphones to avoid feedback; leave it off when using your interface's direct monitoring. **R** marks tracks for simultaneous recording.
+4. Drag the ruler's top half to loop; bottom half to seek. Loop recording keeps selectable takes. **123** enables count-in.
+5. Right-click regions to edit, or the timeline to add an audio file at that position. **Save** preserves the project/media; **Export** makes separate stems or one mix.
 
-Build first. Tests exercise the native callback using simulated inputs, not a physical microphone. Private VST3 test fixtures are not distributed.
+Output volume affects listening, not exported files. Plug-in editor pad clicks are preview only; record MIDI using a MIDI input. This is an early DAW: one audio interface, one plug-in per track, no undo or piano roll yet. [Timing and limitations](docs/RUNTIME.md)
 
-This is an early DAW: one audio interface, up to 32 tracks, one plug-in per track, no undo/redo, piano roll, quantization, time stretching or plug-in crash isolation. Audio assets and MIDI source recordings are limited to 20 minutes; MIDI capture holds at most 262,144 channel events until Stop. Short partial loop passes are retained as takes and the latest pass is selected. No automatic comping is performed.
+## Logs and checks
 
-Device-reported capture correction and plug-in latency compensation are implemented, but live monitoring still has hardware/buffer/plug-in latency. Direct monitoring is best for external guitar/bass sounds. No amps, effects or instrument samples are bundled. See [Runtime and timing](docs/RUNTIME.md) and [Architecture](docs/ARCHITECTURE.md).
+If startup fails, click **Open logs**. It is also in **Quick guide**. On Mac: `~/Library/Logs/Basement Band/main.log`. Allow microphone access in **System Settings → Privacy & Security → Microphone**, then restart.
+
+After building: `npm test`, `npm run check`, `npm run test:desktop`.
+
+## License
+
+Copyright © 2026 Basement Band contributors. Released under **AGPL-3.0-only**, without warranty. JUCE 8 is used under its **AGPLv3** option. Third-party code retains its own licenses.
+
+You may sell precompiled binaries, but recipients retain source, modification and redistribution rights. Provide the matching complete source and build instructions alongside every download. See [LICENSE](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) and the [release licensing checklist](docs/LICENSING.md) before distributing.

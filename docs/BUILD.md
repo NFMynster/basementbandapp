@@ -2,10 +2,10 @@
 
 ## Prerequisites
 
-- Node.js 22 or newer, npm and Git.
+- Node.js 22.12 or newer, npm and Git. Electron is installed as a local development dependency by `npm ci`; do not install it globally.
 - Windows: Visual Studio with **Desktop development with C++**, a Windows SDK and CMake tools. No .NET development workload or runtime is required by this app.
-- macOS: Xcode command-line tools and CMake. The distribution script targets Apple Silicon.
-- Linux development additionally needs JUCE’s ALSA, X11, font and OpenGL development packages; no Linux installer script is supplied.
+- macOS: run `xcode-select --install`; install CMake 3.22+ and Node (for example `brew install cmake node` with Homebrew). The distribution script targets Apple Silicon; run arm64 Node, not an Intel Node under Rosetta.
+- Linux development needs C++20 and JUCE's ALSA, X11, font and OpenGL dependencies. On Debian/Ubuntu: `sudo apt install build-essential cmake git libasound2-dev libx11-dev libxext-dev libxinerama-dev libxrandr-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev`. Install Node 22.12+ separately. No Linux installer script is supplied.
 
 From the repository root:
 
@@ -73,3 +73,19 @@ node scripts/check-plugin.mjs "C:/path/to/instrument.vst3"
 ```
 
 This loads third-party executable code in the native test host; use only plugins you trust.
+
+## Startup diagnostics
+
+On macOS the app requests microphone permission before it starts the audio helper. If denied, startup uses output only; MIDI audition/playback remains available. Enable the app (or Electron during development) under **System Settings → Privacy & Security → Microphone** and restart before audio capture. If the OS never prompts, test the built .app and inspect logs; do not assume every timeout is a permissions issue.
+
+Persistent `main.log` includes startup, permission results, helper path, native stderr and operation timeouts. Open it with **Open logs** on the startup error screen or **Quick guide → Open diagnostic logs**.
+
+- macOS: `~/Library/Logs/Basement Band/main.log`
+- Windows: app user-data folder under `%APPDATA%`, then `logs/main.log`
+- Linux: app user-data folder under `~/.config/`, then `logs/main.log`
+
+Logs rotate on launch at 4 MiB. Review before sharing: driver and plug-in diagnostics can contain local paths/device names. Logs do not intentionally include recordings or command payloads.
+
+If it still stalls on Mac, send `main.log`, the macOS version, CPU architecture, audio interface and whether it was `npm start` or a packaged .app. The changes have been built/tested on Windows, not confirmed against your Mac's failure.
+
+For public signed Mac releases, packaging includes microphone/JIT/third-party-library entitlements for the app and helper. Third-party VST3 code is trusted executable code, not sandboxed. Supply Developer ID credentials and notarize before distribution. See [licensing release checklist](LICENSING.md).

@@ -1,3 +1,4 @@
+import { desktop as api } from "../services/desktop";
 import { Modal } from "./Modal";
 import { Play } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
@@ -48,7 +49,23 @@ export function HelpDialog({
           <p>
             Audio takes are WAV files; MIDI takes are saved as MIDI files when
             you stop. Save your session to keep them together. MIDI tracks need
-            a VST3 instrument for sound. Mark a MIDI track to play it live.
+            a VST3 instrument for sound. Enable its headphone button to monitor
+            live input or audition plug-in pads, even while stopped. No MIDI
+            hardware is required for preview. To record MIDI notes, use a MIDI
+            input device; plug-in editor clicks are preview only.
+          </p>
+          <button className="text-button" onClick={() => void api.openLogs()}>
+            Open diagnostic logs
+          </button>
+          <p className="legal-notice">
+            © 2026 Basement Band contributors. AGPLv3 · no warranty. You may
+            modify and redistribute under the license terms.
+            <button
+              className="text-button"
+              onClick={() => void api.openLicenses()}
+            >
+              Licenses & third-party notices
+            </button>
           </p>
           <button className="primary" onClick={() => setHelp(false)}>
             Let’s play

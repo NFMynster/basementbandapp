@@ -88,9 +88,10 @@ void Engine::beginRecording() {
   for (auto &t : tracks)
     if (t->armed) {
       if (t->isMidi)
-        require(testDevice ||
-                    (t->midiDevice.isNotEmpty() && devices.isMidiInputDeviceEnabled(t->midiDevice)),
-                "Choose a MIDI input in Input settings");
+        require(
+            t->midiDevice.isEmpty() || testDevice ||
+                (t->midiDevice.isNotEmpty() && devices.isMidiInputDeviceEnabled(t->midiDevice)),
+            "The selected MIDI input is unavailable. Choose another or use plug-in preview only.");
       else
         require(t->input >= 0 &&
                     t->input <

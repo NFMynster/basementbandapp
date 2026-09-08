@@ -18,7 +18,7 @@ export function MidiRouting({
         value={track.midiDevice ?? ""}
         onChange={(e) => update(track, { midiDevice: e.target.value })}
       >
-        <option value="">Choose MIDI input…</option>
+        <option value="">No external input · plug-in preview</option>
         {track.midiDevice &&
           !devices.midiInputs?.some((d) => d.id === track.midiDevice) && (
             <option value={track.midiDevice}>

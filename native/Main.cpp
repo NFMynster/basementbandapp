@@ -11,6 +11,9 @@ static void respond(const var &response) {
 int main(int argc, char **argv) {
   ScopedJuceInitialiser_GUI gui;
   Engine engine(argc > 1 && String(argv[1]) == "--test-device");
+  MessageManager::callAsync(
+      [&] { engine.initializeAudio(!(argc > 1 && String(argv[1]) == "--no-input")); });
+  std::cerr << "Native engine ready; entering message loop" << std::endl;
   std::thread reader([&] {
     std::string line;
     while (std::getline(std::cin, line)) {

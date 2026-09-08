@@ -10,7 +10,7 @@ static void panicMidi(MidiBuffer &buffer, int sample) {
   }
 }
 // Shared sample interpolation and plug-in processing for playback and export.
-void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
+void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float *liveInput) {
   t.scratch.clear();
   midi.clear();
   if (t.panic) {
@@ -84,8 +84,11 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle) {
       }
     }
   }
+  if (liveInput)
+    for (int ch = 0; ch < 2; ++ch)
+      t.scratch.addFrom(ch, 0, liveInput, n);
   if (t.plugin && !t.bypass) {
-    if (t.isMidi && t.armed)
+    if (t.isMidi && t.monitor)
       midi.addEvents(t.liveMidi, 0, n, 0);
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     t.plugin->processBlock(view, midi);
