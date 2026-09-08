@@ -152,10 +152,12 @@ body:has(.modal-backdrop) {
 }
 .plugin-details {
   min-width: 0;
-  max-width: 650px;
+  flex: 1;
 }
 .plugin-details .plugin-slot {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .clip.compact .trim-handle {
   display: none;
@@ -258,12 +260,17 @@ footer {
   height: 24px;
   flex-shrink: 0;
 }
-.plugin-details {
-  max-height: 100%;
-  overflow-y: auto;
+.plugin-chain {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 3px 3px 10px;
 }
-.plugin-details > .plugin-slot {
-  margin-bottom: 8px;
+.plugin-chain > button {
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
 }
 .level-slider-trough {
   position: absolute;

@@ -225,143 +225,147 @@ export function TrackInspector({
                   </p>
                 </div>
                 <div className="plugin-details">
-                  <div className="plugin-slot">
-                    {track.pluginName ? (
-                      <>
+                  <div
+                    className="plugin-chain"
+                    aria-label="Plug-ins in processing order"
+                  >
+                    <div className="plugin-slot">
+                      {track.pluginName ? (
+                        <>
+                          <button
+                            title="Bypass plugin"
+                            className={track.bypass ? "" : "on"}
+                            onClick={() =>
+                              run({
+                                op: "bypass",
+                                track: track.id,
+                                value: !track.bypass,
+                              })
+                            }
+                          >
+                            <Power size={18} />
+                          </button>
+                          <div>
+                            <strong>{track.pluginName}</strong>
+                            <small>
+                              {track.bypass
+                                ? "Bypassed"
+                                : track.kind === "midi"
+                                  ? "MIDI instrument · live & playback"
+                                  : "Stereo effect · playback"}
+                            </small>
+                          </div>
+                          <button
+                            onClick={() =>
+                              run({ op: "editor", track: track.id }, false)
+                            }
+                          >
+                            Open editor
+                          </button>
+                          <button
+                            title="Replace plugin"
+                            disabled={s.playing || busy}
+                            onClick={() => task(() => api.plugin(track.id))}
+                          >
+                            Replace
+                          </button>
+                          <button
+                            title="Remove plugin"
+                            disabled={s.playing || busy}
+                            onClick={() =>
+                              run({ op: "removePlugin", track: track.id })
+                            }
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          title="Bypass plugin"
-                          className={track.bypass ? "" : "on"}
+                          disabled={s.playing || busy}
+                          onClick={() => task(() => api.plugin(track.id))}
+                        >
+                          <Plus size={20} />
+                          <span>
+                            {track.kind === "midi"
+                              ? "Add VST3 instrument"
+                              : "Add VST3 plug-in"}
+                            <small>Choose or drop a .vst3 file or bundle</small>
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    {(track.effects ?? []).map((effect, index) => (
+                      <div className="plugin-slot" key={effect.id}>
+                        <button
+                          title={`Bypass ${effect.name}`}
+                          aria-pressed={!effect.bypass}
+                          className={effect.bypass ? "" : "on"}
+                          disabled={s.playing || busy}
                           onClick={() =>
                             run({
                               op: "bypass",
                               track: track.id,
-                              value: !track.bypass,
+                              effect: effect.id,
+                              value: !effect.bypass,
                             })
                           }
                         >
                           <Power size={18} />
                         </button>
                         <div>
-                          <strong>{track.pluginName}</strong>
+                          <strong>
+                            {index + 1}. {effect.name}
+                          </strong>
                           <small>
-                            {track.bypass
-                              ? "Bypassed"
-                              : track.kind === "midi"
-                                ? "MIDI instrument · live & playback"
-                                : "Stereo effect · playback"}
+                            {effect.bypass ? "Bypassed" : "Stereo effect"}
                           </small>
                         </div>
                         <button
                           onClick={() =>
-                            run({ op: "editor", track: track.id }, false)
+                            run(
+                              {
+                                op: "editor",
+                                track: track.id,
+                                effect: effect.id,
+                              },
+                              false,
+                            )
                           }
                         >
                           Open editor
                         </button>
                         <button
-                          title="Replace plugin"
-                          disabled={s.playing || busy}
-                          onClick={() => task(() => api.plugin(track.id))}
-                        >
-                          Replace
-                        </button>
-                        <button
-                          title="Remove plugin"
+                          title={`Remove ${effect.name}`}
                           disabled={s.playing || busy}
                           onClick={() =>
-                            run({ op: "removePlugin", track: track.id })
+                            run({
+                              op: "removePlugin",
+                              track: track.id,
+                              effect: effect.id,
+                            })
                           }
                         >
                           <Trash2 size={15} />
                         </button>
-                      </>
-                    ) : (
-                      <button
-                        disabled={s.playing || busy}
-                        onClick={() => task(() => api.plugin(track.id))}
-                      >
-                        <Plus size={20} />
-                        <span>
-                          {track.kind === "midi"
-                            ? "Add VST3 instrument"
-                            : "Add VST3 plug-in"}
-                          <small>Choose or drop a .vst3 file or bundle</small>
-                        </span>
-                      </button>
-                    )}
+                      </div>
+                    ))}
+                    <button
+                      disabled={
+                        s.playing || busy || (track.effects?.length ?? 0) >= 16
+                      }
+                      onClick={() =>
+                        task(() => api.plugin(track.id, false, true))
+                      }
+                    >
+                      <Plus size={16} /> Add VST3 effect
+                    </button>
                   </div>
                   <p className="plugin-note">
                     {track.kind === "midi"
-                      ? "Instrument first, then effects in the order shown."
-                      : "Effects process in the order shown."}
-                    <br />
+                      ? "Instrument first, then effects from left to right."
+                      : "Effects process from left to right."}{" "}
                     Stop playback before loading a plug-in.
                   </p>
-                  {(track.effects ?? []).map((effect, index) => (
-                    <div className="plugin-slot" key={effect.id}>
-                      <button
-                        title={`Bypass ${effect.name}`}
-                        aria-pressed={!effect.bypass}
-                        className={effect.bypass ? "" : "on"}
-                        disabled={s.playing || busy}
-                        onClick={() =>
-                          run({
-                            op: "bypass",
-                            track: track.id,
-                            effect: effect.id,
-                            value: !effect.bypass,
-                          })
-                        }
-                      >
-                        <Power size={18} />
-                      </button>
-                      <div>
-                        <strong>
-                          {index + 1}. {effect.name}
-                        </strong>
-                        <small>
-                          {effect.bypass ? "Bypassed" : "Stereo effect"}
-                        </small>
-                      </div>
-                      <button
-                        onClick={() =>
-                          run(
-                            {
-                              op: "editor",
-                              track: track.id,
-                              effect: effect.id,
-                            },
-                            false,
-                          )
-                        }
-                      >
-                        Open editor
-                      </button>
-                      <button
-                        title={`Remove ${effect.name}`}
-                        disabled={s.playing || busy}
-                        onClick={() =>
-                          run({
-                            op: "removePlugin",
-                            track: track.id,
-                            effect: effect.id,
-                          })
-                        }
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    disabled={
-                      s.playing || busy || (track.effects?.length ?? 0) >= 16
-                    }
-                    onClick={() =>
-                      task(() => api.plugin(track.id, false, true))
-                    }
-                  >
-                    <Plus size={16} /> Add VST3 effect
-                  </button>
                 </div>
               </>
             )}
