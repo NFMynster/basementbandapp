@@ -14,7 +14,6 @@ export function Arrangement({
 }: {
   controller: WorkspaceController;
 }) {
-  const [scrollY, setScrollY] = useState(0);
   const [menu, setMenu] = useState<{
     id?: string;
     x: number;
@@ -68,22 +67,27 @@ export function Arrangement({
     view.addEventListener("wheel", wheel, { passive: false });
     return () => view.removeEventListener("wheel", wheel);
   }, [zoom]);
+  const playhead = useAnimatedPlayhead(s, pxPerSecond, controller.dragPosition);
   useLayoutEffect(() => {
     const timeline = timelineScroll.current,
       sidebar = trackList.current;
     if (!timeline || !sidebar) return;
+    const syncPlayhead = (scrollTop: number) => {
+      if (playhead.current) playhead.current.style.top = `${scrollTop + 25}px`;
+    };
     const fromTimeline = () => {
       if (sidebar.scrollTop !== timeline.scrollTop)
         sidebar.scrollTop = timeline.scrollTop;
-      setScrollY(timeline.scrollTop);
+      syncPlayhead(timeline.scrollTop);
     };
     const fromSidebar = () => {
       if (timeline.scrollTop !== sidebar.scrollTop)
         timeline.scrollTop = sidebar.scrollTop;
-      setScrollY(sidebar.scrollTop);
+      syncPlayhead(sidebar.scrollTop);
     };
     timeline.addEventListener("scroll", fromTimeline, { passive: true });
     sidebar.addEventListener("scroll", fromSidebar, { passive: true });
+    syncPlayhead(timeline.scrollTop);
     const resize = new ResizeObserver(() => {
       sidebar.style.setProperty(
         "--track-tail-height",
@@ -97,8 +101,7 @@ export function Arrangement({
       timeline.removeEventListener("scroll", fromTimeline);
       sidebar.removeEventListener("scroll", fromSidebar);
     };
-  }, []);
-  const playhead = useAnimatedPlayhead(s, pxPerSecond, controller.dragPosition);
+  }, [playhead]);
   const selectedClip = track?.clips.find((c) => c.id === controller.clipId);
   const selectedTakes = selectedClip?.takeGroup
     ? track!.clips.filter((c) => c.takeGroup === selectedClip.takeGroup)
@@ -314,7 +317,7 @@ export function Arrangement({
             <div
               className={"playhead " + (s.recording ? "red" : "")}
               style={{
-                top: scrollY + 25,
+                top: 25,
                 left: (controller.dragPosition ?? s.position) * pxPerSecond,
               }}
               ref={playhead}
