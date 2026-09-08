@@ -2,8 +2,9 @@
 #include <cmath>
 
 namespace basement {
-void Engine::loadPlugin(Track &t, const String &path, const String &state) {
+void Engine::loadPlugin(Track &t, const String &path, const String &state, bool effect) {
   require(!playing, "Stop playback before changing plugins");
+  require(!effect || t.effects.size() < 16, "A track supports up to 16 additional effects");
   OwnedArray<PluginDescription> descriptions;
   for (int i = 0; i < plugins.getNumFormats(); ++i)
     plugins.getFormat(i)->findAllTypesForFile(descriptions, path);
@@ -17,11 +18,12 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state) {
   p->disableNonMainBuses();
   auto layout = p->getBusesLayout();
   require(layout.outputBuses.size() > 0, "Plug-in needs an audio output");
-  require(t.isMidi ? p->acceptsMidi() : layout.inputBuses.size() > 0,
-          t.isMidi ? "Choose a MIDI instrument for this track"
+  const bool instrument = t.isMidi && !effect;
+  require(instrument ? p->acceptsMidi() : layout.inputBuses.size() > 0 && p->getTotalNumInputChannels() > 0,
+          instrument ? "Choose a MIDI instrument for this track"
                    : "Choose an audio effect for this track");
   if (layout.inputBuses.size() > 0)
-    layout.inputBuses.set(0, t.isMidi ? AudioChannelSet::disabled() : AudioChannelSet::stereo());
+    layout.inputBuses.set(0, instrument ? AudioChannelSet::disabled() : AudioChannelSet::stereo());
   layout.outputBuses.set(0, AudioChannelSet::stereo());
   require(p->setBusesLayout(layout),
           "This version requires a stereo-compatible instrument or effect");
@@ -34,11 +36,23 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state) {
   }
   require(p->getLatencySamples() <= rate * 10,
           "Plug-in latency exceeds the supported ten-second limit");
+  const int oldPrimary = t.plugin && !t.bypass ? jmax(0, t.plugin->getLatencySamples()) : 0;
+  const int nextLatency = effect || !t.bypass ? jmax(0, p->getLatencySamples()) : 0;
+  require(t.pluginLatency() - (effect ? 0 : oldPrimary) + nextLatency <= rate * 10,
+          "Combined plug-in latency exceeds ten seconds");
   editor.reset();
   const ScopedLock l(guard);
-  t.plugin = std::move(p);
-  t.pluginName = descriptions[0]->name;
-  t.pluginPath = path;
+  if (effect) {
+    Effect slot;
+    slot.plugin = std::move(p);
+    slot.name = descriptions[0]->name;
+    slot.path = path;
+    t.effects.push_back(std::move(slot));
+  } else {
+    t.plugin = std::move(p);
+    t.pluginName = descriptions[0]->name;
+    t.pluginPath = path;
+  }
   prepareTrack(t, position, looping && !recording);
 }
 } // namespace basement

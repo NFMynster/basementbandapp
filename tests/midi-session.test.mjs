@@ -32,7 +32,7 @@ test("Electron persists mixed audio/MIDI sessions and reconstructs MIDI note pre
     const path = resolve(folder, "Mixed.basement");
     assert.equal((await send({ op: "save", path })).error, undefined);
     const saved = JSON.parse(readFileSync(path, "utf8"));
-    assert.equal(saved.version, 3);
+    assert.equal(saved.version, 4);
     assert.equal(saved.tracks.at(-1).clips[0].notes, undefined);
     assert.ok(existsSync(resolve(folder, saved.tracks.at(-1).clips[0].path)));
     await send({ op: "new" });

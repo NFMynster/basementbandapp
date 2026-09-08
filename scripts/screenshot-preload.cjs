@@ -5,6 +5,9 @@ const track = (id, name, color, input) => ({
   name,
   color,
   input,
+  icon: "guitar",
+  kind: "audio",
+  monitor: false,
   armed: true,
   mute: false,
   solo: false,
@@ -38,6 +41,10 @@ const state = {
       midiDevice: "pad",
       midiChannel: 10,
       pluginName: "Drum instrument (fixture)",
+      effects: [
+        { id: "reverb", name: "Room reverb (fixture)", bypass: false },
+        { id: "compressor", name: "Stereo compressor (fixture)", bypass: true },
+      ],
       clips: [
         {
           id: "m1",

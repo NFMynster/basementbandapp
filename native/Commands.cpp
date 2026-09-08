@@ -54,7 +54,7 @@ var Engine::command(const var &c) {
   }
   if (op == "state") {
     for (auto &t : tracks)
-      if (t->latency != (t->plugin && !t->bypass ? jmax(0, t->plugin->getLatencySamples()) : 0)) {
+      if (t->latency != t->pluginLatency()) {
         const ScopedLock lock(guard);
         prepareTrack(*t, position, looping);
       }
@@ -84,6 +84,23 @@ var Engine::command(const var &c) {
   }
   if (op == "devices") {
     return listDevices();
+  }
+  if (c.hasProperty("effect") && (op == "editor" || op == "bypass" || op == "removePlugin")) {
+    auto &t = track(c);
+    auto found = std::find_if(t.effects.begin(), t.effects.end(), [&](auto &e) { return e.id == str(c, "effect"); });
+    require(found != t.effects.end(), "Effect no longer exists");
+    if (op == "editor") {
+      editor.reset();
+      if (!testDevice) editor = std::make_unique<PluginWindow>(*found->plugin);
+    } else {
+      require(!playing, "Stop playback before changing effects");
+      editor.reset();
+      const ScopedLock lock(guard);
+      if (op == "removePlugin") t.effects.erase(found);
+      else found->bypass = flag(c, "value");
+      prepareTrack(t, position, looping);
+    }
+    return state();
   }
   if (op == "configure") {
     return configureDevice(c);
@@ -179,12 +196,13 @@ var Engine::command(const var &c) {
     t.pluginPath.clear();
     t.pluginName.clear();
     t.bypass = false;
-    t.latency = 0;
+    prepareTrack(t, position, looping);
   } else if (op == "plugin") {
     auto &t = track(c);
-    loadPlugin(t, str(c, "path"));
+    const bool effect = flag(c, "append");
+    loadPlugin(t, str(c, "path"), {}, effect);
     if (!testDevice)
-      editor = std::make_unique<PluginWindow>(*t.plugin);
+      editor = std::make_unique<PluginWindow>(effect ? *t.effects.back().plugin : *t.plugin);
   } else if (op == "bypass") {
     auto &t = track(c);
     const ScopedLock l(guard);

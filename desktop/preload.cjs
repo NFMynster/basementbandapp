@@ -10,7 +10,8 @@ contextBridge.exposeInMainWorld("basement", {
   save: () => invoke("save"),
   open: () => invoke("open"),
   importAudio: (track, position) => invoke("import", track, position),
-  plugin: (track, bundle = false) => invoke("plugin", track, bundle),
+  plugin: (track, bundle = false, append = false) =>
+    invoke("plugin", track, bundle, append),
   exportAudio: (options) => invoke("export", options),
   dropFiles: (files, track, plugin = false) =>
     invoke(

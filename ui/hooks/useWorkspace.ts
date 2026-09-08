@@ -195,6 +195,7 @@ export function useWorkspace() {
       case "rename":
         return { ...s, title: command.title.slice(0, 100) };
       case "bypass":
+        if (command.effect) return null;
         return {
           ...s,
           tracks: s.tracks.map((track) =>

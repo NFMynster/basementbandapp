@@ -1,6 +1,6 @@
 const fs = require("node:fs/promises");
 const { randomUUID } = require("node:crypto");
-const CURRENT_SESSION_VERSION = 3;
+const CURRENT_SESSION_VERSION = 4;
 
 const sessionClips = (session) =>
   session.tracks.flatMap((track) => track.clips);
@@ -45,7 +45,7 @@ function validate(session) {
   };
   assertValid(session && typeof session === "object", "Invalid session");
   assertValid(
-    session.version === CURRENT_SESSION_VERSION,
+    session.version === 3 || session.version === CURRENT_SESSION_VERSION,
     "Unsupported session version",
   );
   for (const key of ["countIn", "metronome"])
@@ -83,6 +83,22 @@ function validate(session) {
     number(track.midiChannel, 0, 16);
     assertValid(Number.isInteger(track.midiChannel), "Invalid MIDI channel");
     assertValid(Array.isArray(track.clips), "Invalid regions");
+    if (track.effects !== undefined) {
+      assertValid(
+        Array.isArray(track.effects) && track.effects.length <= 16,
+        "Invalid effect chain",
+      );
+      for (const effect of track.effects) {
+        id(effect.id);
+        text(effect.path, 32768);
+        text(effect.name, 1024);
+        assertValid(
+          typeof effect.bypass === "boolean",
+          "Invalid effect bypass",
+        );
+        if (effect.state !== undefined) text(effect.state, 64 * 1024 * 1024);
+      }
+    }
     for (const clip of track.clips) {
       id(clip.id);
       text(clip.name, 1024);

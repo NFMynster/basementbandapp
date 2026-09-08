@@ -143,6 +143,11 @@ class SessionService {
     this.recoveryError = "";
   }
   recoverySnapshot(result, before) {
+    const allClips = new Map(
+      before.tracks.flatMap((track) =>
+        track.clips.map((clip) => [clip.id, clip]),
+      ),
+    );
     const previousTracks = new Map(
       before.tracks.map((track) => [track.id, track]),
     );
@@ -157,8 +162,12 @@ class SessionService {
         return {
           ...previous,
           ...track,
+          effects: (track.effects ?? []).map((effect) => ({
+            ...previous?.effects?.find((saved) => saved.id === effect.id),
+            ...effect,
+          })),
           clips: track.clips.map((clip) => ({
-            ...previousClips.get(clip.id),
+            ...(previousClips.get(clip.id) ?? allClips.get(clip.id)),
             ...clip,
           })),
         };
@@ -202,8 +211,51 @@ class SessionService {
       const from = command.op === "undo" ? this.undoStack : this.redoStack;
       const to = command.op === "undo" ? this.redoStack : this.undoStack;
       if (!from.length) return this.decorate(state);
-      const current = await this.engine.request({ op: "snapshot" });
-      const target = structuredClone(from.at(-1));
+      const metadata = await this.engine.request({
+        op: "snapshot",
+        metadataOnly: true,
+      });
+      const current = this.lastSnapshot
+        ? this.recoverySnapshot(metadata, this.lastSnapshot)
+        : metadata;
+      const entry = from.at(-1);
+      const source = command.op === "undo" ? entry.after : entry.before;
+      const destination = command.op === "undo" ? entry.before : entry.after;
+      const target = structuredClone(current);
+      // Apply only this edit's region differences. Later imports, mix changes,
+      // transport settings and newly added tracks survive undo/redo.
+      const ids = new Set(
+        [...source.tracks, ...destination.tracks].map((track) => track.id),
+      );
+      for (const id of ids) {
+        const old = source.tracks.find((track) => track.id === id);
+        const next = destination.tracks.find((track) => track.id === id);
+        if (!next) {
+          target.tracks = target.tracks.filter((track) => track.id !== id);
+          continue;
+        }
+        if (!old) {
+          target.tracks.splice(
+            destination.tracks.indexOf(next),
+            0,
+            structuredClone(next),
+          );
+          continue;
+        }
+        const live = target.tracks.find((track) => track.id === id);
+        if (!live) continue;
+        const clipIds = new Set(
+          [...old.clips, ...next.clips].map((clip) => clip.id),
+        );
+        for (const clipId of clipIds) {
+          const a = old.clips.find((clip) => clip.id === clipId);
+          const b = next.clips.find((clip) => clip.id === clipId);
+          if (JSON.stringify(a) === JSON.stringify(b)) continue;
+          live.clips = live.clips.filter((clip) => clip.id !== clipId);
+          if (b)
+            live.clips.splice(next.clips.indexOf(b), 0, structuredClone(b));
+        }
+      }
       // Structural undo must not roll back unrelated track settings changed
       // after the edit, such as volume, pan, icons, mute, or plug-in bypass.
       for (const track of target.tracks) {
@@ -219,17 +271,32 @@ class SessionService {
       }
       await this.engine.request({
         op: "restore",
-        session: target,
+        session: {
+          ...target,
+          tracks: target.tracks.map((track) =>
+            current.tracks.some((live) => live.id === track.id)
+              ? {
+                  ...track,
+                  pluginState: undefined,
+                  effects: track.effects?.map((effect) => ({
+                    ...effect,
+                    state: undefined,
+                  })),
+                }
+              : track,
+          ),
+        },
         folder: this.folder,
+        preservePlugins: true,
       });
       const restored = await this.engine.request({
         op: "seek",
         position: current.position,
       });
       from.pop();
-      to.push(current);
+      to.push(entry);
       try {
-        await this.checkpoint();
+        await this.checkpoint(this.recoverySnapshot(restored, target));
       } catch (error) {
         this.recoveryError = "Recovery could not be saved: " + error.message;
       }
@@ -241,7 +308,8 @@ class SessionService {
     if (undoable && !continuesHistory) {
       const state = await this.engine.request({ op: "state" });
       if (!state.recording) {
-        const cachedBefore = !state.playing && this.lastSnapshot;
+        const cachedBefore =
+          command.op !== "removeTrack" && !state.playing && this.lastSnapshot;
         before =
           (cachedBefore
             ? { ...cachedBefore, position: state.position }
@@ -267,7 +335,14 @@ class SessionService {
     const result = await this.executeRaw(command);
     if (historyGroup) this.lastHistoryGroup = historyGroup;
     if (before) {
-      this.undoStack.push(before);
+      const after = await this.engine.request({
+        op: "snapshot",
+        metadataOnly: true,
+      });
+      this.undoStack.push({
+        before,
+        after: this.recoverySnapshot(after, before),
+      });
       if (this.undoStack.length > MAX_UNDO_STEPS) this.undoStack.shift();
       this.redoStack = [];
     }

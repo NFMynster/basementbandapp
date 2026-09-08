@@ -93,7 +93,7 @@ test("loop takes, native count-in, metronome, non-destructive edits and portable
     const path = resolve(folder, "Edits.basement");
     await send({ op: "save", path });
     const saved = JSON.parse(readFileSync(path, "utf8"));
-    assert.equal(saved.version, 3);
+    assert.equal(saved.version, 4);
     assert.equal(
       new Set(saved.tracks[0].clips.map((c) => c.path)).size,
       1,

@@ -36,6 +36,7 @@ void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
     t->collector.reset(rate);
     if (t->plugin)
       t->plugin->prepareToPlay(rate, block);
+    for (auto &effect : t->effects) effect.plugin->prepareToPlay(rate, block);
   }
   preparePlayback(position, looping);
 }

@@ -93,5 +93,11 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     t.plugin->processBlock(view, midi);
   }
+  for (auto &effect : t.effects) {
+    if (effect.bypass) continue;
+    AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
+    midi.clear();
+    effect.plugin->processBlock(view, midi);
+  }
 }
 } // namespace basement

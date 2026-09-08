@@ -30,7 +30,7 @@ test("Electron session service saves portable audio, reopens edits, and preserve
     r = await send({ op: "save", path });
     assert.equal(r.result.saved, path);
     const saved = JSON.parse(readFileSync(path, "utf8"));
-    assert.equal(saved.version, 3);
+    assert.equal(saved.version, 4);
     assert.equal(saved.title, "Two friends");
     assert.equal(isAbsolute(saved.tracks[0].clips[0].path), false);
     assert.ok(existsSync(resolve(folder, saved.tracks[0].clips[0].path)));
@@ -39,6 +39,18 @@ test("Electron session service saves portable audio, reopens edits, and preserve
     assert.equal(r.result.title, "Two friends");
     assert.equal(r.result.tracks[0].pan, -0.5);
     assert.equal(r.result.tracks[0].clips.length, 1);
+    const legacy = structuredClone(saved);
+    legacy.version = 3;
+    for (const track of legacy.tracks) delete track.effects;
+    const legacyPath = resolve(folder, "legacy.basement");
+    writeFileSync(legacyPath, JSON.stringify(legacy));
+    r = await send({ op: "open", path: legacyPath });
+    assert.equal(r.error, undefined);
+    assert.equal(
+      r.result.tracks[0].clips.length,
+      1,
+      "Version 3 sessions still open",
+    );
     assert.equal(
       saved.tracks[0].clips[0].peaks,
       undefined,

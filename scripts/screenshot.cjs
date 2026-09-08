@@ -114,6 +114,27 @@ app
     console.log(
       "Audio setup: Done applies changes; failures keep the dialog open.",
     );
+    await win.webContents.executeJavaScript(`(() => {
+      document.querySelector('.modal-close')?.click();
+      document.querySelector('.toast.error button[title="Dismiss"]')?.click();
+      document.querySelector('[data-track-header="m"]').click();
+      [...document.querySelectorAll('.tabs button')].find(b => b.textContent.includes('Plug-ins')).click();
+    })()`);
+    await new Promise((r) => setTimeout(r, 100));
+    const chain = await win.webContents.executeJavaScript(`(() => {
+      const slots = document.querySelectorAll('.plugin-slot');
+      const button = [...document.querySelectorAll('.plugin-details button')].find(b => b.textContent.includes('Add VST3 effect'));
+      button.scrollIntoView({ block: 'nearest' });
+      return slots.length;
+    })()`);
+    if (chain !== 3)
+      throw new Error("Instrument and both effect slots must render");
+    win.showInactive();
+    await new Promise((r) => setTimeout(r, 250));
+    writeFileSync(
+      "artifacts/screenshots/plugin-chain.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
     win.destroy();
     app.quit();
   })

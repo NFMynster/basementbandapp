@@ -34,6 +34,10 @@ var Engine::exportAudio(const var &c) {
         duration = jmax(duration, clip->start + clip->duration());
     if (t->plugin && !t->bypass)
       tail = jmax(tail, jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()));
+    double effectTail = 0;
+    for (auto &effect : t->effects)
+      if (!effect.bypass) effectTail += jlimit(0.0, 10.0, effect.plugin->getTailLengthSeconds());
+    tail = jmax(tail, effectTail + (t->plugin && !t->bypass ? jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()) : 0));
   }
   require(!selected.empty() && duration > 0, "No audible regions to export");
   require(std::isfinite(duration) && duration + tail <= 60 * 60 * 4,
@@ -47,9 +51,11 @@ var Engine::exportAudio(const var &c) {
   for (auto *t : selected)
     prepareTrack(*t, 0, false);
   const ScopeGuard reset([&] {
-    for (auto *t : selected)
+    for (auto *t : selected) {
       if (t->plugin && !t->bypass)
         t->plugin->reset();
+      for (auto &effect : t->effects) effect.plugin->reset();
+    }
   });
   const int count = mode == "mix" ? 1 : (int)selected.size();
   for (int fileIndex = 0; fileIndex < count; ++fileIndex) {

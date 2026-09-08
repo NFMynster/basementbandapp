@@ -38,7 +38,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::unique_ptr<Clip> readClip(String path, String name, double start);
   void add(String name, String color, int input);
   void stop();
-  void loadPlugin(Track &track, const String &path, const String &state = {});
+  void loadPlugin(Track &track, const String &path, const String &state = {}, bool effect = false);
 
 public:
   void initializeAudio(bool inputAllowed = true);

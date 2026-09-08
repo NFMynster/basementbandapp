@@ -47,7 +47,7 @@ No external MIDI device is required to load/audition a plug-in using its editor.
 
 The default picker accepts VST3 files; “Choose a bundle folder” and drag-and-drop also handle directory bundles. Use plugins matching the native engine architecture. The provided Windows MT-PowerDrumKit 2.1.5.1 64-bit VST3 was successfully loaded by the JUCE test host; the old folder-only picker was inappropriate for that single-file plugin.
 
-Only one stereo-compatible instrument/effect per track is supported. Plugins run inside the audio process, not a crash-isolated sandbox. A faulty plugin can stop that process; completed recordings remain on disk.
+A MIDI track supports one stereo-compatible instrument followed by up to 16 audio effects. Audio tracks support a primary effect plus up to 16 additional effects. Effects run in the displayed order, with separate editor, bypass and remove controls. Use Add VST3 effect to append; dropping onto a track with a primary plug-in also appends. Stop playback to change the effect chain. Combined active processor latency is limited to ten seconds and compensated during playback/export. Plug-ins run inside the audio process; a faulty plug-in can stop that process, while completed recordings remain on disk.
 
 ## Control defaults and diagnostics
 

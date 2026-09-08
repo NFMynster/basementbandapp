@@ -46,6 +46,7 @@ export type Track = {
   peak: number;
   clips: Clip[];
   pluginName: string;
+  effects?: { id: string; name: string; bypass: boolean }[];
   bypass: boolean;
   recordingPreview?: RecordingPreview;
 };
@@ -136,13 +137,17 @@ export type SessionCommand =
       target?: string;
     }
   | ({ op: "track"; track: string } & TrackPatch)
-  | { op: "removeTrack" | "editor" | "removePlugin"; track: string }
+  | {
+      op: "removeTrack" | "editor" | "removePlugin";
+      track: string;
+      effect?: string;
+    }
   | { op: "removeClip"; track: string; clip: string }
   | { op: "seek"; position: number }
   | { op: "loop"; start: number; end: number; enabled: boolean }
   | { op: "tempo"; value: number }
   | { op: "rename"; title: string }
-  | { op: "bypass"; track: string; value: boolean };
+  | { op: "bypass"; track: string; value: boolean; effect?: string };
 export type DeviceCommand =
   { op: "devices" } | ({ op: "configure" } & DeviceConfiguration);
 export type Command = SessionCommand | DeviceCommand;
@@ -165,7 +170,11 @@ export interface DesktopApi {
   save(): Promise<SaveResult | null>;
   open(): Promise<Session | null>;
   importAudio(track?: string, position?: number): Promise<Session | null>;
-  plugin(track: string, bundle?: boolean): Promise<Session | null>;
+  plugin(
+    track: string,
+    bundle?: boolean,
+    append?: boolean,
+  ): Promise<Session | null>;
   exportAudio(options: ExportOptions): Promise<ExportResult | null>;
 }
 declare global {

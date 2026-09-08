@@ -258,6 +258,13 @@ footer {
   height: 24px;
   flex-shrink: 0;
 }
+.plugin-details {
+  max-height: 100%;
+  overflow-y: auto;
+}
+.plugin-details > .plugin-slot {
+  margin-bottom: 8px;
+}
 .level-slider-trough {
   position: absolute;
   left: 5px;

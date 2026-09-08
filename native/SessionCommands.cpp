@@ -26,6 +26,7 @@ void Engine::restoreSession(const var &c) {
   require(!recording, "Stop recording before opening a session");
   stop();
   auto session = c["session"];
+  const bool preserve = flag(c, "preservePlugins");
   require(session["tracks"].isArray(), "Invalid session tracks");
   // Decode before replacing the existing session, so missing/corrupt media
   // cannot destroy it.
@@ -78,8 +79,15 @@ void Engine::restoreSession(const var &c) {
               "Invalid original source bounds");
       t->clips.push_back(std::move(clip));
     }
-    if (str(v, "pluginPath").isNotEmpty())
+    const bool existing = preserve && std::any_of(tracks.begin(), tracks.end(), [&](auto &live) { return live->id == t->id; });
+    if (!existing && str(v, "pluginPath").isNotEmpty())
       loadPlugin(*t, str(v, "pluginPath"), str(v, "pluginState"));
+    if (!existing && v["effects"].isArray())
+      for (auto &slot : *v["effects"].getArray()) {
+        loadPlugin(*t, str(slot, "path"), str(slot, "state"), true);
+        t->effects.back().id = str(slot, "id");
+        t->effects.back().bypass = flag(slot, "bypass");
+      }
     loaded.push_back(std::move(t));
   }
   for (auto &t : loaded)
@@ -87,6 +95,14 @@ void Engine::restoreSession(const var &c) {
       devices.setMidiInputDeviceEnabled(t->midiDevice, true);
   editor.reset();
   const ScopedLock l(guard);
+  if (preserve)
+    for (auto &t : loaded) {
+      auto found = std::find_if(tracks.begin(), tracks.end(), [&](auto &live) { return live && live->id == t->id; });
+      if (found == tracks.end()) continue;
+      // Keep processors, editors' parameters, routing and mix settings alive.
+      (*found)->clips = std::move(t->clips);
+      t = std::move(*found);
+    }
   tracks = std::move(loaded);
   folder = str(c, "folder");
   title = str(session, "title");

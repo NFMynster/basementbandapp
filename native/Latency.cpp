@@ -8,11 +8,12 @@ void Engine::sendPanic(Track &t) {
   t.liveMidi.clear();
   if (t.plugin)
     t.plugin->reset();
+  for (auto &effect : t.effects) effect.plugin->reset();
 }
 
 void Engine::prepareTrack(Track &t, double start, bool cycle) {
   sendPanic(t);
-  t.latency = t.plugin && !t.bypass ? jmax(0, t.plugin->getLatencySamples()) : 0;
+  t.latency = t.pluginLatency();
   require(t.latency <= rate * 10, "Plug-in latency exceeds the supported ten-second limit");
   // Recorded regions are available ahead of time. Prime the processor, then
   // read its source L samples ahead so output sample zero remains timeline zero.

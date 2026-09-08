@@ -37,7 +37,9 @@ The engine uses short control locks. Its callback attempts the lock without bloc
 
 ## Session files
 
-Session files use the current version 3 format. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
+Session files use version 4, which adds ordered effect chains. Version 3 sessions still open and are upgraded on save. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
+
+Undo/redo stores before/after region edits and applies their differences to the current session. Surviving tracks retain their loaded processors and mix/routing settings; restoring a deleted track loads its saved processors. Volume and transport controls do not enter undo history. Recovery saving remains independent of undo.
 
 Shared sources are copied once per save, not once per take. New asset copies have unique names so a failed save does not overwrite the previous document’s media. Metadata is written to a temporary file and renamed. Multi-file copying is not fully transactional: a failed save may leave unused media, which is deliberately not deleted automatically.
 
@@ -45,7 +47,7 @@ Waveforms and MIDI note previews are derived rather than saved. Removing a regio
 
 ## Export
 
-Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Plugin tails are capped at ten seconds. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
+Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Each active processor contributes up to ten seconds of tail to its chain. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
 
 ## Checks
 

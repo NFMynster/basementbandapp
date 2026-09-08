@@ -15,6 +15,6 @@ export const desktop: DesktopApi = {
   save: () => bridge().save(),
   open: () => bridge().open(),
   importAudio: (t, position) => bridge().importAudio(t, position),
-  plugin: (t, bundle) => bridge().plugin(t, bundle),
+  plugin: (t, bundle, append) => bridge().plugin(t, bundle, append),
   exportAudio: (options) => bridge().exportAudio(options),
 };

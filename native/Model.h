@@ -74,6 +74,11 @@ struct Clip {
     return v;
   }
 };
+struct Effect {
+  String id = Uuid().toString(), path, name;
+  bool bypass = false;
+  std::unique_ptr<AudioPluginInstance> plugin;
+};
 struct Track {
   bool isMidi = false;
   String midiDevice;
@@ -113,6 +118,13 @@ struct Track {
   double recordStart = 0;
   std::unique_ptr<AudioPluginInstance> plugin;
   String pluginPath, pluginName;
+  std::vector<Effect> effects;
+  int pluginLatency() const {
+    int total = plugin && !bypass ? jmax(0, plugin->getLatencySamples()) : 0;
+    for (auto &effect : effects)
+      if (!effect.bypass) total += jmax(0, effect.plugin->getLatencySamples());
+    return total;
+  }
   AudioBuffer<float> scratch;
 };
 

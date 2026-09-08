@@ -150,6 +150,21 @@ var Engine::state(bool full, bool pluginState) {
                      {"pluginName", t->pluginName},
                      {"bypass", t->bypass}});
     const auto preview = recordingPreview(*t, position.load());
+    Array<var> effects;
+    for (auto &effect : t->effects) {
+      auto slot = object({{"id", effect.id}, {"name", effect.name}, {"bypass", effect.bypass}});
+      if (full) {
+        slot.getDynamicObject()->setProperty("path", effect.path);
+        if (pluginState) {
+          const ScopedLock lock(guard);
+          MemoryBlock b;
+          effect.plugin->getStateInformation(b);
+          slot.getDynamicObject()->setProperty("state", b.toBase64Encoding());
+        }
+      }
+      effects.add(slot);
+    }
+    v.getDynamicObject()->setProperty("effects", effects);
     if (!preview.isVoid())
       v.getDynamicObject()->setProperty("recordingPreview", preview);
     if (full) {

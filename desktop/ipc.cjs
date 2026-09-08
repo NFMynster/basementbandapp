@@ -148,21 +148,29 @@ function registerIpc(win, request) {
       throw error;
     }
   });
-  ipcMain.handle("plugin", async (event, track, bundle = false) => {
-    assertSender(event, win);
-    const r = await dialog.showOpenDialog(win, {
-      title: bundle ? "Choose a VST3 bundle folder" : "Choose a VST3 plugin",
-      defaultPath:
-        process.platform === "darwin"
-          ? "/Library/Audio/Plug-Ins/VST3"
-          : app.getPath("home"),
-      filters: [{ name: "VST3 plugin", extensions: ["vst3"] }],
-      properties: [bundle ? "openDirectory" : "openFile"],
-    });
-    return r.canceled
-      ? null
-      : request({ op: "plugin", track, path: r.filePaths[0] });
-  });
+  ipcMain.handle(
+    "plugin",
+    async (event, track, bundle = false, append = false) => {
+      assertSender(event, win);
+      const r = await dialog.showOpenDialog(win, {
+        title: bundle ? "Choose a VST3 bundle folder" : "Choose a VST3 plugin",
+        defaultPath:
+          process.platform === "darwin"
+            ? "/Library/Audio/Plug-Ins/VST3"
+            : app.getPath("home"),
+        filters: [{ name: "VST3 plugin", extensions: ["vst3"] }],
+        properties: [bundle ? "openDirectory" : "openFile"],
+      });
+      return r.canceled
+        ? null
+        : request({
+            op: "plugin",
+            track,
+            path: r.filePaths[0],
+            ...(append ? { append: true } : {}),
+          });
+    },
+  );
   ipcMain.handle("drop", async (event, paths, track, plugin) => {
     assertSender(event, win);
     if (
@@ -175,7 +183,14 @@ function registerIpc(win, request) {
     if (plugin) {
       if (paths.length !== 1 || !VST3_EXTENSION.test(paths[0]))
         throw new Error("Drop one VST3 file or bundle here");
-      return request({ op: "plugin", track, path: paths[0] });
+      const state = await request({ op: "state" });
+      const target = requireTrack(state, track);
+      return request({
+        op: "plugin",
+        track,
+        path: paths[0],
+        ...(target?.pluginName ? { append: true } : {}),
+      });
     }
     let state = await request({ op: "state" });
     if (state.recording) throw new Error("Stop recording before importing");
