@@ -92,6 +92,8 @@ class SessionService {
         }
       }
     }
+    if (this.recover && !this.lastSnapshot)
+      this.lastSnapshot = await this.engine.request({ op: "snapshot" });
     return state;
   }
   decorate(result) {
@@ -105,9 +107,9 @@ class SessionService {
         }
       : result;
   }
-  async checkpoint() {
+  async checkpoint(snapshot) {
     if (this.recoveryBlocked) throw new Error(this.recoveryError);
-    const snapshot = await this.engine.request({ op: "snapshot" });
+    snapshot ??= await this.engine.request({ op: "snapshot" });
     this.lastSnapshot = snapshot;
     if (!this.recover) return;
     snapshot.version = CURRENT_SESSION_VERSION;
@@ -115,6 +117,29 @@ class SessionService {
     const target = path.join(this.directory, RECOVERY_FILE);
     await writeJsonAtomically(target, snapshot);
     this.recoveryError = "";
+  }
+  recoverySnapshot(result, before) {
+    const previousTracks = new Map(
+      before.tracks.map((track) => [track.id, track]),
+    );
+    return {
+      ...before,
+      ...result,
+      tracks: result.tracks.map((track) => {
+        const previous = previousTracks.get(track.id);
+        const previousClips = new Map(
+          previous?.clips.map((clip) => [clip.id, clip]) ?? [],
+        );
+        return {
+          ...previous,
+          ...track,
+          clips: track.clips.map((clip) => ({
+            ...previousClips.get(clip.id),
+            ...clip,
+          })),
+        };
+      }),
+    };
   }
   async workingDirectory() {
     const folder = path.join(this.directory, randomUUID());
@@ -186,19 +211,26 @@ class SessionService {
     if (editable && !continuesHistory) {
       const state = await this.engine.request({ op: "state" });
       if (!state.recording) {
-        before = await this.engine.request({
-          op: "snapshot",
-          metadataOnly: state.playing,
-        });
-        for (const track of before.tracks) {
-          const saved = this.lastSnapshot?.tracks.find(
-            (t) => t.id === track.id && t.pluginPath === track.pluginPath,
-          );
-          if (
-            track.pluginState === undefined &&
-            saved?.pluginState !== undefined
-          )
-            track.pluginState = saved.pluginState;
+        const cachedBefore = !state.playing && this.lastSnapshot;
+        before =
+          (cachedBefore
+            ? { ...cachedBefore, position: state.position }
+            : undefined) ||
+          (await this.engine.request({
+            op: "snapshot",
+            metadataOnly: state.playing,
+          }));
+        if (!cachedBefore) {
+          for (const track of before.tracks) {
+            const saved = this.lastSnapshot?.tracks.find(
+              (t) => t.id === track.id && t.pluginPath === track.pluginPath,
+            );
+            if (
+              track.pluginState === undefined &&
+              saved?.pluginState !== undefined
+            )
+              track.pluginState = saved.pluginState;
+          }
         }
       }
     }
@@ -220,7 +252,25 @@ class SessionService {
       !result?.recording
     ) {
       try {
-        await this.checkpoint();
+        const canReuseMedia =
+          before &&
+          (command.op === "addTrack" ||
+            command.op === "removeTrack" ||
+            command.op === "removeClip" ||
+            command.op === "rename" ||
+            command.op === "tempo" ||
+            command.op === "master" ||
+            command.op === "loop" ||
+            command.op === "metronome" ||
+            command.op === "countIn" ||
+            command.op === "bypass" ||
+            (command.op === "track" &&
+              !Object.prototype.hasOwnProperty.call(command, "midiDevice")) ||
+            (command.op === "editClip" &&
+              (command.action === "trim" || command.action === "take")));
+        await this.checkpoint(
+          canReuseMedia ? this.recoverySnapshot(result, before) : undefined,
+        );
       } catch (error) {
         this.recoveryError = "Recovery could not be saved: " + error.message;
       }

@@ -151,15 +151,6 @@ export function ClipRegion({
           e.stopPropagation();
           select();
         }}
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          return w.run({
-            op: "loop",
-            start: c.start,
-            end: c.start + c.duration,
-            enabled: true,
-          });
-        }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();

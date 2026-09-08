@@ -126,7 +126,9 @@ export function useWorkspace() {
   const trackList = useRef<HTMLElement>(null),
     timelineScroll = useRef<HTMLDivElement>(null),
     polling = useRef(false),
-    editing = useRef(false);
+    editing = useRef(false),
+    activeCommands = useRef(0),
+    optimisticRevision = useRef(0);
   const track = s.tracks.find((t) => t.id === selected) || s.tracks[0];
   const secondsPerBar = 240 / s.tempo,
     pxPerSecond = zoom / secondsPerBar;
@@ -165,6 +167,55 @@ export function useWorkspace() {
     setNoticeTone(tone);
     setNoticeVersion((v) => v + 1);
   }
+  function optimisticSession(command: Command): Session | null {
+    switch (command.op) {
+      case "loop": {
+        const start = Math.max(0, command.start),
+          end = Math.max(start + 0.05, command.end);
+        return {
+          ...s,
+          loopStart: start,
+          loopEnd: end,
+          looping: command.enabled,
+        };
+      }
+      case "metronome":
+        return { ...s, metronome: command.value };
+      case "countIn":
+        return { ...s, countIn: command.value };
+      case "tempo":
+        return { ...s, tempo: Math.max(40, Math.min(240, command.value)) };
+      case "master":
+        return {
+          ...s,
+          masterGain: Math.max(0, Math.min(2, command.value)),
+        };
+      case "seek":
+        return { ...s, position: Math.max(0, command.position) };
+      case "rename":
+        return { ...s, title: command.title.slice(0, 100) };
+      case "bypass":
+        return {
+          ...s,
+          tracks: s.tracks.map((track) =>
+            track.id === command.track
+              ? { ...track, bypass: command.value }
+              : track,
+          ),
+        };
+      case "track": {
+        const { op: ignored, track: trackId, historyGroup, ...patch } = command;
+        return {
+          ...s,
+          tracks: s.tracks.map((track) =>
+            track.id === trackId ? { ...track, ...patch } : track,
+          ),
+        };
+      }
+      default:
+        return null;
+    }
+  }
   const recoverySeen = useRef(false);
   useEffect(() => {
     if (s.recovered && !recoverySeen.current) {
@@ -193,6 +244,11 @@ export function useWorkspace() {
     c: C,
     change = true,
   ): Promise<CommandResult<C> | undefined> {
+    const previous = s,
+      optimistic = optimisticSession(c),
+      revision = optimistic ? ++optimisticRevision.current : 0;
+    if (optimistic) setS(optimistic);
+    activeCommands.current += 1;
     try {
       setError("");
       const r = await api.command(c);
@@ -203,7 +259,10 @@ export function useWorkspace() {
       if (change) setDirty(true);
       return r;
     } catch (e) {
+      if (optimistic && revision === optimisticRevision.current) setS(previous);
       setError(errorMessage(e));
+    } finally {
+      activeCommands.current -= 1;
     }
   }
   async function withBusy<T>(fn: () => Promise<T>): Promise<T | undefined> {
@@ -302,7 +361,13 @@ export function useWorkspace() {
     let alive = true;
     let failed = false;
     const tick = async () => {
-      if (failed || polling.current || editing.current) return;
+      if (
+        failed ||
+        polling.current ||
+        editing.current ||
+        activeCommands.current
+      )
+        return;
       polling.current = true;
       try {
         const v = await api.command({ op: "state" });
