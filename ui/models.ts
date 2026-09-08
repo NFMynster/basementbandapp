@@ -35,6 +35,7 @@ export type Track = {
 };
 export type Session = {
   masterGain?: number;
+  masterPeak?: number;
   metronome?: boolean;
   countIn?: boolean;
   countdown?: number;

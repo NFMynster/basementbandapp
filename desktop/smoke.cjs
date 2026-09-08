@@ -15,11 +15,9 @@ function verifyDesktop(win, request) {
       await new Promise((r) => setTimeout(r, 150));
       const layout = await win.webContents.executeJavaScript(`(() => {
         const welcome = document.querySelector('.welcome-dialog').getBoundingClientRect();
-        const footer = document.querySelector('.track-list-bottom').getBoundingClientRect();
-        const sidebar = document.querySelector('.track-sidebar').getBoundingClientRect();
-        return { centered: Math.abs((welcome.left + welcome.right) / 2 - innerWidth / 2) < 2, bottom: Math.abs(footer.bottom - sidebar.bottom) <= 10 };
+        return { centered: Math.abs((welcome.left + welcome.right) / 2 - innerWidth / 2) < 2, noTagline: !document.querySelector('.track-list-bottom') };
       })()`);
-      if (!layout.centered || !layout.bottom)
+      if (!layout.centered || !layout.noTagline)
         throw new Error("Large-window layout is misaligned");
       await win.webContents.executeJavaScript(
         `document.querySelector('.welcome-dialog .modal-close').click()`,
@@ -225,7 +223,7 @@ function verifyDesktop(win, request) {
       await new Promise((r) => setTimeout(r, 100));
       if (
         !(await win.webContents.executeJavaScript(
-          `document.querySelector('.footer-right').textContent.includes('F6')`,
+          `document.querySelector('.footer-right').textContent.includes('F6') && !!document.querySelector('.transport [title="Back to start · F6"]')`,
         ))
       )
         throw new Error("Rebinding did not update shortcut labels");
@@ -266,6 +264,15 @@ function verifyDesktop(win, request) {
         modifiers: ["leftButtonDown"],
       });
       await new Promise((r) => setTimeout(r, 50));
+      await win.webContents.capturePage();
+      if (
+        !(await win.webContents.executeJavaScript(
+          `(() => { const r = document.querySelector('.clip.moving')?.getBoundingClientRect(); return r && Math.abs(r.top + 40 - ${region.y + 112}) < 4; })()`,
+        ))
+      )
+        throw new Error(
+          "Region drag preview did not follow the pointer vertically",
+        );
       win.webContents.sendInputEvent({
         type: "mouseUp",
         x: region.x + 88,
@@ -320,10 +327,33 @@ function verifyDesktop(win, request) {
       await new Promise((r) => setTimeout(r, 100));
       if (
         !(await win.webContents.executeJavaScript(
-          `document.querySelector('[aria-label="Track icon"]')?.tagName === 'SELECT'`,
+          `document.querySelector('[aria-label="Track appearance"]')?.tagName === 'BUTTON'`,
         ))
       )
-        throw new Error("Track icon is not a selector");
+        throw new Error("Track appearance button missing");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Track appearance"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="drums icon"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if ((await request({ op: "state" })).tracks[0].icon !== "drums")
+        throw new Error("Icon popover did not update native track");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Audio timing settings"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('.settings-tabs [aria-selected="true"]')?.textContent.includes('Audio')`,
+        ))
+      )
+        throw new Error("Footer timing did not open audio settings");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.modal-close').click()`,
+      );
       await win.webContents.executeJavaScript(
         `document.querySelector('[aria-label="Monitor Guitar"]').click()`,
       );
@@ -406,9 +436,52 @@ function verifyDesktop(win, request) {
       )
         throw new Error("Recording did not reveal the playhead");
       await request({ op: "stop" });
+      await request({ op: "seek", position: 12 });
+      await request({ op: "play" });
+      await new Promise((r) => setTimeout(r, 70));
+      await win.webContents.capturePage();
+      const beforeAnimation = await win.webContents.executeJavaScript(
+        `parseFloat(document.querySelector('.playhead').style.left)`,
+      );
+      await new Promise((r) => setTimeout(r, 25));
+      await win.webContents.capturePage();
+      const afterAnimation = await win.webContents.executeJavaScript(
+        `parseFloat(document.querySelector('.playhead').style.left)`,
+      );
+      if (!(afterAnimation > beforeAnimation))
+        throw new Error("Playhead did not animate between native updates");
+      await request({ op: "stop" });
       console.log(
         "New controls passed: selector, monitor, output gain, menus, bidirectional vertical alignment and recording scroll.",
       );
+      await request({ op: "loop", start: 0, end: 0.05, enabled: true });
+      await request({ op: "record" });
+      await request({ op: "pump", frames: 8192, left: 0.2 });
+      const takeState = await request({ op: "stop" });
+      const takeTrack = takeState.tracks.find((t) =>
+        t.clips.some((c) => c.takeGroup),
+      );
+      if (!takeTrack) throw new Error("Loop capture did not create takes");
+      await new Promise((r) => setTimeout(r, 150));
+      await win.webContents.executeJavaScript(
+        `[...document.querySelectorAll('[data-lane="${takeTrack.id}"] .clip')].at(-1).click()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      const takeChoice = await win.webContents.executeJavaScript(`(() => {
+        const select = document.querySelector('[aria-label="Selected region take"]');
+        if (!select || select.options.length < 2 || select.getBoundingClientRect().width < 100) throw new Error('Short takes need a full-size selector');
+        select.value = select.options[0].value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        return select.value;
+      })()`);
+      await new Promise((r) => setTimeout(r, 150));
+      if (
+        !(await request({ op: "state" })).tracks
+          .find((t) => t.id === takeTrack.id)
+          .clips.find((c) => c.id === takeChoice)?.active
+      )
+        throw new Error("Toolbar take selection did not reach the engine");
+      console.log("Short loop takes remain selectable without zooming.");
       win.destroy();
       app.quit();
     } catch (e) {

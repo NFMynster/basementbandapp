@@ -72,8 +72,11 @@ class NativeClient {
     }
   }
   close() {
+    if (this.closing) return;
     this.closing = true;
-    this.child.stdin.end();
+    this.failure ??= new Error("The audio engine is closing.");
+    // Drain an in-flight reply before ending stdin. Queued/new requests reject.
+    void this.queue.finally(() => this.child.stdin.end());
     const timer = setTimeout(() => this.child.kill(), 5000);
     timer.unref();
     this.child.once("close", () => clearTimeout(timer));

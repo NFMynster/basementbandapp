@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Build and development" />
+    <Filter Include="Configuration" />
+    <Filter Include="Documentation" />
+    <Filter Include="Electron" />
+    <Filter Include="Electron\Assets" />
+    <Filter Include="React interface" />
+    <Filter Include="React interface\components" />
+    <Filter Include="React interface\hooks" />
+    <Filter Include="React interface\services" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="desktop\assets\icon.svg"><Filter>Electron\Assets</Filter></None>
+    <None Include="desktop\backend.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\entitlements.mac.plist"><Filter>Electron</Filter></None>
+    <None Include="desktop\ipc.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\logging.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\main.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\native-client.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\permissions.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\preload.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\session-service.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\splash.html"><Filter>Electron</Filter></None>
+    <None Include="desktop\startup.cjs"><Filter>Electron</Filter></None>
+    <None Include="docs\ARCHITECTURE.md"><Filter>Documentation</Filter></None>
+    <None Include="docs\BUILD.md"><Filter>Documentation</Filter></None>
+    <None Include="docs\LICENSING.md"><Filter>Documentation</Filter></None>
+    <None Include="docs\RUNTIME.md"><Filter>Documentation</Filter></None>
+    <None Include="index.html"><Filter>Configuration</Filter></None>
+    <None Include="package.json"><Filter>Configuration</Filter></None>
+    <None Include="README.md"><Filter>Documentation</Filter></None>
+    <None Include="scripts\build-tools.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\check-plugin.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\dev.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\icons.cjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\licenses.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\native.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\package.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\screenshot-preload.cjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\screenshot.cjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\smoke.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\vite-server.mjs"><Filter>Build and development</Filter></None>
+    <None Include="scripts\vs-build.mjs"><Filter>Build and development</Filter></None>
+    <None Include="tsconfig.json"><Filter>Configuration</Filter></None>
+    <None Include="ui\App.tsx"><Filter>React interface</Filter></None>
+    <None Include="ui\components\Arrangement.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\AudioSetupDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ClipRegion.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ContextMenu.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\CreateTrackDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ExportDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\HelpDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\LevelSlider.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\MidiNotes.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\MidiRouting.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\Modal.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\Notices.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\SessionName.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ShortcutSettings.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\StatusBar.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TitleBar.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackAppearance.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackIcon.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackInspector.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackMenu.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\Transport.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\Waveform.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\WelcomeDialog.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\hooks\useAnimatedPlayhead.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useShortcuts.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useWorkspace.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\interactions.css"><Filter>React interface</Filter></None>
+    <None Include="ui\main.tsx"><Filter>React interface</Filter></None>
+    <None Include="ui\models.ts"><Filter>React interface</Filter></None>
+    <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
+    <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
+    <None Include="ui\startup.css"><Filter>React interface</Filter></None>
+    <None Include="ui\style.css"><Filter>React interface</Filter></None>
+    <None Include="vite.config.ts"><Filter>Configuration</Filter></None>
+  </ItemGroup>
+</Project>

@@ -20,15 +20,19 @@ The first native build downloads JUCE. Subsequent builds are incremental. `npm r
 ## Visual Studio F5 (Windows)
 
 1. Run `npm ci` once.
-2. Open `BasementBand.sln`. It contains a C++ makefile project, not the removed C# backend.
+2. Open `BasementBand.sln`. It separates **Basement Band Audio** (C++/JUCE) from **Basement Band Desktop** (Electron/React and the F5 launcher). Neither project uses C#.
 3. Set **Basement Band Desktop** as startup project and select **Debug | x64**.
-4. Press F5. The project invokes `scripts/vs-build.mjs`, builds JUCE with Debug symbols plus the UI/icon, and launches Electron.
+4. Press F5. The Desktop project depends on Audio, so Visual Studio first builds JUCE with Debug symbols, then the UI/icons/licenses, and launches Electron. Native compilation remains owned by CMake; the solution does not duplicate its compiler settings.
+
+The Desktop project uses Visual Studio's makefile-project tooling purely to build and launch the app; its `.cjs` files are Electron JavaScript, not C++ source. Solution Explorer groups the desktop runtime, React interface, scripts and documentation separately. No JavaScript-specific Visual Studio workload is required. Clean targets the selected native configuration; the desktop build regenerates its UI output without deleting shared packaging assets.
 
 The first Debug engine build is separate from Release and can take several minutes. F5 initially debugs Electron, **not its JUCE child**. For C++ audio breakpoints, use **Debug → Attach to Process → BasementAudio.exe**, choosing Native code. Debug symbols are copied alongside the engine. Pause the transport before stepping through real-time code. Control requests have a 60-second deadline; long debugger pauses can require restarting the app.
 
 For a native-only workspace, open the `native` folder as a CMake project in Visual Studio. The generated `build/native/BasementAudio.sln` is also available after the command-line native build. Running BasementAudio alone waits for pipe commands; it does not display the desktop UI.
 
 The former .NET launch profile and TCP debug bridge have been removed. No C# build artifacts are packaged or invoked.
+
+Solution Explorer uses explicit file entries and matching `.vcxproj.filters` entries. When adding source files, add them to both files for the relevant project; `npm test` checks that source files are included and each has exactly one valid group. Reload the project if Visual Studio is still displaying cached groups after an update.
 
 ## Commands
 

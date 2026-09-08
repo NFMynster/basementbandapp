@@ -13,10 +13,19 @@ export function ClipRegion({
   track: Track;
   controller: WorkspaceController;
 }) {
-  const [preview, setPreview] = useState<number | null>(null),
+  const [preview, setPreview] = useState<{
+      position: number;
+      y: number;
+    } | null>(null),
     [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
-  const drag = useRef<{ x: number; moved: boolean } | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    scrollX: number;
+    scrollY: number;
+    moved: boolean;
+  } | null>(null);
   const select = () => {
     w.setSelected(t.id);
     w.setClipId(c.id);
@@ -25,7 +34,13 @@ export function ClipRegion({
     Math.max(
       0,
       Math.round(
-        (c.start + (x - drag.current!.x) / w.pxPerSecond) / (60 / w.s.tempo),
+        (c.start +
+          (x -
+            drag.current!.x +
+            (w.timelineScroll.current?.scrollLeft ?? 0) -
+            drag.current!.scrollX) /
+            w.pxPerSecond) /
+          (60 / w.s.tempo),
       ) *
         (60 / w.s.tempo),
     );
@@ -42,7 +57,8 @@ export function ClipRegion({
         }
         style={
           {
-            left: (preview ?? c.start) * w.pxPerSecond,
+            left: (preview?.position ?? c.start) * w.pxPerSecond,
+            transform: preview ? `translateY(${preview.y}px)` : undefined,
             width: Math.max(12, c.duration * w.pxPerSecond),
             "--clip-color": t.color,
           } as CSSProperties
@@ -89,14 +105,31 @@ export function ClipRegion({
           e.preventDefault();
           e.stopPropagation();
           select();
-          drag.current = { x: e.clientX, moved: false };
+          drag.current = {
+            x: e.clientX,
+            y: e.clientY,
+            scrollX: w.timelineScroll.current?.scrollLeft ?? 0,
+            scrollY: w.timelineScroll.current?.scrollTop ?? 0,
+            moved: false,
+          };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           if (!drag.current) return;
-          if (Math.abs(e.clientX - drag.current.x) > 4)
+          if (
+            Math.hypot(e.clientX - drag.current.x, e.clientY - drag.current.y) >
+            4
+          )
             drag.current.moved = true;
-          if (drag.current.moved) setPreview(position(e.clientX));
+          if (drag.current.moved)
+            setPreview({
+              position: position(e.clientX),
+              y:
+                e.clientY -
+                drag.current.y +
+                (w.timelineScroll.current?.scrollTop ?? 0) -
+                drag.current.scrollY,
+            });
         }}
         onPointerUp={(e) => {
           if (!drag.current) return;
@@ -113,6 +146,13 @@ export function ClipRegion({
             document
               .elementFromPoint(e.clientX, e.clientY)
               ?.closest<HTMLElement>("[data-lane]")?.dataset.lane || t.id;
+          if (
+            w.s.tracks.find((track) => track.id === target)?.kind !== t.kind
+          ) {
+            setPreview(null);
+            w.setNotice("Move regions to a matching audio or MIDI track.");
+            return;
+          }
           void w
             .run({
               op: "editClip",
@@ -168,6 +208,27 @@ export function ClipRegion({
           y={menu.y}
           onClose={closeMenu}
         >
+          {takes.length > 1 &&
+            takes.map((take) => (
+              <button
+                key={take.id}
+                role="menuitemradio"
+                aria-checked={take.id === c.id}
+                disabled={w.s.recording}
+                onClick={() => {
+                  w.setClipId(take.id);
+                  w.run({
+                    op: "editClip",
+                    track: t.id,
+                    clip: take.id,
+                    action: "take",
+                  });
+                  setMenu(null);
+                }}
+              >
+                {take.id === c.id ? "✓ " : ""}Take {take.take}
+              </button>
+            ))}
           <button
             role="menuitem"
             disabled={

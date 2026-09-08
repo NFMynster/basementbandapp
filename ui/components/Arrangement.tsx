@@ -1,3 +1,5 @@
+import { LevelSlider } from "./LevelSlider";
+import { useAnimatedPlayhead } from "../hooks/useAnimatedPlayhead";
 import type React from "react";
 import { useState, useCallback, useLayoutEffect } from "react";
 import { ContextMenu } from "./ContextMenu";
@@ -70,6 +72,11 @@ export function Arrangement({
       sidebar.removeEventListener("scroll", fromSidebar);
     };
   }, []);
+  const playhead = useAnimatedPlayhead(s, pxPerSecond, controller.dragPosition);
+  const selectedClip = track?.clips.find((c) => c.id === controller.clipId);
+  const selectedTakes = selectedClip?.takeGroup
+    ? track!.clips.filter((c) => c.takeGroup === selectedClip.takeGroup)
+    : [];
   const atPointer = (e: React.MouseEvent<HTMLElement>) =>
     Math.max(
       0,
@@ -90,6 +97,29 @@ export function Arrangement({
           {s.tracks.length} tracks{controller.dirty ? " · Unsaved" : ""}
         </span>
         <div className="toolbar-right">
+          {selectedTakes.length > 1 && (
+            <select
+              className="selected-take"
+              aria-label="Selected region take"
+              value={selectedClip!.id}
+              disabled={s.recording}
+              onChange={(e) => {
+                controller.setClipId(e.target.value);
+                run({
+                  op: "editClip",
+                  track: track!.id,
+                  clip: e.target.value,
+                  action: "take",
+                });
+              }}
+            >
+              {selectedTakes.map((take) => (
+                <option key={take.id} value={take.id}>
+                  Take {take.take} of {selectedTakes.length}
+                </option>
+              ))}
+            </select>
+          )}
           <span className="snap-label">Snap: beat</span>
           <button
             title="Zoom out"
@@ -230,18 +260,13 @@ export function Arrangement({
                     </span>
                   </div>
                   <div className="track-volume">
-                    <input
-                      aria-label={`${t.name} volume`}
-                      type="range"
-                      min="0"
-                      max="1.5"
-                      step="0.01"
+                    <LevelSlider
+                      label={`${t.name} volume`}
                       value={t.gain}
-                      onChange={(e) => update(t, { gain: +e.target.value })}
+                      max={1.5}
+                      peak={t.peak}
+                      onChange={(gain) => update(t, { gain })}
                     />
-                    <div className="tiny-meter">
-                      <i style={{ width: `${Math.min(100, t.peak * 100)}%` }} />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -257,10 +282,6 @@ export function Arrangement({
               </button>
             </div>
           </aside>
-          <div className="track-list-bottom">
-            <Headphones size={16} />
-            <span>Made for playing together.</span>
-          </div>
         </div>
         <div className="timeline-scroll" ref={timelineScroll}>
           <div className="timeline" style={{ width, minHeight: "100%" }}>
@@ -389,6 +410,7 @@ export function Arrangement({
                 top: scrollY + 25,
                 left: (controller.dragPosition ?? s.position) * pxPerSecond,
               }}
+              ref={playhead}
               role="slider"
               aria-label="Playhead"
               aria-valuemin={0}

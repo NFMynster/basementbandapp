@@ -14,10 +14,11 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   String folder, title = "Friday night", deviceError;
   double rate = 48000, loopStart = 0, loopEnd = 8, tempo = 120;
   std::atomic<double> position{0};
-  int block = 1024;
+  int block = 256;
   std::atomic<bool> playing{false}, recording{false};
   bool looping = false;
   float masterGain = 1.0f;
+  std::atomic<float> masterPeak{0};
   bool metronome = false, countIn = false, cycleRecording = false;
   int64 countRemaining = 0, countTotal = 0;
   double recordingLoopStart = 0, recordingLoopEnd = 8;

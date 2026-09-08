@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Build configuration" />
+    <Filter Include="Engine" />
+    <Filter Include="Headers" />
+    <Filter Include="Test plug-ins" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="native\AudioCallback.cpp"><Filter>Engine</Filter></ClCompile>
+    <None Include="native\CMakeLists.txt"><Filter>Build configuration</Filter></None>
+    <ClCompile Include="native\Commands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\DeviceCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\Editing.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\Engine.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClInclude Include="native\Engine.h"><Filter>Headers</Filter></ClInclude>
+    <ClCompile Include="native\Export.cpp"><Filter>Engine</Filter></ClCompile>
+    <None Include="native\Info.plist"><Filter>Build configuration</Filter></None>
+    <ClInclude Include="native\Json.h"><Filter>Headers</Filter></ClInclude>
+    <ClCompile Include="native\Latency.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\Main.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\Midi.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClInclude Include="native\Model.h"><Filter>Headers</Filter></ClInclude>
+    <ClCompile Include="native\PluginHost.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClInclude Include="native\PluginWindow.h"><Filter>Headers</Filter></ClInclude>
+    <ClCompile Include="native\Recording.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\Rendering.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\SessionCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\TestGain.cpp"><Filter>Test plug-ins</Filter></ClCompile>
+    <ClCompile Include="native\TestInstrument.cpp"><Filter>Test plug-ins</Filter></ClCompile>
+  </ItemGroup>
+</Project>

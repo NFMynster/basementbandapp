@@ -76,7 +76,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
   for (auto &t : tracks)
     anySolo |= t->solo;
   for (auto &t : tracks) {
-    t->peak = 0;
+    t->peak = t->peak.load() * (float)std::exp(-n / (rate * 0.12));
     if (t->isMidi) {
       if (!testDevice) {
         t->liveMidi.clear();
@@ -101,7 +101,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     }
     if (!t->isMidi && t->input < ni && t->input >= 0 && inputs[t->input]) {
       auto range = FloatVectorOperations::findMinAndMax(inputs[t->input], n);
-      t->peak = jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
+      t->peak = jmax(t->peak.load(), jmax(std::abs(range.getStart()), std::abs(range.getEnd())));
       if (recording && t->writer) {
         const int skip = (int)jmin((int64)n, t->captureSkip);
         t->captureSkip -= skip;
@@ -133,9 +133,13 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     if (looping && !recording && position >= loopEnd && loopEnd > loopStart)
       position = loopStart + std::fmod(position - loopStart, loopEnd - loopStart);
   }
+  float outputPeak = masterPeak.load() * (float)std::exp(-n / (rate * 0.12));
   for (int ch = 0; ch < no; ++ch)
     if (outputs[ch])
-      for (int i = 0; i < n; ++i)
+      for (int i = 0; i < n; ++i) {
         outputs[ch][i] = jlimit(-1.0f, 1.0f, outputs[ch][i] * masterGain);
+        outputPeak = jmax(outputPeak, std::abs(outputs[ch][i]));
+      }
+  masterPeak = outputPeak;
 }
 } // namespace basement

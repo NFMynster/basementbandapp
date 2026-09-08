@@ -11,15 +11,88 @@
   <PropertyGroup>
     <NMakeBuildCommandLine>node &quot;$(ProjectDir)scripts/vs-build.mjs&quot; $(Configuration)</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>$(NMakeBuildCommandLine)</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>node &quot;$(ProjectDir)scripts/native.mjs&quot; --clean</NMakeCleanCommandLine>
-    <NMakeOutput>$(ProjectDir)artifacts\native\BasementAudio.exe</NMakeOutput>
-    <NMakeIncludeSearchPath>$(ProjectDir)native;$(ProjectDir)build\native\_deps\juce-src\modules</NMakeIncludeSearchPath>
+    <NMakeCleanCommandLine>node &quot;$(ProjectDir)scripts/vs-build.mjs&quot; $(Configuration) clean-desktop</NMakeCleanCommandLine>
+    <NMakeOutput>$(ProjectDir)dist\index.html</NMakeOutput>
     <LocalDebuggerCommand>$(ProjectDir)node_modules\electron\dist\electron.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>&quot;$(ProjectDir).&quot;</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <OutDir>$(ProjectDir)artifacts\vs\</OutDir><IntDir>$(ProjectDir)build\vs\</IntDir>
+    <OutDir>$(ProjectDir)artifacts\vs\desktop\$(Configuration)\</OutDir><IntDir>$(ProjectDir)build\vs\desktop\$(Configuration)\</IntDir>
   </PropertyGroup>
-  <ItemGroup><ClCompile Include="native\*.cpp" /><ClInclude Include="native\*.h" /><None Include="desktop\*.cjs" /><None Include="docs\*.md" /></ItemGroup>
+  <ItemGroup>
+    <None Include="desktop\assets\icon.svg" />
+    <None Include="desktop\backend.cjs" />
+    <None Include="desktop\entitlements.mac.plist" />
+    <None Include="desktop\ipc.cjs" />
+    <None Include="desktop\logging.cjs" />
+    <None Include="desktop\main.cjs" />
+    <None Include="desktop\native-client.cjs" />
+    <None Include="desktop\permissions.cjs" />
+    <None Include="desktop\preload.cjs" />
+    <None Include="desktop\session-service.cjs" />
+    <None Include="desktop\smoke.cjs" />
+    <None Include="desktop\splash.html" />
+    <None Include="desktop\startup.cjs" />
+    <None Include="docs\ARCHITECTURE.md" />
+    <None Include="docs\BUILD.md" />
+    <None Include="docs\LICENSING.md" />
+    <None Include="docs\RUNTIME.md" />
+    <None Include="index.html" />
+    <None Include="package.json" />
+    <None Include="README.md" />
+    <None Include="scripts\build-tools.mjs" />
+    <None Include="scripts\check-plugin.mjs" />
+    <None Include="scripts\dev.mjs" />
+    <None Include="scripts\icons.cjs" />
+    <None Include="scripts\licenses.mjs" />
+    <None Include="scripts\native.mjs" />
+    <None Include="scripts\package.mjs" />
+    <None Include="scripts\screenshot-preload.cjs" />
+    <None Include="scripts\screenshot.cjs" />
+    <None Include="scripts\smoke.mjs" />
+    <None Include="scripts\vite-server.mjs" />
+    <None Include="scripts\vs-build.mjs" />
+    <None Include="tsconfig.json" />
+    <None Include="ui\App.tsx" />
+    <None Include="ui\components\Arrangement.tsx" />
+    <None Include="ui\components\AudioSetupDialog.tsx" />
+    <None Include="ui\components\ClipRegion.tsx" />
+    <None Include="ui\components\ContextMenu.tsx" />
+    <None Include="ui\components\CreateTrackDialog.tsx" />
+    <None Include="ui\components\ExportDialog.tsx" />
+    <None Include="ui\components\HelpDialog.tsx" />
+    <None Include="ui\components\LevelSlider.tsx" />
+    <None Include="ui\components\MidiNotes.tsx" />
+    <None Include="ui\components\MidiRouting.tsx" />
+    <None Include="ui\components\Modal.tsx" />
+    <None Include="ui\components\Notices.tsx" />
+    <None Include="ui\components\SessionName.tsx" />
+    <None Include="ui\components\ShortcutSettings.tsx" />
+    <None Include="ui\components\StatusBar.tsx" />
+    <None Include="ui\components\TitleBar.tsx" />
+    <None Include="ui\components\TrackAppearance.tsx" />
+    <None Include="ui\components\TrackIcon.tsx" />
+    <None Include="ui\components\TrackInspector.tsx" />
+    <None Include="ui\components\TrackMenu.tsx" />
+    <None Include="ui\components\Transport.tsx" />
+    <None Include="ui\components\Waveform.tsx" />
+    <None Include="ui\components\WelcomeDialog.tsx" />
+    <None Include="ui\hooks\useAnimatedPlayhead.ts" />
+    <None Include="ui\hooks\useShortcuts.ts" />
+    <None Include="ui\hooks\useWorkspace.ts" />
+    <None Include="ui\interactions.css" />
+    <None Include="ui\main.tsx" />
+    <None Include="ui\models.ts" />
+    <None Include="ui\services\desktop.ts" />
+    <None Include="ui\services\errors.ts" />
+    <None Include="ui\startup.css" />
+    <None Include="ui\style.css" />
+    <None Include="vite.config.ts" />
+    <ProjectReference Include="BasementBand.Audio.vcxproj">
+      <Project>{E629AC24-957D-4DAC-A9CE-B1F26F8F97A2}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -30,13 +30,30 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
   };
   try {
     let s = await send({ op: "init", folder });
-    assert.equal(s.bufferSize, 1024);
+    assert.equal(s.bufferSize, 256);
+    assert.equal(
+      s.masterGain,
+      1,
+      "Default output leaves room below the 2x maximum",
+    );
+    await send({ op: "play" });
+    for (const position of [4, 0, 8, 1]) {
+      s = await send({ op: "seek", position });
+      assert.equal(s.playing, true);
+      assert.equal(s.position, position);
+      assert.equal(s.diskOverrun, false);
+    }
+    await send({ op: "stop" });
+    await send({ op: "seek", position: 0 });
     const audio = s.tracks[0].id;
     assert.equal(s.tracks[0].monitor, false);
     await send({ op: "track", track: audio, gain: 1 });
     await output(0);
     await send({ op: "track", track: audio, monitor: true });
     await output(0.4);
+    await send({ op: "master", value: 2 });
+    await output(0.8);
+    await output(1, 0.8); // Boosted output remains safely clamped.
     await send({ op: "master", value: 0.5 });
     await output(0.2);
     await send({ op: "track", track: audio, mute: true });

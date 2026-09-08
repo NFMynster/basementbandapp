@@ -33,7 +33,7 @@ Build on the target OS. Files go to `release/`. Signing/notarization needs your 
 
 ## First recording
 
-1. In **Input settings**, choose your audio interface/output and each track's input channel. Click **Done**.
+1. In **Input settings**, choose your audio interface/output and each track's input channel. Use **Live playing** for responsive pads/monitoring, or **Stable mixing** for heavy plug-ins. Click **Done**.
 2. Use **+** to choose Audio or MIDI. A MIDI track needs a VST3 instrument for sound; external MIDI hardware is optional for plug-in preview.
 3. The headphone button enables live monitoring. Use headphones to avoid feedback; leave it off when using your interface's direct monitoring. **R** marks tracks for simultaneous recording.
 4. Drag the ruler's top half to loop; bottom half to seek. Loop recording keeps selectable takes. **123** enables count-in.

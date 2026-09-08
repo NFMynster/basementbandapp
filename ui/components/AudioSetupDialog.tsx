@@ -226,6 +226,45 @@ export function AudioSetupDialog({
                         </select>
                       </label>
                     </div>
+                    <div className="buffer-presets">
+                      <button
+                        disabled={s.playing || applying}
+                        onClick={() =>
+                          editDevices({
+                            ...devices,
+                            bufferSize: (devices.buffers.length
+                              ? devices.buffers
+                              : [256, 1024]
+                            ).reduce((a, b) =>
+                              Math.abs(b - 256) < Math.abs(a - 256) ? b : a,
+                            ),
+                          })
+                        }
+                      >
+                        Live playing
+                      </button>
+                      <button
+                        disabled={s.playing || applying}
+                        onClick={() =>
+                          editDevices({
+                            ...devices,
+                            bufferSize: (devices.buffers.length
+                              ? devices.buffers
+                              : [256, 1024]
+                            ).reduce((a, b) =>
+                              Math.abs(b - 1024) < Math.abs(a - 1024) ? b : a,
+                            ),
+                          })
+                        }
+                      >
+                        Stable mixing
+                      </button>
+                    </div>
+                    <p className="subtle">
+                      Live playing favors fast response; Stable mixing gives
+                      heavy plug-ins more time. Apply or Done confirms the
+                      change. Driver and plug-in latency still apply.
+                    </p>
                     <button
                       className="apply-device"
                       disabled={s.playing || applying}

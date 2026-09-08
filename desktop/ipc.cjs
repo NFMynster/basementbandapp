@@ -1,4 +1,4 @@
-const { ipcMain, dialog } = require("electron");
+const { ipcMain, dialog, app } = require("electron");
 const { microphoneAccess } = require("./permissions.cjs");
 function registerIpc(win, request) {
   ipcMain.handle("command", async (event, cmd) => {
@@ -112,10 +112,7 @@ function registerIpc(win, request) {
     if (event.sender !== win.webContents) throw new Error("Unknown window");
     const r = await dialog.showOpenDialog(win, {
       title: bundle ? "Choose a VST3 bundle folder" : "Choose a VST3 plugin",
-      defaultPath:
-        process.platform === "win32"
-          ? "C:\\Program Files\\Common Files\\VST3"
-          : undefined,
+      defaultPath: app.getPath("home"),
       filters: [{ name: "VST3 plugin", extensions: ["vst3"] }],
       properties: [bundle ? "openDirectory" : "openFile"],
     });

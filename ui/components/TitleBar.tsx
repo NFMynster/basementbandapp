@@ -1,6 +1,7 @@
 import { AudioLines, FolderOpen, Plus, Save, Download } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
+import { keyLabel } from "../hooks/useShortcuts";
 export function TitleBar({ controller }: { controller: WorkspaceController }) {
   const { s, run, busy, dirty, setDirty, setClipId, setSelected, task } =
     controller;
@@ -54,7 +55,8 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
             onClick={() => task(() => api.save(), true)}
           >
             <Save size={16} />
-            Save
+            Save{" "}
+            <span className="key">{keyLabel(controller.bindings.save)}</span>
           </button>
           <button
             disabled={busy || s.playing || !controller.hasClips}

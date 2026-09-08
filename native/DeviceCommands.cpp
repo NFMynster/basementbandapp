@@ -46,7 +46,7 @@ var Engine::configureDevice(const var &c) {
   setup.inputDeviceName = str(c, "input");
   setup.outputDeviceName = str(c, "output");
   setup.sampleRate = number(c, "sampleRate", 48000);
-  setup.bufferSize = (int)number(c, "bufferSize", 1024);
+  setup.bufferSize = (int)number(c, "bufferSize", 256);
   setup.useDefaultInputChannels = false;
   setup.inputChannels.clear();
   setup.inputChannels.setRange(0, 128, true);

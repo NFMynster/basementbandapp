@@ -10,9 +10,17 @@ test("file dialogs validate the sender and forward chosen paths, including VST3 
   let canceled = false,
     dialogs = 0;
   const electron = {
+    app: {
+      getPath: (name) => {
+        assert.equal(name, "home");
+        return "user-home";
+      },
+    },
     ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
     dialog: {
-      showOpenDialog: async () => {
+      showOpenDialog: async (_win, options) => {
+        if (options.title?.includes("VST3"))
+          assert.equal(options.defaultPath, "user-home");
         dialogs++;
         return { canceled, filePaths: ["chosen-path"] };
       },

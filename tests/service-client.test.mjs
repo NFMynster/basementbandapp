@@ -33,6 +33,23 @@ test("desktop service serializes native replies", async () => {
     await close();
   }
 });
+test("closing drains the active reply and rejects queued requests without writing after EOF", async () => {
+  const { client, close } = start(1000);
+  try {
+    const first = client.request({ value: "active", delay: 100 });
+    const queued = client.request({ value: "queued" });
+    const settled = Promise.allSettled([first, queued]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    client.close();
+    const results = await settled;
+    assert.equal(results[0].status, "fulfilled");
+    assert.equal(results[0].value, "active");
+    assert.equal(results[1].status, "rejected");
+    await assert.rejects(client.request({ value: "after close" }), /closing/);
+  } finally {
+    await close();
+  }
+});
 for (const op of ["exit", "invalid", "hang"])
   test(`desktop service rejects pending and future requests after ${op}`, async () => {
     const { client, close } = start(100);

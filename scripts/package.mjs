@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { buildDesktop, run, runTool } from "./build-tools.mjs";
 const platform =
   process.argv[2] || (process.platform === "win32" ? "win" : "mac");
 if (!["win", "mac"].includes(platform)) throw new Error("Choose win or mac");
@@ -10,22 +10,14 @@ const env = {
   ...process.env,
   BASEMENT_ARCH: platform === "mac" ? "arm64" : "x64",
 };
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-for (const args of [
-  ["run", "build:all"],
+run(process.execPath, ["scripts/native.mjs"], env);
+buildDesktop(env);
+runTool(
+  "electron-builder",
   [
-    "exec",
-    "electron-builder",
-    "--",
     platform === "win" ? "--win" : "--mac",
     platform === "win" ? "nsis" : "dmg",
     platform === "win" ? "--x64" : "--arm64",
   ],
-]) {
-  const result = spawnSync(npm, args, {
-    stdio: "inherit",
-    shell: process.platform === "win32",
-    env,
-  });
-  if (result.status !== 0) process.exit(result.status || 1);
-}
+  env,
+);

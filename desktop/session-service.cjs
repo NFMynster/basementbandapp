@@ -42,7 +42,7 @@ function validate(session) {
       );
   text(session.title, 100);
   number(session.tempo, 40, 240);
-  if (session.masterGain !== undefined) number(session.masterGain, 0, 1);
+  if (session.masterGain !== undefined) number(session.masterGain, 0, 2);
   number(session.loopStart, 0, Number.MAX_VALUE);
   number(session.loopEnd, session.loopStart, Number.MAX_VALUE);
   assertValid(

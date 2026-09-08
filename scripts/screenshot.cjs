@@ -33,6 +33,26 @@ app
       "artifacts/screenshots/workspace.png",
       (await win.webContents.capturePage()).toPNG(),
     );
+    await win.webContents.executeJavaScript(
+      `document.querySelector('[aria-label="Track appearance"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 80));
+    const meterStyle = await win.webContents.insertCSS(
+      ".level-slider { --signal: 62% !important; }",
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    console.log(
+      await win.webContents.executeJavaScript(
+        `(() => { const e = document.querySelector('.level-slider-trough i'); const s = getComputedStyle(e); return { level: getComputedStyle(e.parentElement.parentElement).getPropertyValue('--signal'), width: s.width, height: s.height, background: s.backgroundImage }; })()`,
+      ),
+    );
+    writeFileSync(
+      "artifacts/screenshots/appearance.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    await win.webContents.removeInsertedCSS(meterStyle);
+    win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+    await new Promise((r) => setTimeout(r, 50));
     const result = await win.webContents.executeJavaScript(
       `({title:document.title,tracks:document.querySelectorAll('.track-header').length,clips:document.querySelectorAll('.clip').length,overflow:document.documentElement.scrollWidth>window.innerWidth})`,
     );

@@ -1,3 +1,4 @@
+import { LevelSlider } from "./LevelSlider";
 import {
   HelpCircle,
   Timer,
@@ -34,21 +35,25 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           </button>
           <button
             className="icon-button"
-            title="Stop"
+            title={
+              s.playing
+                ? `Stop · ${keyLabel(controller.bindings.play)}`
+                : "Stop"
+            }
             onClick={() => run({ op: "stop" }, s.recording)}
           >
             <Square size={18} fill="currentColor" />
           </button>
           <button
             className={"play-button " + (s.playing ? "active" : "")}
-            title={`Play / stop · ${keyLabel(controller.bindings.play)}`}
+            title={`${s.playing ? "Stop" : "Play"} · ${keyLabel(controller.bindings.play)}`}
             onClick={() => run({ op: s.playing ? "stop" : "play" }, false)}
           >
             <Play size={21} fill="currentColor" />
           </button>
           <button
             className={"record-button " + (s.recording ? "recording" : "")}
-            title={`Record marked tracks · ${keyLabel(controller.bindings.record)}`}
+            title={`${s.recording ? "Stop recording" : "Record marked tracks"} · ${keyLabel(controller.bindings.record)}`}
             disabled={busy}
             onClick={() => run({ op: s.recording ? "stop" : "record" })}
           >
@@ -121,24 +126,16 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           </button>
           <span className="divider" />
           <Volume2 size={18} />
-          <input
-            className="master-volume"
-            aria-label="Output volume"
-            title="Output volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
+          <LevelSlider
+            label="Output volume"
+            max={2}
             value={s.masterGain ?? 1}
-            onChange={(e) => run({ op: "master", value: +e.target.value })}
+            peak={
+              s.masterPeak ??
+              Math.max(...s.tracks.map((t) => t.peak), 0) * (s.masterGain ?? 1)
+            }
+            onChange={(value) => run({ op: "master", value })}
           />
-          <div className="master-meter">
-            <i
-              style={{
-                width: `${Math.min(100, Math.max(...s.tracks.map((t) => t.peak), 0) * (s.masterGain ?? 1) * 100)}%`,
-              }}
-            />
-          </div>
           <button
             className="icon-button"
             title="Quick guide"

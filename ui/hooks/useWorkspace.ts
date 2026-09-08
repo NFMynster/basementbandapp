@@ -23,7 +23,7 @@ const empty: Session = {
   loopEnd: 8,
   tempo: 120,
   sampleRate: 48000,
-  bufferSize: 1024,
+  bufferSize: 256,
   device: "Connecting to audio engine…",
   deviceError: "",
   diskOverrun: false,
@@ -155,7 +155,7 @@ export function useWorkspace() {
       }
     };
     tick();
-    const timer = setInterval(tick, 120);
+    const timer = setInterval(tick, 50);
     return () => {
       alive = false;
       clearInterval(timer);
@@ -245,8 +245,10 @@ export function useWorkspace() {
   }
   const update = (t: Track, c: TrackPatch) =>
     run({ op: "track", track: t.id, ...c });
-  async function openSetup() {
-    setSettingsTab(track?.kind === "midi" ? "midi" : "audio");
+  async function openSetup(tab?: "audio" | "midi" | React.MouseEvent) {
+    setSettingsTab(
+      typeof tab === "string" ? tab : track?.kind === "midi" ? "midi" : "audio",
+    );
     setSetup(true);
     setDevices(null);
     setDeviceLoading(true);

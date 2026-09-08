@@ -37,7 +37,7 @@ Count-in is three beats (3, 2, 1) at the current tempo. JUCE generates its click
 - Live MIDI cannot be read ahead: the instrument, output buffer and device still add delay. For externally processed guitar/bass, use the interface’s direct monitoring.
 - These corrections depend on truthful driver/plugin reports, not hardware loopback calibration. Extra external hardware delays still require measurement. Compensation is not a promise of zero latency.
 
-The default requested device buffer is 1,024 samples (the driver may choose its nearest supported size). This favors stability over minimum live latency. Region UI previews are cached so polling does not rebuild waveforms/notes under the audio lock. The native callback still has control-lock contention risks; a larger buffer cannot fix every overloaded plug-in.
+The default requested device buffer is 256 samples for live playing (the driver may choose another supported size). Settings offers Live playing (nearest to 256) and Stable mixing (nearest to 1,024); Apply/Done confirms the selection. At 48 kHz these represent 5.3 ms and 21.3 ms per buffer, not total round-trip latency. Lower buffers can increase dropouts with heavy plug-ins. Region UI previews are cached so polling does not rebuild waveforms/notes under the audio lock. Meters refresh every 50 ms with native peak decay to retain short hits; playhead animation extrapolates between engine updates and freezes if updates stall. These display changes do not reduce hardware latency. The native callback still has control-lock contention risks; a larger buffer cannot fix every overloaded plug-in.
 
 Monitoring and recording selection are independent. Audio monitoring defaults off to avoid speaker feedback or doubling hardware direct monitoring; new MIDI tracks default on. Monitoring feeds live input through the track plug-in, volume and pan. Mute/solo also affect monitoring. Arrangement playback remains audible with monitoring off. Master output volume scales playback, monitored input and clicks, not captured source files or exports.
 
@@ -48,3 +48,11 @@ No external MIDI device is required to load/audition a plug-in using its editor.
 The default picker accepts VST3 files; “Choose a bundle folder” and drag-and-drop also handle directory bundles. Use plugins matching the native engine architecture. The provided Windows MT-PowerDrumKit 2.1.5.1 64-bit VST3 was successfully loaded by the JUCE test host; the old folder-only picker was inappropriate for that single-file plugin.
 
 Only one stereo-compatible instrument/effect per track is supported. Plugins run inside the audio process, not a crash-isolated sandbox. A faulty plugin can stop that process; completed recordings remain on disk.
+
+## Control defaults and diagnostics
+
+On Windows, startup explicitly requests the system's default multimedia input and output through JUCE's Windows Audio driver. Manual selections still apply for the current run; devices are not switched underneath an active recording. The VST3 picker starts in the user's home folder.
+
+Master volume defaults to unity at the slider midpoint, with up to 2× gain above it. Final output is clamped to prevent out-of-range samples, not transparently limited: excessive boost can distort. Short loop regions also expose their takes in the arrangement toolbar when selected and in their context menu, independent of zoom.
+
+Status JSON is built outside the audio lock, except for a short timing snapshot and plug-in state capture when saving. Seeking intentionally suspends transport while processors are reset/primed and then resumes; this reset is not reported as a recording dropout. Unexpected callback lock failures during transport and recording-writer/MIDI overflow still raise warnings. This reduces known contention but does not guarantee dropout-free performance with every driver or plug-in.

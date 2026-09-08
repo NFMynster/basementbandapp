@@ -6,7 +6,7 @@ var Engine::command(const var &c) {
   auto op = str(c, "op");
   if (op == "master") {
     const ScopedLock lock(guard);
-    masterGain = (float)jlimit(0.0, 1.0, number(c, "value", 1));
+    masterGain = (float)jlimit(0.0, 2.0, number(c, "value", 1));
     return state();
   }
   if (op == "testLatency" && testDevice) {
@@ -30,8 +30,21 @@ var Engine::command(const var &c) {
     for (int ch = 0; ch < 2; ++ch)
       for (int i = 0; i < n; ++i)
         in.setSample(ch, i, (float)number(c, ch == 0 ? "left" : "right"));
-    audioDeviceIOCallbackWithContext(in.getArrayOfReadPointers(), 2, out.getArrayOfWritePointers(),
-                                     2, n, {});
+    // A test pump may span many hardware blocks. Respect the maximum block
+    // promised to VST3 instances, including MIDI event offsets across blocks.
+    std::vector<MidiBuffer> queued;
+    for (auto &t : tracks)
+      queued.push_back(t->liveMidi);
+    for (int offset = 0; offset < n; offset += block) {
+      const int count = jmin(block, n - offset);
+      for (size_t index = 0; index < tracks.size(); ++index) {
+        tracks[index]->liveMidi.clear();
+        tracks[index]->liveMidi.addEvents(queued[index], offset, count, -offset);
+      }
+      const float *input[] = {in.getReadPointer(0, offset), in.getReadPointer(1, offset)};
+      float *output[] = {out.getWritePointer(0, offset), out.getWritePointer(1, offset)};
+      audioDeviceIOCallbackWithContext(input, 2, output, 2, count, {});
+    }
     Array<var> left, right;
     for (int i = 0; i < n; ++i) {
       left.add(out.getSample(0, i));
@@ -40,10 +53,11 @@ var Engine::command(const var &c) {
     return object({{"left", left}, {"right", right}, {"state", state()}});
   }
   if (op == "state") {
-    const ScopedLock lock(guard);
     for (auto &t : tracks)
-      if (t->latency != (t->plugin && !t->bypass ? jmax(0, t->plugin->getLatencySamples()) : 0))
+      if (t->latency != (t->plugin && !t->bypass ? jmax(0, t->plugin->getLatencySamples()) : 0)) {
+        const ScopedLock lock(guard);
         prepareTrack(*t, position, looping);
+      }
     return state();
   }
   if (op == "editClip") {
@@ -90,9 +104,13 @@ var Engine::command(const var &c) {
     beginRecording();
   } else if (op == "seek") {
     require(!recording, "Cannot move the playhead while recording");
+    // Seeking deliberately restarts playback. Do not classify the silence while
+    // resetting/priming processors as a lost recording block.
+    const bool resume = playing.exchange(false);
     const ScopedLock l(guard);
     position = jmax(0.0, number(c, "position"));
     preparePlayback(position, looping);
+    playing = resume;
   } else if (op == "loop") {
     require(!recording, "Stop recording before changing the loop");
     const ScopedLock l(guard);

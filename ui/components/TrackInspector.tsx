@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
-import { TrackIcon, trackIcons } from "./TrackIcon";
+import { TrackAppearance } from "./TrackAppearance";
 export function TrackInspector({
   controller,
 }: {
@@ -79,11 +79,14 @@ export function TrackInspector({
               <>
                 <div className="input-block">
                   <label>TRACK NAME</label>
-                  <input
-                    aria-label="Track name"
-                    value={track.name}
-                    onChange={(e) => update(track, { name: e.target.value })}
-                  />
+                  <div className="track-identity">
+                    <TrackAppearance track={track} update={update} />
+                    <input
+                      aria-label="Track name"
+                      value={track.name}
+                      onChange={(e) => update(track, { name: e.target.value })}
+                    />
+                  </div>
                   <div className="track-file-actions">
                     <button
                       className="text-button"
@@ -104,35 +107,6 @@ export function TrackInspector({
                       <Trash2 size={12} />
                       Remove
                     </button>
-                  </div>
-                  <div className="icon-choices">
-                    <input
-                      type="color"
-                      aria-label="Track color"
-                      value={track.color}
-                      onChange={(e) => update(track, { color: e.target.value })}
-                    />
-                    <TrackIcon
-                      icon={
-                        track.icon ||
-                        (track.kind === "midi" ? "keys" : "guitar")
-                      }
-                      size={18}
-                    />
-                    <select
-                      aria-label="Track icon"
-                      value={
-                        track.icon ||
-                        (track.kind === "midi" ? "keys" : "guitar")
-                      }
-                      onChange={(e) => update(track, { icon: e.target.value })}
-                    >
-                      {Object.keys(trackIcons).map((icon) => (
-                        <option key={icon} value={icon}>
-                          {icon.charAt(0).toUpperCase() + icon.slice(1)}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
                 <div className="input-block">

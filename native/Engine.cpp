@@ -35,7 +35,20 @@ void Engine::initializeAudio(bool inputAllowed) {
     return;
   std::cerr << "Opening audio device (inputs " << (inputAllowed ? 2 : 0) << ")" << std::endl;
   AudioDeviceManager::AudioDeviceSetup preferred;
-  preferred.bufferSize = 1024;
+  preferred.bufferSize = 256;
+  // Pin the OS defaults explicitly. Otherwise JUCE may substitute another
+  // input/output pair while searching for a shared sample rate.
+#if JUCE_WINDOWS
+  for (auto *type : devices.getAvailableDeviceTypes())
+    if (type->getTypeName() == "Windows Audio") {
+      type->scanForDevices();
+      preferred.outputDeviceName = type->getDeviceNames(false)[type->getDefaultDeviceIndex(false)];
+      if (inputAllowed)
+        preferred.inputDeviceName = type->getDeviceNames(true)[type->getDefaultDeviceIndex(true)];
+      devices.setCurrentAudioDeviceType(type->getTypeName(), false);
+      break;
+    }
+#endif
   deviceError = devices.initialise(inputAllowed ? 2 : 0, 2, nullptr, true, {}, &preferred);
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
@@ -52,7 +65,18 @@ Engine::~Engine() {
 }
 
 var Engine::state(bool full) {
-  const ScopedLock lock(guard);
+  // Session metadata and region JSON belong to the message thread. Do not
+  // block the audio callback while allocating/serializing the UI snapshot.
+  double snapshotRate;
+  int snapshotBlock, snapshotInputLatency, snapshotOutputLatency, countdown;
+  {
+    const ScopedLock lock(guard);
+    snapshotRate = rate;
+    snapshotBlock = block;
+    snapshotInputLatency = inputLatency;
+    snapshotOutputLatency = outputLatency;
+    countdown = countRemaining > 0 ? (int)std::ceil(countRemaining / (rate * 60 / tempo)) : 0;
+  }
   Array<var> list;
   for (auto &t : tracks) {
     Array<var> clips;
@@ -81,6 +105,7 @@ var Engine::state(bool full) {
     if (full) {
       v.getDynamicObject()->setProperty("pluginPath", t->pluginPath);
       if (t->plugin) {
+        const ScopedLock lock(guard);
         MemoryBlock b;
         t->plugin->getStateInformation(b);
         v.getDynamicObject()->setProperty("pluginState", b.toBase64Encoding());
@@ -104,13 +129,14 @@ var Engine::state(bool full) {
        {"loopEnd", loopEnd},
        {"tempo", tempo},
        {"masterGain", masterGain},
+       {"masterPeak", masterPeak.load()},
        {"metronome", metronome},
        {"countIn", countIn},
-       {"countdown", countRemaining > 0 ? (int)std::ceil(countRemaining / (rate * 60 / tempo)) : 0},
-       {"sampleRate", rate},
-       {"bufferSize", block},
-       {"inputLatencySamples", inputLatency},
-       {"outputLatencySamples", outputLatency},
+       {"countdown", countdown},
+       {"sampleRate", snapshotRate},
+       {"bufferSize", snapshotBlock},
+       {"inputLatencySamples", snapshotInputLatency},
+       {"outputLatencySamples", snapshotOutputLatency},
        {"device", d ? d->getName() : "No audio device"},
        {"deviceError", deviceError},
        {"diskOverrun", diskOverrun.load()}});

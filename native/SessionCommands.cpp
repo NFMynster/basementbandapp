@@ -16,6 +16,7 @@ void Engine::resetSession(const var &c) {
   loopStart = 0;
   loopEnd = 8;
   tempo = 120;
+  masterGain = 1.0f;
   add("Guitar", "#58a9e8", 0);
   add("Bass", "#c093eb", 1);
 }
@@ -84,7 +85,7 @@ void Engine::restoreSession(const var &c) {
   title = str(session, "title");
   position = 0;
   tempo = number(session, "tempo", 120);
-  masterGain = (float)jlimit(0.0, 1.0, number(session, "masterGain", 1));
+  masterGain = (float)jlimit(0.0, 2.0, number(session, "masterGain", 1));
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd", 8);
   looping = flag(session, "looping");

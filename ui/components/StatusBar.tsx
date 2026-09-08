@@ -2,7 +2,10 @@ import { ChevronDown } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
 export function StatusBar({ controller }: { controller: WorkspaceController }) {
-  const { s, openSetup, armed } = controller;
+  const { s, armed } = controller;
+  const openSetup = () => {
+    void controller.openSetup("audio");
+  };
   return (
     <>
       <footer>
@@ -11,11 +14,11 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           {s.device}
           <ChevronDown size={12} />
         </button>
-        <span>
+        <button aria-label="Audio timing settings" onClick={openSetup}>
           {(s.sampleRate / 1000).toFixed(1)} kHz
           <span className="footer-sep">/</span>
           {s.bufferSize} samples
-        </span>
+        </button>
         <div className="footer-right">
           {s.recording ? (
             <>
@@ -30,9 +33,9 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
             "Mark a track to get started"
           )}
           <span className="key">{keyLabel(controller.bindings.record)}</span>
-          record
+          record / stop
           <span className="key">{keyLabel(controller.bindings.play)}</span>
-          play
+          play / stop
           <span className="key">{keyLabel(controller.bindings.start)}</span>
           start
         </div>
