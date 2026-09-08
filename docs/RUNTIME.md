@@ -22,7 +22,7 @@ MIDI endpoints are per track and independent of the single audio interface. Enab
 
 MIDI capture supports channel messages up to three bytes, including notes/controllers/pitch bend. SysEx, MIDI clock sync, external MIDI output, piano-roll editing, quantization and tempo-relative region timing are not implemented. Capture is limited to 262,144 events and 20-minute source regions. Overflow raises a dropout warning.
 
-On Stop, MIDI becomes a standard .mid asset with millisecond SMPTE timing. A note held at the end is closed. Until then, unfinished MIDI capture has no crash recovery.
+During capture, the arrangement shows live audio peaks and MIDI notes from the in-memory take. On Stop, MIDI becomes a standard .mid asset with millisecond SMPTE timing. A note held at the end is closed. Until then, unfinished MIDI capture has no crash recovery.
 
 Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping.
 

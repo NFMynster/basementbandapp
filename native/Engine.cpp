@@ -3,6 +3,47 @@
 #include <iostream>
 
 namespace basement {
+var recordingPreview(const Track &track, double now) {
+  if (!track.writer && !track.midiRecording)
+    return {};
+  const auto duration = jmax(0.001, now - track.recordStart - track.captureOffset);
+  auto preview = object({{"kind", track.midiRecording ? "midi" : "audio"},
+                         {"start", track.recordStart},
+                         {"duration", duration}});
+  if (track.writer) {
+    Array<var> peaks;
+    const auto count = track.recordingPeakCount.load(std::memory_order_acquire);
+    const auto points = jmin(400, count);
+    for (int i = 0; i < points; ++i) {
+      const auto first = i * count / points;
+      const auto last = jmax(first + 1, (i + 1) * count / points);
+      float peak = 0;
+      for (int j = first; j < last; ++j)
+        peak = jmax(peak, track.recordingPeaks[(size_t)j]);
+      peaks.add(peak);
+    }
+    preview.getDynamicObject()->setProperty("peaks", peaks);
+  } else {
+    Array<var> notes;
+    const auto count = track.recordingPreviewNoteCount.load(std::memory_order_acquire);
+    for (int i = 0; i < jmin((int)track.recordingPreviewNotes.size(), count); ++i) {
+      const auto &note = track.recordingPreviewNotes[(size_t)i];
+      notes.add(object({{"start", note.start}, {"duration", note.duration}, {"note", note.note}}));
+    }
+    for (int channel = 0; channel < 16; ++channel)
+      for (int note = 0; note < 128; ++note) {
+        const auto start =
+            track.recordingNoteStarts[(size_t)(channel * 128 + note)].load(std::memory_order_acquire);
+        if (start >= 0 && start < duration)
+          notes.add(object({{"start", start},
+                            {"duration", duration - start},
+                            {"note", note}}));
+      }
+    preview.getDynamicObject()->setProperty("notes", notes);
+  }
+  return preview;
+}
+
 Track &Engine::track(const var &c) {
   for (auto &t : tracks)
     if (t->id == str(c, "track"))
@@ -108,6 +149,9 @@ var Engine::state(bool full, bool pluginState) {
                      {"clips", clips},
                      {"pluginName", t->pluginName},
                      {"bypass", t->bypass}});
+    const auto preview = recordingPreview(*t, position.load());
+    if (!preview.isVoid())
+      v.getDynamicObject()->setProperty("recordingPreview", preview);
     if (full) {
       v.getDynamicObject()->setProperty("pluginPath", t->pluginPath);
       if (t->plugin && pluginState) {

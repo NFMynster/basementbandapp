@@ -113,6 +113,10 @@ void Engine::beginRecording() {
     for (auto &t : tracks)
       if (t->armed) {
         t->recordStart = position;
+        t->recordingPeakCount.store(0, std::memory_order_relaxed);
+        t->recordingPreviewNoteCount.store(0, std::memory_order_relaxed);
+        for (auto &start : t->recordingNoteStarts)
+          start.store(-1.0, std::memory_order_relaxed);
         t->captureOffset = (t->isMidi ? outputLatency : inputLatency + outputLatency) / rate;
         t->captureSkip = t->isMidi ? 0 : inputLatency + outputLatency;
         if (t->isMidi) {
@@ -121,6 +125,9 @@ void Engine::beginRecording() {
           t->midiRecording = true;
           continue;
         }
+        const auto previewCapacity =
+            static_cast<size_t>(std::ceil(20.0 * 60.0 * rate / jmax(1, block))) + 1;
+        t->recordingPeaks.assign(previewCapacity, 0.0f);
         t->recordingPath = File(folder).getChildFile(Uuid().toString() + ".wav").getFullPathName();
         auto output = File(t->recordingPath).createOutputStream();
         require(output != nullptr, "Cannot create recording file");
@@ -135,6 +142,8 @@ void Engine::beginRecording() {
     for (auto &t : tracks) {
       t->writer.reset();
       t->midiRecording = false;
+      t->recordingPeakCount.store(0, std::memory_order_relaxed);
+      t->recordingPreviewNoteCount.store(0, std::memory_order_relaxed);
     }
     throw;
   }

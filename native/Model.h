@@ -1,5 +1,6 @@
 #pragma once
 #include "Json.h"
+#include <array>
 #include <atomic>
 #include <vector>
 
@@ -84,7 +85,17 @@ struct Track {
     uint8 data[3];
     int size;
   };
+  struct RecordingPreviewNote {
+    double start;
+    double duration;
+    int note;
+  };
   std::vector<RecordedEvent> midiTake;
+  std::vector<float> recordingPeaks;
+  std::atomic<int> recordingPeakCount{0};
+  std::array<RecordingPreviewNote, 2048> recordingPreviewNotes{};
+  std::atomic<int> recordingPreviewNoteCount{0};
+  std::array<std::atomic<double>, 16 * 128> recordingNoteStarts{};
   bool midiRecording = false, panic = true;
   int latency = 0;
   int64 captureSkip = 0;

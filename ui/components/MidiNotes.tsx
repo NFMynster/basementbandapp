@@ -1,5 +1,7 @@
 import type { Clip } from "../models";
-export function MidiNotes({ clip }: { clip: Clip }) {
+type MidiNoteSource = Pick<Clip, "duration" | "notes">;
+
+export function MidiNotes({ clip }: { clip: MidiNoteSource }) {
   const notes = (clip.notes ?? []).slice(0, 2048);
   if (!notes.length || clip.duration <= 0) return null;
   const low = Math.min(36, ...notes.map((n) => n.note)),

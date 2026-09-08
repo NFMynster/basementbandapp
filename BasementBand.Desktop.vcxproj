@@ -68,6 +68,7 @@
     <None Include="ui\components\Modal.tsx" />
     <None Include="ui\components\Notices.tsx" />
     <None Include="ui\components\SessionName.tsx" />
+    <None Include="ui\components\RecordingPreview.tsx" />
     <None Include="ui\components\SettingsDialog.tsx" />
     <None Include="ui\components\SettingsTabs.tsx" />
     <None Include="ui\components\ShortcutSettings.tsx" />

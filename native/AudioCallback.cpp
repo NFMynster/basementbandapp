@@ -2,6 +2,14 @@
 #include <cmath>
 
 namespace basement {
+void appendRecordingPreviewNote(Track &track, double start, double duration, int note) {
+  const auto count = track.recordingPreviewNoteCount.load(std::memory_order_relaxed);
+  if (count >= (int)track.recordingPreviewNotes.size())
+    return;
+  track.recordingPreviewNotes[(size_t)count] = {start, duration, note};
+  track.recordingPreviewNoteCount.store(count + 1, std::memory_order_release);
+}
+
 void Engine::click(float *const *outputs, int channels, int samples, double time) {
   const double beatLength = 60 / tempo;
   for (int i = 0; i < samples; ++i) {
@@ -97,6 +105,22 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
           captured.size = event.numBytes;
           std::memcpy(captured.data, event.data, (size_t)event.numBytes);
           t->midiTake.push_back(captured);
+          MidiMessage message(event.data, event.numBytes);
+          if (message.isNoteOn() || message.isNoteOff()) {
+            const auto noteIndex = (message.getChannel() - 1) * 128 + message.getNoteNumber();
+            const auto previous =
+                t->recordingNoteStarts[(size_t)noteIndex].load(std::memory_order_relaxed);
+            if (message.isNoteOn()) {
+              if (previous >= 0)
+                appendRecordingPreviewNote(*t, previous, jmax(0.001, time - previous),
+                                            message.getNoteNumber());
+              t->recordingNoteStarts[(size_t)noteIndex].store(time, std::memory_order_relaxed);
+            } else if (previous >= 0) {
+              appendRecordingPreviewNote(*t, previous, jmax(0.001, time - previous),
+                                          message.getNoteNumber());
+              t->recordingNoteStarts[(size_t)noteIndex].store(-1.0, std::memory_order_relaxed);
+            }
+          }
         }
     }
     if (!t->isMidi && t->input < ni && t->input >= 0 && inputs[t->input]) {
@@ -106,6 +130,16 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
         const int skip = (int)jmin((int64)n, t->captureSkip);
         t->captureSkip -= skip;
         const float *p[] = {inputs[t->input] + skip};
+        if (n > skip) {
+          const auto count = t->recordingPeakCount.load(std::memory_order_relaxed);
+          if (count < (int)t->recordingPeaks.size()) {
+            const auto captured =
+                FloatVectorOperations::findMinAndMax(inputs[t->input] + skip, n - skip);
+            t->recordingPeaks[(size_t)count] =
+                jmax(std::abs(captured.getStart()), std::abs(captured.getEnd()));
+            t->recordingPeakCount.store(count + 1, std::memory_order_release);
+          }
+        }
         if (n > skip && !t->writer->write(p, n - skip))
           diskOverrun = true;
       }

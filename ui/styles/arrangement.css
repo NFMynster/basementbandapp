@@ -302,3 +302,19 @@
   max-width: 100%;
   overflow: hidden;
 }
+.recording-region > span {
+  position: relative;
+  z-index: 1;
+}
+.recording-preview {
+  position: absolute;
+  inset: 25px 8px 5px;
+  pointer-events: none;
+}
+.recording-preview svg {
+  width: 100%;
+  height: 48px;
+  margin-top: 5px;
+  fill: #f5a4ac;
+  opacity: 0.9;
+}

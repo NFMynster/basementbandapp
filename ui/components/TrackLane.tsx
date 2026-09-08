@@ -2,6 +2,7 @@ import type { MouseEvent } from "react";
 import type { Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { ClipRegion } from "./ClipRegion";
+import { RecordingPreview } from "./RecordingPreview";
 
 export function TrackLane({
   track,
@@ -39,7 +40,7 @@ export function TrackLane({
       }}
     >
       {track.clips
-        .filter((clip) => clip.active !== false)
+        .filter((clip) => clip.active)
         .map((clip) => (
           <ClipRegion
             key={clip.id}
@@ -56,7 +57,10 @@ export function TrackLane({
             width: Math.max(10, (s.position - track.recordStart) * pxPerSecond),
           }}
         >
-          Recording…
+          <span>Recording…</span>
+          {track.recordingPreview && (
+            <RecordingPreview preview={track.recordingPreview} />
+          )}
         </div>
       )}
     </div>

@@ -61,6 +61,7 @@
     <None Include="ui\components\Modal.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Notices.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\SessionName.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\RecordingPreview.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\SettingsDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\SettingsTabs.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ShortcutSettings.tsx"><Filter>React interface\components</Filter></None>

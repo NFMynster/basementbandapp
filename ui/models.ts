@@ -16,6 +16,16 @@ export type Clip = {
   duration: number;
   peaks: number[];
 };
+type RecordingPreviewBase = {
+  start: number;
+  duration: number;
+};
+export type RecordingPreview =
+  | (RecordingPreviewBase & { kind: "audio"; peaks: number[] })
+  | (RecordingPreviewBase & {
+      kind: "midi";
+      notes: { start: number; duration: number; note: number }[];
+    });
 export type Track = {
   monitor: boolean;
   icon: TrackIconName;
@@ -37,6 +47,7 @@ export type Track = {
   clips: Clip[];
   pluginName: string;
   bypass: boolean;
+  recordingPreview?: RecordingPreview;
 };
 export type Session = {
   canUndo?: boolean;
