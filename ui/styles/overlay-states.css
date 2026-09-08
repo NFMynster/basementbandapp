@@ -22,6 +22,9 @@
   overflow-y: auto;
 }
 .count-in-button {
+  width: 39px;
+  height: 39px;
+  padding: 8px;
   font-size: 12px;
   font-weight: 650;
 }

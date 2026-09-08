@@ -24,19 +24,16 @@ test("unsaved session recovery and undo/redo preserve deleted and trimmed audio"
     await send({ op: "state" });
     await send({ op: "track", track, gain: 0.3, historyGroup: "drag-one" });
     s = await send({ op: "undo" });
-    assert.equal(
-      s.tracks[0].gain,
-      originalGain,
-      "One undo restores the whole volume gesture",
-    );
-    s = await send({ op: "redo" });
-    assert.ok(Math.abs(s.tracks[0].gain - 0.3) < 1e-6);
-    await send({ op: "track", track, gain: 0.8, historyGroup: "drag-two" });
-    s = await send({ op: "undo" });
     assert.ok(
       Math.abs(s.tracks[0].gain - 0.3) < 1e-6,
-      "Separate gestures remain separate edits",
+      "Volume gestures are not undoable",
     );
+    s = await send({ op: "redo" });
+    assert.ok(
+      Math.abs(s.tracks[0].gain - 0.3) < 1e-6,
+      "Redo does not restore volume gestures",
+    );
+    assert.notEqual(s.tracks[0].gain, originalGain);
     await send({ op: "rename", title: "Unsaved jam" });
     s = await send({ op: "import", track, path: file, position: 3 });
     const clip = s.tracks[0].clips[0].id;
@@ -52,6 +49,17 @@ test("unsaved session recovery and undo/redo preserve deleted and trimmed audio"
     assert.equal(s.tracks[0].clips[0].duration, 1);
     s = await send({ op: "redo" });
     assert.equal(s.tracks[0].clips[0].duration, 0.5);
+    s = await send({
+      op: "editClip",
+      action: "move",
+      track,
+      clip,
+      position: 5,
+    });
+    s = await send({ op: "undo" });
+    assert.equal(s.tracks[0].clips[0].start, 3.25);
+    s = await send({ op: "redo" });
+    assert.equal(s.tracks[0].clips[0].start, 5);
     await send({ op: "removeTrack", track });
     s = await send({ op: "undo" });
     assert.equal(s.tracks[0].id, track);

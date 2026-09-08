@@ -29,6 +29,30 @@ const EDITABLE_COMMANDS = new Set([
   "removePlugin",
 ]);
 const CHECKPOINT_COMMANDS = new Set(["stop", "save", "new", "open"]);
+const UNDOABLE_CLIP_ACTIONS = new Set(["move", "trim", "split", "copy"]);
+const UNDOABLE_TRACK_SETTINGS = [
+  "name",
+  "color",
+  "icon",
+  "input",
+  "midiDevice",
+  "midiChannel",
+  "armed",
+  "monitor",
+  "mute",
+  "solo",
+  "gain",
+  "pan",
+  "bypass",
+  "pluginName",
+];
+function isUndoable(command) {
+  return (
+    command.op === "removeTrack" ||
+    command.op === "removeClip" ||
+    (command.op === "editClip" && UNDOABLE_CLIP_ACTIONS.has(command.action))
+  );
+}
 class SessionService {
   constructor(engine, directory, { recover = true } = {}) {
     this.engine = engine;
@@ -180,12 +204,17 @@ class SessionService {
       if (!from.length) return this.decorate(state);
       const current = await this.engine.request({ op: "snapshot" });
       const target = structuredClone(from.at(-1));
-      // Region/track edits do not undo parameter tweaks on surviving plug-ins.
+      // Structural undo must not roll back unrelated track settings changed
+      // after the edit, such as volume, pan, icons, mute, or plug-in bypass.
       for (const track of target.tracks) {
-        const live = current.tracks.find(
-          (t) => t.id === track.id && t.pluginPath === track.pluginPath,
-        );
-        if (live?.pluginState !== undefined)
+        const live = current.tracks.find((t) => t.id === track.id);
+        if (!live) continue;
+        for (const key of UNDOABLE_TRACK_SETTINGS)
+          if (live[key] !== undefined) track[key] = live[key];
+        if (
+          live.pluginPath === track.pluginPath &&
+          live.pluginState !== undefined
+        )
           track.pluginState = live.pluginState;
       }
       await this.engine.request({
@@ -207,8 +236,9 @@ class SessionService {
       return this.decorate(restored);
     }
     const editable = EDITABLE_COMMANDS.has(command.op);
+    const undoable = isUndoable(command);
     let before;
-    if (editable && !continuesHistory) {
+    if (undoable && !continuesHistory) {
       const state = await this.engine.request({ op: "state" });
       if (!state.recording) {
         const cachedBefore = !state.playing && this.lastSnapshot;
@@ -252,8 +282,9 @@ class SessionService {
       !result?.recording
     ) {
       try {
+        const recoveryBase = before || this.lastSnapshot;
         const canReuseMedia =
-          before &&
+          recoveryBase &&
           (command.op === "addTrack" ||
             command.op === "removeTrack" ||
             command.op === "removeClip" ||
@@ -267,9 +298,13 @@ class SessionService {
             (command.op === "track" &&
               !Object.prototype.hasOwnProperty.call(command, "midiDevice")) ||
             (command.op === "editClip" &&
-              (command.action === "trim" || command.action === "take")));
+              (command.action === "move" ||
+                command.action === "trim" ||
+                command.action === "take")));
         await this.checkpoint(
-          canReuseMedia ? this.recoverySnapshot(result, before) : undefined,
+          canReuseMedia
+            ? this.recoverySnapshot(result, recoveryBase)
+            : undefined,
         );
       } catch (error) {
         this.recoveryError = "Recovery could not be saved: " + error.message;
