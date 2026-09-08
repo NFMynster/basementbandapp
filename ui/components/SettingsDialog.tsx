@@ -74,6 +74,7 @@ export function SettingsDialog({
     setup && (
       <Modal
         title="Settings"
+        className="settings-dialog"
         footer={
           <div className="modal-bottom">
             <span>
