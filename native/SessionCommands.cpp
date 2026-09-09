@@ -47,6 +47,10 @@ void Engine::restoreSession(const var &c) {
     t->liveMidi.ensureSize(65536);
     t->gain = (float)number(v, "gain");
     t->pan = (float)number(v, "pan");
+    t->eqEnabled = !v.hasProperty("eqEnabled") || flag(v, "eqEnabled");
+    t->eqBass = (float)jlimit(-12.0, 12.0, number(v, "eqBass"));
+    t->eqMid = (float)jlimit(-12.0, 12.0, number(v, "eqMid"));
+    t->eqTreble = (float)jlimit(-12.0, 12.0, number(v, "eqTreble"));
     t->mute = flag(v, "mute");
     t->solo = flag(v, "solo");
     t->armed = flag(v, "armed");

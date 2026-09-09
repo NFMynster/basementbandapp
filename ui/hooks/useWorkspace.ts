@@ -111,7 +111,9 @@ export function useWorkspace() {
     [notice, setNoticeState] = useState(""),
     [noticeTone, setNoticeTone] = useState<NoticeTone>("notice"),
     [noticeVersion, setNoticeVersion] = useState(0),
-    [panel, setPanel] = useState<"input" | "plugins" | "export">("input"),
+    [panel, setPanel] = useState<
+      "input" | "plugins" | "export" | "eq" | "notes"
+    >("input"),
     [showHelp, setHelp] = useState(false),
     [devices, setDevices] = useState<Devices | null>(null),
     [deviceLoading, setDeviceLoading] = useState(false),

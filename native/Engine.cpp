@@ -145,6 +145,8 @@ var Engine::state(bool full, bool pluginState) {
                      {"solo", t->solo},
                      {"gain", t->gain},
                      {"pan", t->pan},
+                     {"eqEnabled", t->eqEnabled}, {"eqBass", t->eqBass},
+                     {"eqMid", t->eqMid}, {"eqTreble", t->eqTreble},
                      {"peak", t->peak.load()},
                      {"clips", clips},
                      {"pluginName", t->pluginName},

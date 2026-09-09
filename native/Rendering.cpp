@@ -99,5 +99,23 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
     midi.clear();
     effect.plugin->processBlock(view, midi);
   }
+  const std::array<float, 3> gains{t.eqBass, t.eqMid, t.eqTreble};
+  if (t.eqRate != rate || t.eqApplied != gains) {
+    const auto bass = IIRCoefficients::makeLowShelf(rate, jmin(180.0, rate * 0.1), 0.707, Decibels::decibelsToGain(t.eqBass));
+    const auto mid = IIRCoefficients::makePeakFilter(rate, jmin(1000.0, rate * 0.2), 0.7, Decibels::decibelsToGain(t.eqMid));
+    const auto treble = IIRCoefficients::makeHighShelf(rate, jmin(6000.0, rate * 0.4), 0.707, Decibels::decibelsToGain(t.eqTreble));
+    for (auto &channel : t.eqFilters) {
+      channel[0].setCoefficients(bass);
+      channel[1].setCoefficients(mid);
+      channel[2].setCoefficients(treble);
+    }
+    t.eqRate = rate;
+    t.eqApplied = gains;
+  }
+  for (int ch = 0; ch < 2; ++ch)
+    for (auto &filter : t.eqFilters[ch])
+      if (t.eqEnabled) filter.processSamples(t.scratch.getWritePointer(ch), n);
+      else filter.reset();
+
 }
 } // namespace basement

@@ -53,7 +53,9 @@ const state = {
           start: 0,
           duration: 16,
           peaks: [],
+          active: true,
           notes: Array.from({ length: 32 }, (_, i) => ({
+            event: i * 2,
             start: i * 0.5,
             duration: 0.15,
             note: i % 2 ? 38 : 36,

@@ -29,7 +29,13 @@ const EDITABLE_COMMANDS = new Set([
   "removePlugin",
 ]);
 const CHECKPOINT_COMMANDS = new Set(["stop", "save", "new", "open"]);
-const UNDOABLE_CLIP_ACTIONS = new Set(["move", "trim", "split", "copy"]);
+const UNDOABLE_CLIP_ACTIONS = new Set([
+  "move",
+  "trim",
+  "split",
+  "copy",
+  "note",
+]);
 const UNDOABLE_TRACK_SETTINGS = [
   "name",
   "color",
@@ -43,6 +49,10 @@ const UNDOABLE_TRACK_SETTINGS = [
   "solo",
   "gain",
   "pan",
+  "eqEnabled",
+  "eqBass",
+  "eqMid",
+  "eqTreble",
   "bypass",
   "pluginName",
 ];

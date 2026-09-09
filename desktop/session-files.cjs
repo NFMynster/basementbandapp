@@ -77,6 +77,10 @@ function validate(session) {
     assertValid(Number.isInteger(track.input), "Invalid input channel");
     number(track.gain, 0, 1.5);
     number(track.pan, -1, 1);
+    for (const key of ["eqBass", "eqMid", "eqTreble"])
+      if (track[key] !== undefined) number(track[key], -12, 12);
+    if (track.eqEnabled !== undefined)
+      assertValid(typeof track.eqEnabled === "boolean", "Invalid EQ switch");
     for (const key of ["armed", "mute", "solo", "bypass"])
       assertValid(typeof track[key] === "boolean", "Invalid track switch");
     text(track.midiDevice, 4096);

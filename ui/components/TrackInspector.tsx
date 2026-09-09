@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
+import { TrackEqualizer } from "./TrackEqualizer";
+import { MidiEditor } from "./MidiEditor";
 import { TrackAppearance } from "./TrackAppearance";
 import { ExportSettings } from "./ExportSettings";
 export function TrackInspector({
@@ -43,7 +45,7 @@ export function TrackInspector({
             );
           }
         }}
-        className="inspector"
+        className={`inspector ${panel === "notes" ? "with-notes" : ""}`}
         tabIndex={-1}
         aria-label={`${track?.name || "Track"} properties`}
       >
@@ -80,12 +82,33 @@ export function TrackInspector({
               <SlidersHorizontal size={14} />
               Plug-ins
             </button>
+            <button
+              className={panel === "eq" ? "tab active" : "tab"}
+              onClick={() => setPanel("eq")}
+            >
+              EQ
+            </button>
+            {track?.kind === "midi" && (
+              <button
+                className={panel === "notes" ? "tab active" : "tab"}
+                onClick={() => setPanel("notes")}
+              >
+                Notes
+              </button>
+            )}
           </div>
           <span className="inspector-hint">Your sound. Your session.</span>
         </div>
         {track && (
           <div className="inspector-content">
-            {panel === "export" ? (
+            {panel === "eq" ? (
+              <TrackEqualizer track={track} update={update} />
+            ) : panel === "notes" ? (
+              <MidiEditor
+                key={`${track.id}:${controller.clipId}`}
+                controller={controller}
+              />
+            ) : panel === "export" ? (
               <ExportSettings controller={controller} />
             ) : panel === "input" ? (
               <>

@@ -278,6 +278,12 @@ void Engine::updateTrack(const var &c) {
     require(!recording, "Stop recording before changing inputs");
     t.input = jlimit(0, 127, (int)number(c, "input"));
   }
+  for (auto key : {"eqBass", "eqMid", "eqTreble"})
+    if (c.hasProperty(key)) require(std::isfinite(number(c, key)), "Invalid EQ gain");
+  if (c.hasProperty("eqEnabled")) t.eqEnabled = flag(c, "eqEnabled");
+  if (c.hasProperty("eqBass")) t.eqBass = (float)jlimit(-12.0, 12.0, number(c, "eqBass"));
+  if (c.hasProperty("eqMid")) t.eqMid = (float)jlimit(-12.0, 12.0, number(c, "eqMid"));
+  if (c.hasProperty("eqTreble")) t.eqTreble = (float)jlimit(-12.0, 12.0, number(c, "eqTreble"));
   if (c.hasProperty("gain"))
     t.gain = (float)jlimit(0.0, 1.5, number(c, "gain"));
   if (c.hasProperty("pan"))

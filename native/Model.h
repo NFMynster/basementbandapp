@@ -61,7 +61,7 @@ struct Clip {
         const double end =
             event->noteOffObject ? event->noteOffObject->message.getTimeStamp() : begin + 0.1;
         if (event->message.isNoteOn() && end > offset && begin < offset + duration())
-          notes.add(object({{"start", jmax(0.0, begin - offset)},
+          notes.add(object({{"event", i}, {"start", jmax(0.0, begin - offset)},
                             {"note", event->message.getNoteNumber()},
                             {"duration", jmin(end, offset + duration()) - jmax(begin, offset)}}));
       }
@@ -111,6 +111,11 @@ struct Track {
   int input = 0;
   bool armed = false, mute = false, solo = false, bypass = false, monitor = false;
   float gain = 0.8f, pan = 0;
+  bool eqEnabled = true;
+  float eqBass = 0, eqMid = 0, eqTreble = 0;
+  double eqRate = 0;
+  std::array<float, 3> eqApplied{999, 999, 999};
+  IIRFilter eqFilters[2][3];
   std::atomic<float> peak{0};
   std::vector<std::unique_ptr<Clip>> clips;
   std::unique_ptr<AudioFormatWriter::ThreadedWriter> writer;

@@ -11,3 +11,5 @@ import "./styles/dialogs.css";
 import "./styles/overlay-states.css";
 import "./styles/inspector-states.css";
 createRoot(document.getElementById("root")!).render(<App />);
+
+import "./styles/sound-editors.css";

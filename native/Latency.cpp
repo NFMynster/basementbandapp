@@ -2,6 +2,7 @@
 
 namespace basement {
 void Engine::sendPanic(Track &t) {
+  for (auto &channel : t.eqFilters) for (auto &filter : channel) filter.reset();
   t.panic = true;
   t.previousMidiTime = -1;
   t.previousClip = nullptr;

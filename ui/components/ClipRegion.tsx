@@ -151,6 +151,12 @@ export function ClipRegion({
           e.stopPropagation();
           select();
         }}
+        onDoubleClick={() => {
+          if (c.kind === "midi") {
+            select();
+            w.setPanel("notes");
+          }
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();

@@ -36,7 +36,44 @@ void Engine::editClip(const var &c) {
   require(found != t.clips.end(), "Region no longer exists");
   auto &clip = **found;
   const auto action = str(c, "action");
-  if (action == "take") {
+  if (action == "note") {
+    require(clip.isMidi && clip.active, "Select an active MIDI region");
+    const int index = (int)number(c, "event", -1);
+    const double begin = number(c, "position"), duration = number(c, "length");
+    const double pitch = number(c, "pitch", -1);
+    require(index >= 0 && index < clip.events->getNumEvents(), "Note no longer exists");
+    const auto *original = clip.events->getEventPointer(index);
+    require(original->message.isNoteOn() && original->noteOffObject, "Note cannot be edited");
+    require(std::isfinite(begin) && std::isfinite(duration) && std::isfinite(pitch) &&
+            begin >= 0 && duration > 0 && begin + duration <= clip.duration() + 1e-8 &&
+            pitch >= 0 && pitch <= 127 && pitch == std::floor(pitch), "Invalid note position");
+    auto sequence = std::make_shared<MidiMessageSequence>(*clip.events);
+    sequence->updateMatchedPairs();
+    auto *event = sequence->getEventPointer(index);
+    event->message.setNoteNumber((int)pitch);
+    event->noteOffObject->message.setNoteNumber((int)pitch);
+    event->message.setTimeStamp(clip.offset + begin);
+    event->noteOffObject->message.setTimeStamp(clip.offset + begin + duration);
+    sequence->sort();
+    sequence->updateMatchedPairs();
+    MidiMessageSequence disk(*sequence);
+    for (auto *item : disk) item->message.setTimeStamp(item->message.getTimeStamp() * 1000);
+    auto end = MidiMessage::endOfTrack();
+    end.setTimeStamp(clip.sourceDuration() * 1000);
+    disk.addEvent(end);
+    MidiFile file;
+    file.setSmpteTimeFormat(25, 40);
+    file.addTrack(disk);
+    const auto path = File(folder).getChildFile(Uuid().toString() + ".mid");
+    {
+      FileOutputStream output(path);
+      require(output.openedOk() && file.writeTo(output), "Could not save edited MIDI");
+    }
+    clip.events = sequence;
+    clip.path = path.getFullPathName();
+    clip.cachedKey.clear();
+    clip.eventPosition = -1;
+  } else if (action == "take") {
     require(clip.takeGroup.isNotEmpty(), "This region has no alternate takes");
     for (auto &other : t.clips)
       if (other->takeGroup == clip.takeGroup)

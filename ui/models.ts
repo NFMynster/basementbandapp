@@ -9,7 +9,7 @@ export type Clip = {
   take: number;
   active: boolean;
   kind: "audio" | "midi";
-  notes?: { start: number; duration: number; note: number }[];
+  notes?: { event?: number; start: number; duration: number; note: number }[];
   id: string;
   name: string;
   start: number;
@@ -43,6 +43,10 @@ export type Track = {
   solo: boolean;
   gain: number;
   pan: number;
+  eqEnabled?: boolean;
+  eqBass?: number;
+  eqMid?: number;
+  eqTreble?: number;
   peak: number;
   clips: Clip[];
   pluginName: string;
@@ -101,6 +105,10 @@ export type TrackPatch = { historyGroup?: string } & Partial<
     | "solo"
     | "gain"
     | "pan"
+    | "eqEnabled"
+    | "eqBass"
+    | "eqMid"
+    | "eqTreble"
     | "midiDevice"
     | "midiChannel"
     | "color"
@@ -131,7 +139,9 @@ export type SessionCommand =
       op: "editClip";
       track: string;
       clip: string;
-      action: "move" | "copy" | "split" | "take" | "trim";
+      action: "move" | "copy" | "split" | "take" | "trim" | "note";
+      event?: number;
+      pitch?: number;
       length?: number;
       position?: number;
       target?: string;
