@@ -50,9 +50,15 @@ Shared sources are copied once per save, not once per take. New asset copies hav
 
 Waveforms and MIDI note previews are derived rather than saved. Removing a region never deletes its source media. MIDI capture is held in memory until Stop; unfinished MIDI takes do not have crash recovery.
 
+## Built-in sound and diagnostics
+
+`TrackSound` in `SoundProcessing.h/.cpp` owns compressor, room reverb and noise gate settings and DSP. Processors and wet buffers are prepared outside the audio callback. The audio gate runs before plug-ins, then EQ, compressor and reverb complete the track chain. Captured source audio is always dry. Settings participate in snapshots, undo, recovery and track presets; older sessions default to bypassed effects.
+
+`OutputProtection` applies stereo-linked sample-peak limiting with immediate gain reduction, an 80 ms release and no lookahead or makeup gain. It is shared by playback and audio exports, enabled in new sessions and bypassed when opening older sessions without the field. It does not provide true-peak/inter-sample protection. Audio status reports driver latency plus selected-track plug-in latency, device underruns (when supported), missed processing blocks and recording buffer overruns. Expected export silence is excluded from processing-dropout counts. Diagnostics are runtime readings, not saved session settings.
+
 ## Export
 
-Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Each active processor contributes up to ten seconds of tail to its chain. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
+Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Each active processor contributes up to ten seconds of tail to its chain. Built-in room reverb adds four seconds of tail. The MIDI preference defaults to rendered instrument audio. In notes mode, `MidiExport.cpp` writes a standard MIDI file per MIDI track at 960 ticks per quarter note, with tempo, channels, velocity, visible overlap windows and trimmed notes. A merged export in this mode contains an audio-only mix plus separate MIDI files, all following mute/solo. Separate exports include muted tracks. MIDI files start at session zero and require no instrument. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
 
 ## Checks
 

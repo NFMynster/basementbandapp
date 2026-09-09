@@ -9,6 +9,7 @@ bool Engine::needsAudioInput() const {
 }
 
 void Engine::syncAudioInput() {
+  monitoringActive = std::any_of(tracks.begin(), tracks.end(), [](const auto &t) { return t->monitor; });
   // Device reconfiguration must never happen under guard (its callbacks take
   // that lock), on the audio thread, or in the middle of a running transport.
   if (playing) return;

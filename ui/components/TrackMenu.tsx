@@ -46,7 +46,9 @@ export function TrackMenu({
       </button>
       <button
         role="menuitem"
-        disabled={controller.s.playing || !track.clips.length}
+        disabled={
+          controller.busy || controller.s.playing || !track.clips.length
+        }
         onClick={() =>
           act(() => {
             void controller.exportAudio(track.id);

@@ -76,6 +76,13 @@ const state = {
   device: "Audio interface (visual fixture)",
   deviceError: "",
   diskOverrun: false,
+  audioCpu: 3.2,
+  limiterEnabled: true,
+  inputLatencySamples: 128,
+  outputLatencySamples: 256,
+  deviceDropouts: 0,
+  processingDropouts: 0,
+  recordingDropouts: 0,
 };
 const devices = {
   midiInputs: [{ id: "pad", name: "USB drum pad (fixture)" }],
@@ -111,6 +118,12 @@ contextBridge.exposeInMainWorld("basement", {
       Object.assign(devices, c);
       return devices;
     }
+    if (c.op === "track")
+      Object.assign(
+        state.tracks.find((t) => t.id === c.track),
+        c,
+      );
+    if (c.op === "limiter") state.limiterEnabled = c.value;
     return state;
   },
   save: async () => null,

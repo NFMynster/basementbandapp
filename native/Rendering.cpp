@@ -104,6 +104,7 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
   if (liveInput)
     for (int ch = 0; ch < 2; ++ch)
       t.scratch.addFrom(ch, 0, liveInput, n);
+  if (!t.isMidi) t.sound.processGate(t.scratch, n);
   if (t.plugin && !t.bypass) {
     if (t.isMidi && t.monitor)
       midi.addEvents(t.liveMidi, 0, n, 0);
@@ -133,6 +134,6 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
     for (auto &filter : t.eqFilters[ch])
       if (t.eqEnabled) filter.processSamples(t.scratch.getWritePointer(ch), n);
       else filter.reset();
-
+  t.sound.processSound(t.scratch, n);
 }
 } // namespace basement

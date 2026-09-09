@@ -10,6 +10,12 @@ const UNDOABLE_CLIP_ACTIONS = new Set([
   "sound",
 ]);
 const UNDOABLE_TRACK_SETTINGS = [
+  "compressorEnabled",
+  "compressorAmount",
+  "reverbEnabled",
+  "reverbAmount",
+  "gateEnabled",
+  "gateThreshold",
   "name",
   "color",
   "icon",
@@ -31,6 +37,7 @@ const UNDOABLE_TRACK_SETTINGS = [
 ];
 const GLOBAL_EDITS = {
   master: "masterGain",
+  limiter: "limiterEnabled",
   tempo: "tempo",
   rename: "title",
   metronome: "metronome",
@@ -50,6 +57,7 @@ function historyFingerprint(s) {
     title: s.title,
     tempo: s.tempo,
     masterGain: s.masterGain,
+    limiterEnabled: s.limiterEnabled,
     metronome: s.metronome,
     countIn: s.countIn,
     tracks: s.tracks.map((t) => ({
@@ -82,7 +90,10 @@ function editDescription(command) {
   if (command.op === "plugin" || command.op === "removePlugin")
     return "change plug-in";
   if (command.op === "bypass") return "bypass plug-in";
+  if (command.op === "limiter") return "change output protection";
   if (command.op === "track") {
+    if (Object.keys(command).some((k) => /^(compressor|reverb|gate)/.test(k)))
+      return "change built-in effects";
     if (Object.keys(command).some((k) => k.startsWith("eq")))
       return "change EQ";
     if ("gain" in command) return "change track volume";
@@ -116,6 +127,7 @@ function isUndoable(command) {
       "import",
       "track",
       "master",
+      "limiter",
       "tempo",
       "rename",
       "metronome",

@@ -1,5 +1,6 @@
 #pragma once
 #include "Json.h"
+#include "SoundProcessing.h"
 #include <array>
 #include <atomic>
 #include <vector>
@@ -120,6 +121,7 @@ struct Track {
   int input = 0;
   bool armed = false, mute = false, solo = false, bypass = false, monitor = false;
   float gain = 0.8f, pan = 0;
+  TrackSound sound;
   bool eqEnabled = true;
   float eqBass = 0, eqMid = 0, eqTreble = 0;
   double eqRate = 0;

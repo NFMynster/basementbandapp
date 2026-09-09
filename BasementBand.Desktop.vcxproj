@@ -5,6 +5,9 @@
     <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
     <None Include="ui\components\MidiEditor.tsx" />
     <None Include="ui\components\TrackEqualizer.tsx" />
+    <None Include="ui\components\TrackEffects.tsx" />
+    <None Include="ui\components\AudioDiagnostics.tsx" />
+    <None Include="ui\components\MidiExportDialog.tsx" />
     <None Include="ui\styles\sound-editors.css" />
     <None Include="scripts\sound-editors-visual.cjs" />
     <None Include="ui\components\PanelResize.tsx" />

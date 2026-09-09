@@ -61,6 +61,7 @@ void Engine::add(String name, String color, int input) {
   t->collector.reset(rate);
   t->liveMidi.ensureSize(65536);
   t->scratch.setSize(2, jmax(block, 8192));
+  t->sound.prepare(rate, jmax(block, 8192));
   tracks.push_back(std::move(t));
 }
 
@@ -70,6 +71,7 @@ Engine::Engine(bool testing) : testDevice(testing) {
   addDefaultFormatsToManager(plugins);
   disk.startThread();
   midi.ensureSize(65536);
+  outputProtection.prepare(rate);
 }
 
 void Engine::initializeAudio(bool inputAllowed) {
@@ -151,6 +153,7 @@ var Engine::state(bool full, bool pluginState) {
                      {"clips", clips},
                      {"pluginName", t->pluginName}, {"pluginUid", t->pluginUid},
                      {"bypass", t->bypass}});
+    t->sound.write(v);
     const auto preview = recordingPreview(*t, position.load());
     Array<var> effects;
     for (auto &effect : t->effects) {
@@ -196,6 +199,11 @@ var Engine::state(bool full, bool pluginState) {
        {"loopEnd", loopEnd},
        {"tempo", tempo},
        {"masterGain", masterGain},
+       {"limiterEnabled", limiterEnabled},
+       {"outputClipped", outputClipped.load()},
+       {"processingDropouts", processingDropouts.load()},
+       {"recordingDropouts", recordingDropouts.load()},
+       {"deviceDropouts", devices.getXRunCount() < 0 ? -1 : jmax(0, devices.getXRunCount() - deviceXRunBaseline.load())},
        {"audioInputActive", audioInputActive},
        {"masterPeak", masterPeak.load()},
        {"audioCpu", devices.getCpuUsage() * 100.0},

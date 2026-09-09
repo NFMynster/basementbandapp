@@ -115,6 +115,14 @@ export function useWorkspace() {
   }, [exporting]);
   const [pendingTempo, setPendingTempo] = useState<number | null>(null);
   const { confirmation, confirmAction, finishConfirmation } = useConfirmation();
+  const [midiExportTrack, setMidiExportTrack] = useState<string | null>(null);
+  const [exportMidi, setExportMidi] = useState<"audio" | "midi">(() =>
+    localStorage.getItem("basement.exportMidi") === "midi" ? "midi" : "audio",
+  );
+  useEffect(
+    () => localStorage.setItem("basement.exportMidi", exportMidi),
+    [exportMidi],
+  );
   const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
     localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
   );
@@ -529,7 +537,17 @@ export function useWorkspace() {
       setDeviceLoading(false);
     }
   }
-  async function exportAudio(target?: string) {
+  async function exportAudio(target?: string, midi?: "audio" | "midi") {
+    if (busy || s.playing) return;
+    if (
+      target &&
+      midi === undefined &&
+      s.tracks.find((t) => t.id === target)?.kind === "midi"
+    ) {
+      setError("");
+      setMidiExportTrack(target);
+      return;
+    }
     exportReturnFocus.current = document.activeElement as HTMLElement | null;
     setExporting(true);
     try {
@@ -537,6 +555,7 @@ export function useWorkspace() {
         api.exportAudio({
           mode: target ? "separate" : exportMode,
           format: exportFormat,
+          midi: midi ?? exportMidi,
           track: target,
         }),
       );
@@ -544,6 +563,7 @@ export function useWorkspace() {
         setNotice(
           `Exported ${result.files.length} file(s) to ${result.folder}`,
         );
+      return result;
     } finally {
       setExporting(false);
     }
@@ -667,6 +687,10 @@ export function useWorkspace() {
     exporting,
     exportMode,
     setExportMode,
+    exportMidi,
+    setExportMidi,
+    midiExportTrack,
+    setMidiExportTrack,
     exportFormat,
     setExportFormat,
     exportAudio,

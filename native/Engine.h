@@ -18,9 +18,15 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::atomic<double> position{0};
   int block = 256;
   std::atomic<bool> playing{false}, recording{false};
-  bool looping = false, exporting = false;
+  bool looping = false;
+  std::atomic<bool> exporting{false}, monitoringActive{false};
   float masterGain = 1.0f;
   std::atomic<float> masterPeak{0};
+  bool limiterEnabled = true;
+  OutputProtection outputProtection;
+  std::atomic<bool> outputClipped{false};
+  std::atomic<int> processingDropouts{0}, recordingDropouts{0};
+  std::atomic<int> deviceXRunBaseline{0};
   bool metronome = false, countIn = false, cycleRecording = false;
   int64 countRemaining = 0, countTotal = 0;
   double recordingLoopStart = 0, recordingLoopEnd = 8;
@@ -63,6 +69,7 @@ private:
   void renderTrack(Track &track, double start, int samples, bool cycle,
                    const float *liveInput = nullptr);
   var exportAudio(const var &command);
+  void exportMidiTrack(const Track &track, const File &file, double duration);
   std::unique_ptr<Clip> readMidiClip(String path, String name, double start);
   void finishMidiTake(Track &track);
   void persistMidi(Clip &clip, std::shared_ptr<MidiMessageSequence> sequence);

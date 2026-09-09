@@ -795,7 +795,7 @@ function verifyDesktop(win, request) {
         throw new Error("Empty track has duplicate add-plugin controls");
       const verifyDropdown = async () => {
         await win.webContents.executeJavaScript(
-          `[...document.querySelectorAll('.tab')].find(t => t.textContent.trim()==='EQ').click()`,
+          `[...document.querySelectorAll('.tab')].find(t => t.textContent.trim()==='EQ & Effects').click()`,
         );
         await new Promise((r) => setTimeout(r, 80));
         const bounds = await win.webContents.executeJavaScript(
@@ -1038,6 +1038,43 @@ function verifyDesktop(win, request) {
         throw new Error("Ctrl+N did not request New project");
       console.log(
         "Export focus, MIDI gesture zoom, fill width, level reset and creation shortcuts passed.",
+      );
+
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.confirmation-dialog .modal-close')?.click(); [...document.querySelectorAll('.tab')].find(b=>b.textContent.trim()==='EQ & Effects').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Enable compressor"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 120));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Enable reverb"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 120));
+      const soundState = await request({ op: "state" });
+      if (
+        !soundState.tracks.some((t) => t.compressorEnabled && t.reverbEnabled)
+      )
+        throw new Error("Built-in effect switches did not reach engine");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Audio status"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('.audio-diagnostics').textContent.includes('Estimated monitoring delay')`,
+        ))
+      )
+        throw new Error("Diagnostics missing");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.audio-diagnostics input[type="checkbox"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 120));
+      if ((await request({ op: "state" })).limiterEnabled)
+        throw new Error("Output protection switch did not reach engine");
+      console.log(
+        "Built-in effects and audio diagnostics verified through UI-to-engine commands.",
       );
       win.destroy();
       app.quit();

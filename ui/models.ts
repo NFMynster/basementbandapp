@@ -53,6 +53,12 @@ export type Track = {
   solo: boolean;
   gain: number;
   pan: number;
+  compressorEnabled?: boolean;
+  compressorAmount?: number;
+  reverbEnabled?: boolean;
+  reverbAmount?: number;
+  gateEnabled?: boolean;
+  gateThreshold?: number;
   eqEnabled?: boolean;
   eqBass?: number;
   eqMid?: number;
@@ -76,6 +82,11 @@ export type Session = {
   masterGain?: number;
   masterPeak?: number;
   audioCpu?: number;
+  limiterEnabled?: boolean;
+  outputClipped?: boolean;
+  processingDropouts?: number;
+  recordingDropouts?: number;
+  deviceDropouts?: number;
   metronome?: boolean;
   countIn?: boolean;
   countdown?: number;
@@ -117,6 +128,12 @@ export type TrackPatch = { historyGroup?: string } & Partial<
     | "solo"
     | "gain"
     | "pan"
+    | "compressorEnabled"
+    | "compressorAmount"
+    | "reverbEnabled"
+    | "reverbAmount"
+    | "gateEnabled"
+    | "gateThreshold"
     | "eqEnabled"
     | "eqBass"
     | "eqMid"
@@ -141,6 +158,7 @@ export type SessionCommand =
         | "record"
         | "new"
         | "clearWarning"
+        | "clearDiagnostics"
         | "undo"
         | "redo";
     }
@@ -148,7 +166,7 @@ export type SessionCommand =
   | { op: "reorderEffect"; track: string; effect: string; index: number }
   | { op: "preset"; track: string; preset: string }
   | ({ op: "addTrack"; kind?: "audio" | "midi" } & TrackPatch)
-  | { op: "metronome" | "countIn"; value: boolean }
+  | { op: "metronome" | "countIn" | "limiter"; value: boolean }
   | { op: "master"; value: number; historyGroup?: string }
   | {
       op: "editClip";
@@ -207,6 +225,7 @@ export type SaveResult = { saved: string };
 export type ExportOptions = {
   mode: "separate" | "mix";
   format?: "wav" | "flac";
+  midi?: "audio" | "midi";
   track?: string;
 };
 export type ExportResult = { folder: string; files: string[] };

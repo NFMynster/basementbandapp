@@ -59,7 +59,9 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     await output(0.4);
     await send({ op: "master", value: 2 });
     await output(0.8);
-    await output(1, 0.8); // Boosted output remains safely clamped.
+    await output(0.98, 0.8); // Output protection catches boosted peaks.
+    await send({ op: "limiter", value: false });
+    await output(1, 0.8); // Bypass retains the final hard safety clamp.
     await send({ op: "master", value: 0.5 });
     await output(0.2);
     await send({ op: "track", track: audio, mute: true });

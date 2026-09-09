@@ -18,6 +18,9 @@ void Engine::resetSession(const var &c) {
   loopEnd = 8;
   tempo = 120;
   masterGain = 1.0f;
+  limiterEnabled = true;
+  outputProtection.reset();
+  outputClipped = false;
   add("Guitar", "#58a9e8", 0);
   add("Bass", "#c093eb", 1);
 }
@@ -51,6 +54,8 @@ void Engine::restoreSession(const var &c) {
     t->liveMidi.ensureSize(65536);
     t->gain = (float)number(v, "gain");
     t->pan = (float)number(v, "pan");
+    t->sound.prepare(rate, jmax(block, 8192));
+    t->sound.update(v);
     t->eqEnabled = !v.hasProperty("eqEnabled") || flag(v, "eqEnabled");
     t->eqBass = (float)jlimit(-12.0, 12.0, number(v, "eqBass"));
     t->eqMid = (float)jlimit(-12.0, 12.0, number(v, "eqMid"));
@@ -133,6 +138,8 @@ void Engine::restoreSession(const var &c) {
   position = 0;
   tempo = number(session, "tempo");
   masterGain = (float)number(session, "masterGain");
+  limiterEnabled = flag(session, "limiterEnabled", false);
+  outputClipped = false;
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd");
   looping = flag(session, "looping");

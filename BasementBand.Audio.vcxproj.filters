@@ -18,9 +18,12 @@
     <None Include="native\Info.plist"><Filter>Build configuration</Filter></None>
     <ClInclude Include="native\Json.h"><Filter>Headers</Filter></ClInclude>
     <ClCompile Include="native\Latency.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\SoundProcessing.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\MidiExport.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\Main.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\Midi.cpp"><Filter>Engine</Filter></ClCompile>
     <ClInclude Include="native\Model.h"><Filter>Headers</Filter></ClInclude>
+    <ClInclude Include="native\SoundProcessing.h"><Filter>Headers</Filter></ClInclude>
     <ClCompile Include="native\PluginHost.cpp"><Filter>Engine</Filter></ClCompile>
     <ClInclude Include="native\PluginWindow.h"><Filter>Headers</Filter></ClInclude>
     <ClCompile Include="native\Recording.cpp"><Filter>Engine</Filter></ClCompile>

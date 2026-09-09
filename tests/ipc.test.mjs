@@ -61,7 +61,17 @@ for (const platform of ["win32", "darwin"])
       handlers.get("export")(event, { mode: "invalid" }),
       /Invalid export/,
     );
+    await assert.rejects(
+      handlers.get("export")(event, { mode: "separate", midi: "invalid" }),
+      /Invalid export/,
+    );
+    const midiExport = await handlers.get("export")(event, {
+      mode: "separate",
+      midi: "midi",
+      track: "g",
+    });
+    assert.equal(midiExport.midi, "midi");
     canceled = true;
     assert.equal(await handlers.get("plugin")(event, "g"), null);
-    assert.equal(commands.length, 4);
+    assert.equal(commands.length, 5);
   });

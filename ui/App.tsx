@@ -1,3 +1,4 @@
+import { MidiExportDialog } from "./components/MidiExportDialog";
 import type { CSSProperties } from "react";
 import { desktop as api } from "./services/desktop";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -60,6 +61,12 @@ export function App() {
       <Notices controller={controller} />
       <SettingsDialog controller={controller} />
       <HelpDialog controller={controller} />
+      {controller.midiExportTrack && (
+        <MidiExportDialog
+          key={controller.midiExportTrack}
+          controller={controller}
+        />
+      )}
       {controller.creatingTrack && (
         <CreateTrackDialog controller={controller} />
       )}
@@ -138,13 +145,13 @@ export function App() {
           className="count-in-overlay export-wait"
           role="dialog"
           aria-modal="true"
-          aria-label="Exporting audio"
+          aria-label="Exporting tracks"
         >
-          <span>EXPORTING AUDIO</span>
+          <span>EXPORTING TRACKS</span>
           <div
             className="startup-spinner"
             role="progressbar"
-            aria-label="Rendering audio"
+            aria-label="Exporting tracks"
           />
           <p>Please wait while your audio is rendered…</p>
         </div>

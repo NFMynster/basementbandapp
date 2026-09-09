@@ -161,6 +161,12 @@ class PluginLibrary {
           "eqBass",
           "eqMid",
           "eqTreble",
+          "compressorEnabled",
+          "compressorAmount",
+          "reverbEnabled",
+          "reverbAmount",
+          "gateEnabled",
+          "gateThreshold",
         ].map((key) => [key, track[key]]),
       );
       this.data.presets.push({

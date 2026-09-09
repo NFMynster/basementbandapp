@@ -1,3 +1,4 @@
+import { TrackEffect } from "./TrackEffects";
 import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
@@ -98,7 +99,7 @@ export function TrackInspector({
               onClick={() => setPanel("eq")}
             >
               <ChartNoAxesColumn size={14} />
-              EQ
+              EQ & Effects
             </button>
             {track?.clips.some(
               (c) => c.id === controller.clipId && c.kind === "audio",
@@ -128,7 +129,23 @@ export function TrackInspector({
             {panel === "region" ? (
               <ClipSound controller={controller} />
             ) : panel === "eq" ? (
-              <TrackEqualizer track={track} update={update} />
+              <div className="track-sound-panel">
+                <TrackEqualizer track={track} update={update} />
+                <div className="track-built-ins">
+                  <TrackEffect
+                    key={`${track.id}-compressor`}
+                    effect="compressor"
+                    track={track}
+                    update={update}
+                  />
+                  <TrackEffect
+                    key={`${track.id}-reverb`}
+                    effect="reverb"
+                    track={track}
+                    update={update}
+                  />
+                </div>
+              </div>
             ) : panel === "notes" ? (
               <MidiEditor
                 key={`${track.id}:${controller.clipId}`}
@@ -245,6 +262,14 @@ export function TrackInspector({
                     </span>
                   </div>
                 </div>
+                {track.kind === "audio" && (
+                  <TrackEffect
+                    key={`${track.id}-gate`}
+                    effect="gate"
+                    track={track}
+                    update={update}
+                  />
+                )}
                 <div className="record-tip">
                   <span className="tip-icon">
                     <Headphones size={21} />

@@ -16,6 +16,8 @@ export function optimisticSession(
         looping: command.enabled,
       };
     }
+    case "limiter":
+      return { ...s, limiterEnabled: command.value };
     case "metronome":
       return { ...s, metronome: command.value };
     case "countIn":

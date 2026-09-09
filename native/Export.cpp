@@ -8,13 +8,17 @@ var Engine::exportAudio(const var &c) {
   require(mode == "separate" || mode == "mix", "Unknown export mode");
   const auto formatName = str(c, "format", "wav");
   require(formatName == "wav" || formatName == "flac", "Unknown export format");
+  const auto midiMode = str(c, "midi", "audio");
+  require(midiMode == "audio" || midiMode == "midi", "Unknown MIDI export mode");
   const auto target = str(c, "track");
   if (target.isNotEmpty())
     track(c); // Validate before creating output.
   const auto parent = File(str(c, "path"));
   require(parent.isDirectory(), "Choose an existing export folder");
+  exporting = true;
+  const ScopeGuard finishExport([&] { exporting = false; });
   const ScopedLock lock(guard); // Device callbacks return silence while stopped.
-  std::vector<Track *> selected;
+  std::vector<Track *> selected, midiTracks;
   bool anySolo = false;
   for (auto &t : tracks)
     anySolo |= t->solo;
@@ -22,24 +26,28 @@ var Engine::exportAudio(const var &c) {
   for (auto &t : tracks) {
     if (target.isNotEmpty() && t->id != target)
       continue;
-    if (t->clips.empty())
+    if (std::none_of(t->clips.begin(), t->clips.end(), [](const auto &clip) { return clip->active && clip->duration() > 0; }))
       continue;
     if (mode == "mix" && (t->mute || (anySolo && !t->solo)))
       continue;
-    require(!t->isMidi || (t->plugin && !t->bypass),
+    const bool notesOnly = t->isMidi && midiMode == "midi";
+    require(notesOnly || !t->isMidi || (t->plugin && !t->bypass),
             "Load an active instrument on each MIDI track before export");
-    selected.push_back(t.get());
+    if (notesOnly) midiTracks.push_back(t.get());
+    else selected.push_back(t.get());
     for (auto &clip : t->clips)
       if (clip->active)
         duration = jmax(duration, clip->start + clip->duration());
+    if (notesOnly) continue;
+    if (t->sound.reverbEnabled && t->sound.reverbAmount > 0) tail = jmax(tail, 4.0);
     if (t->plugin && !t->bypass)
       tail = jmax(tail, jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()));
     double effectTail = 0;
     for (auto &effect : t->effects)
       if (!effect.bypass) effectTail += jlimit(0.0, 10.0, effect.plugin->getTailLengthSeconds());
-    tail = jmax(tail, effectTail + (t->plugin && !t->bypass ? jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()) : 0));
+    tail = jmax(tail, (t->sound.reverbEnabled && t->sound.reverbAmount > 0 ? 4.0 : 0.0) + effectTail + (t->plugin && !t->bypass ? jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()) : 0));
   }
-  require(!selected.empty() && duration > 0, "No audible regions to export");
+  require((!selected.empty() || !midiTracks.empty()) && duration > 0, "No audible regions to export");
   require(std::isfinite(duration) && duration + tail <= 60 * 60 * 4,
           "Export must be shorter than four hours");
   auto destination = parent.getNonexistentChildFile("Basement Band Export", "", true);
@@ -47,8 +55,12 @@ var Engine::exportAudio(const var &c) {
   const auto total = (int64)std::ceil((duration + tail) * rate);
   const int frames = jlimit(1, 8192, block);
   Array<var> files;
-  exporting = true;
-  const ScopeGuard finishExport([&] { exporting = false; });
+  for (size_t i = 0; i < midiTracks.size(); ++i) {
+    const auto name = String((int)i + 1).paddedLeft('0', 2) + " - " + File::createLegalFileName(midiTracks[i]->name).substring(0, 80);
+    const auto file = destination.getChildFile(name + ".mid");
+    exportMidiTrack(*midiTracks[i], file, duration);
+    files.add(file.getFullPathName());
+  }
   // Reset DSP history, not parameters; exports must not inherit the last playback tail.
   for (auto *t : selected)
     prepareTrack(*t, 0, false);
@@ -57,9 +69,10 @@ var Engine::exportAudio(const var &c) {
       if (t->plugin && !t->bypass)
         t->plugin->reset();
       for (auto &effect : t->effects) effect.plugin->reset();
+      t->sound.reset();
     }
   });
-  const int count = mode == "mix" ? 1 : (int)selected.size();
+  const int count = selected.empty() ? 0 : mode == "mix" ? 1 : (int)selected.size();
   for (int fileIndex = 0; fileIndex < count; ++fileIndex) {
     String name =
         mode == "mix"
@@ -80,6 +93,8 @@ var Engine::exportAudio(const var &c) {
     }
     require(writer != nullptr, "Could not initialize export file");
     stream.release();
+    OutputProtection protection;
+    protection.prepare(rate);
     AudioBuffer<float> mix(2, frames);
     for (int64 offset = 0; offset < total; offset += frames) {
       const int n = (int)jmin((int64)frames, total - offset);
@@ -94,9 +109,8 @@ var Engine::exportAudio(const var &c) {
         mix.addFrom(0, 0, t.scratch, 0, 0, n, left);
         mix.addFrom(1, 0, t.scratch, 1, 0, n, right);
       }
-      for (int ch = 0; ch < 2; ++ch)
-        for (int i = 0; i < n; ++i)
-          mix.setSample(ch, i, jlimit(-1.0f, 1.0f, mix.getSample(ch, i) * (mode == "mix" ? masterGain : 1.0f)));
+      if (protection.process(mix.getArrayOfWritePointers(), 2, n, mode == "mix" ? masterGain : 1.0f, limiterEnabled))
+        outputClipped = true;
       require(writer->writeFromAudioSampleBuffer(mix, 0, n),
               "Could not write export audio; check free disk space");
     }

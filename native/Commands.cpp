@@ -4,6 +4,18 @@
 namespace basement {
 var Engine::command(const var &c) {
   auto op = str(c, "op");
+  if (op == "limiter") {
+    require(c["value"].isBool(), "Invalid output protection switch");
+    { const ScopedLock lock(guard); limiterEnabled = flag(c, "value"); outputProtection.reset(); outputClipped = false; }
+    return state();
+  }
+  if (op == "clearDiagnostics") {
+    outputClipped = false;
+    processingDropouts = 0;
+    recordingDropouts = 0;
+    deviceXRunBaseline = jmax(0, devices.getXRunCount());
+    return state();
+  }
   if (op == "master") {
     const ScopedLock lock(guard);
     masterGain = (float)jlimit(0.0, 2.0, number(c, "value", 1));
@@ -68,6 +80,8 @@ var Engine::command(const var &c) {
     Track prepared;
     prepared.isMidi = t.isMidi;
     prepared.scratch.setSize(2, jmax(block, 8192));
+    prepared.sound.prepare(rate, jmax(block, 8192));
+    prepared.sound.update(preset);
     prepared.liveMidi.ensureSize(65536);
     if (str(preset, "pluginPath").isNotEmpty()) loadPlugin(prepared, str(preset, "pluginPath"), str(preset, "pluginState"), false, (int)number(preset, "pluginUid"));
     if (preset["effects"].isArray()) for (auto &slot : *preset["effects"].getArray()) {
@@ -83,6 +97,9 @@ var Engine::command(const var &c) {
     t.eqBass = (float)jlimit(-12.0, 12.0, number(preset, "eqBass"));
     t.eqMid = (float)jlimit(-12.0, 12.0, number(preset, "eqMid"));
     t.eqTreble = (float)jlimit(-12.0, 12.0, number(preset, "eqTreble"));
+    auto soundSettings = object({});
+    prepared.sound.write(soundSettings);
+    t.sound.update(soundSettings);
     t.eqEnabled = !preset.hasProperty("eqEnabled") || flag(preset, "eqEnabled");
     if (t.plugin) t.plugin->setPlayHead(&t.playHead);
     for (auto &effect : t.effects) effect.plugin->setPlayHead(&t.playHead);
@@ -314,6 +331,7 @@ void Engine::updateTrack(const var &c) {
     }
   }
   const ScopedLock l(guard);
+  t.sound.update(c);
   if (c.hasProperty("monitor")) {
     t.monitor = flag(c, "monitor");
     if (t.isMidi)

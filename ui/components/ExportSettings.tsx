@@ -28,6 +28,34 @@ export function ExportSettings({
           <option value="flac">FLAC · 24-bit stereo</option>
         </select>
       </label>
+      <label>
+        MIDI tracks
+        <select
+          value={c.exportMidi}
+          onChange={(e) => c.setExportMidi(e.target.value as "audio" | "midi")}
+        >
+          <option value="audio">Instrument audio ? the sound you hear</option>
+          <option value="midi">MIDI notes ? editable .mid files</option>
+        </select>
+      </label>
+      <p>
+        {c.exportMidi === "midi"
+          ? "MIDI tracks become separate .mid files. A merged mix contains only the audio tracks."
+          : "MIDI instruments are rendered with their effects. You can choose differently when exporting a single MIDI track."}
+      </p>
+      <label className="simple-switch">
+        <span>
+          <strong>Protect output peaks</strong>
+          <small>Limit loud peaks in playback and audio exports.</small>
+        </span>
+        <input
+          type="checkbox"
+          checked={!!c.s.limiterEnabled}
+          onChange={(e) =>
+            void c.run({ op: "limiter", value: e.target.checked })
+          }
+        />
+      </label>
       <p>
         Merged export follows mute, solo, plug-ins and master volume. Separate
         tracks include muted tracks and remain aligned.

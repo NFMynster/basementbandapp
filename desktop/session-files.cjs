@@ -53,6 +53,11 @@ function validate(session) {
   text(session.title, 100);
   number(session.tempo, 40, 240);
   number(session.masterGain, 0, 2);
+  if (session.limiterEnabled !== undefined)
+    assertValid(
+      typeof session.limiterEnabled === "boolean",
+      "Invalid output protection switch",
+    );
   number(session.loopStart, 0, Number.MAX_VALUE);
   number(session.loopEnd, session.loopStart, Number.MAX_VALUE);
   assertValid(
@@ -79,6 +84,13 @@ function validate(session) {
     number(track.pan, -1, 1);
     for (const key of ["eqBass", "eqMid", "eqTreble"])
       if (track[key] !== undefined) number(track[key], -12, 12);
+    for (const key of ["compressorAmount", "reverbAmount"])
+      if (track[key] !== undefined) number(track[key], 0, 1);
+    if (track.gateThreshold !== undefined)
+      number(track.gateThreshold, -80, -10);
+    for (const key of ["compressorEnabled", "reverbEnabled", "gateEnabled"])
+      if (track[key] !== undefined)
+        assertValid(typeof track[key] === "boolean", "Invalid effect switch");
     if (track.eqEnabled !== undefined)
       assertValid(typeof track.eqEnabled === "boolean", "Invalid EQ switch");
     for (const key of ["armed", "mute", "solo", "bypass"])

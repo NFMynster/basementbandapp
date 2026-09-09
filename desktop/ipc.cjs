@@ -31,6 +31,8 @@ const COMMANDS = new Set([
   "metronome",
   "countIn",
   "master",
+  "limiter",
+  "clearDiagnostics",
 ]);
 const AUDIO_EXTENSIONS = /\.(wav|aif|aiff|flac|mp3)$/i;
 const MIDI_EXTENSIONS = /\.(mid|midi)$/i;
@@ -301,6 +303,8 @@ function registerIpc(win, request) {
       !["separate", "mix"].includes(options.mode) ||
       (options.format !== undefined &&
         !["wav", "flac"].includes(options.format)) ||
+      (options.midi !== undefined &&
+        !["audio", "midi"].includes(options.midi)) ||
       (options.track !== undefined && typeof options.track !== "string")
     )
       throw new Error("Invalid export options");
@@ -315,6 +319,7 @@ function registerIpc(win, request) {
           path: r.filePaths[0],
           mode: options.mode,
           format: options.format || "wav",
+          midi: options.midi || "audio",
           track: options.track,
         });
   });

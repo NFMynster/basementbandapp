@@ -3,6 +3,7 @@
 namespace basement {
 void Engine::sendPanic(Track &t) {
   for (auto &channel : t.eqFilters) for (auto &filter : channel) filter.reset();
+  t.sound.reset();
   t.panic = true;
   t.previousMidiTime = -1;
   t.previousClip = nullptr;
@@ -26,6 +27,7 @@ void Engine::prepareTrack(Track &t, double start, bool cycle) {
 }
 
 void Engine::preparePlayback(double start, bool cycle) {
+  outputProtection.reset();
   for (auto &t : tracks)
     prepareTrack(*t, start, cycle);
 }

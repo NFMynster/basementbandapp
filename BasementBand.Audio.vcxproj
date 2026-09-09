@@ -28,9 +28,12 @@
     <None Include="native\Info.plist" />
     <ClInclude Include="native\Json.h" />
     <ClCompile Include="native\Latency.cpp" />
+    <ClCompile Include="native\SoundProcessing.cpp" />
+    <ClCompile Include="native\MidiExport.cpp" />
     <ClCompile Include="native\Main.cpp" />
     <ClCompile Include="native\Midi.cpp" />
     <ClInclude Include="native\Model.h" />
+    <ClInclude Include="native\SoundProcessing.h" />
     <ClCompile Include="native\PluginHost.cpp" />
     <ClInclude Include="native\PluginWindow.h" />
     <ClCompile Include="native\Recording.cpp" />

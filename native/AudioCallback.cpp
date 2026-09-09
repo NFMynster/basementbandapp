@@ -31,7 +31,10 @@ void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
   block = d->getCurrentBufferSizeSamples();
   inputLatency = jmax(0, d->getInputLatencyInSamples());
   outputLatency = jmax(0, d->getOutputLatencyInSamples());
+  outputProtection.prepare(rate);
+  deviceXRunBaseline = jmax(0, devices.getXRunCount());
   for (auto &t : tracks) {
+    t->sound.prepare(rate, jmax(block, 8192));
     t->scratch.setSize(2, jmax(block, 8192));
     t->collector.reset(rate);
     if (t->plugin)
@@ -51,6 +54,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
       FloatVectorOperations::clear(outputs[ch], n);
   const ScopedTryLock l(guard);
   if (!l.isLocked()) {
+    if ((playing.load() || monitoringActive.load()) && !exporting.load()) ++processingDropouts;
     if (playing.load())
       diskOverrun = true;
     return;
@@ -99,6 +103,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
             continue;
           if (t->midiTake.size() == t->midiTake.capacity()) {
             diskOverrun = true;
+            ++recordingDropouts;
             continue;
           }
           Track::RecordedEvent captured{};
@@ -141,8 +146,10 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
             t->recordingPeakCount.store(count + 1, std::memory_order_release);
           }
         }
-        if (n > skip && !t->writer->write(p, n - skip))
+        if (n > skip && !t->writer->write(p, n - skip)) {
           diskOverrun = true;
+          ++recordingDropouts;
+        }
       }
     }
     if ((!playing && !t->monitor) || n > t->scratch.getNumSamples())
@@ -168,11 +175,11 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     if (looping && !recording && position >= loopEnd && loopEnd > loopStart)
       position = loopStart + std::fmod(position - loopStart, loopEnd - loopStart);
   }
+  if (outputProtection.process(outputs, no, n, masterGain, limiterEnabled)) outputClipped = true;
   float outputPeak = masterPeak.load() * (float)std::exp(-n / (rate * 0.12));
   for (int ch = 0; ch < no; ++ch)
     if (outputs[ch])
       for (int i = 0; i < n; ++i) {
-        outputs[ch][i] = jlimit(-1.0f, 1.0f, outputs[ch][i] * masterGain);
         outputPeak = jmax(outputPeak, std::abs(outputs[ch][i]));
       }
   masterPeak = outputPeak;

@@ -32,6 +32,7 @@ const EDITABLE_COMMANDS = new Set([
   "tempo",
   "record",
   "master",
+  "limiter",
   "loop",
   "metronome",
   "countIn",
@@ -324,6 +325,12 @@ class SessionService {
                           "eqBass",
                           "eqMid",
                           "eqTreble",
+                          "compressorEnabled",
+                          "compressorAmount",
+                          "reverbEnabled",
+                          "reverbAmount",
+                          "gateEnabled",
+                          "gateThreshold",
                           "eqEnabled",
                         ]
                       : []),
@@ -385,6 +392,7 @@ class SessionService {
             (command.op === "tempo" &&
               (!command.match || command.match === "none")) ||
             command.op === "master" ||
+            command.op === "limiter" ||
             command.op === "loop" ||
             command.op === "metronome" ||
             command.op === "countIn" ||
@@ -441,6 +449,12 @@ class SessionService {
         "inputLatencySamples",
         "outputLatencySamples",
         "countdown",
+        "audioCpu",
+        "masterPeak",
+        "outputClipped",
+        "processingDropouts",
+        "recordingDropouts",
+        "deviceDropouts",
       ])
         delete snapshot[key];
       for (const track of snapshot.tracks)
