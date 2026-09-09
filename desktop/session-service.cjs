@@ -57,6 +57,20 @@ const UNDOABLE_TRACK_SETTINGS = [
   "bypass",
   "pluginName",
 ];
+function editDescription(command) {
+  if (command.op === "removeTrack") return "delete track";
+  if (command.op === "removeClip") return "delete region";
+  return (
+    {
+      move: "move region",
+      trim: "trim region",
+      split: "split region",
+      copy: "copy region",
+      note: "edit MIDI note",
+      quantize: "align MIDI notes",
+    }[command.action] || "edit"
+  );
+}
 function isUndoable(command) {
   return (
     command.op === "removeTrack" ||
@@ -311,7 +325,10 @@ class SessionService {
       } catch (error) {
         this.recoveryError = "Recovery could not be saved: " + error.message;
       }
-      return this.decorate(restored);
+      return {
+        ...this.decorate(restored),
+        historyNotice: `${command.op === "undo" ? "Undo" : "Redo"} ${entry.description}`,
+      };
     }
     const editable = EDITABLE_COMMANDS.has(command.op);
     const undoable = isUndoable(command);
@@ -351,6 +368,7 @@ class SessionService {
         metadataOnly: true,
       });
       this.undoStack.push({
+        description: editDescription(command),
         before,
         after: this.recoverySnapshot(after, before),
       });

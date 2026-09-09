@@ -60,10 +60,11 @@ export function TrackMenu({
         className="danger"
         disabled={controller.s.playing}
         onClick={() =>
-          act(() => {
+          act(async () => {
             if (
-              confirm(
+              await controller.confirmAction(
                 `Delete ${track.name} from this session? Recorded audio files will be kept.`,
+                "Delete track",
               )
             )
               void controller.removeTrack(track);

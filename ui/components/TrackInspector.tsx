@@ -17,7 +17,6 @@ import { PanelResize } from "./PanelResize";
 import { TrackEqualizer } from "./TrackEqualizer";
 import { MidiEditor } from "./MidiEditor";
 import { TrackAppearance } from "./TrackAppearance";
-import { ExportSettings } from "./ExportSettings";
 export function TrackInspector({
   controller,
 }: {
@@ -76,13 +75,6 @@ export function TrackInspector({
           </div>
           <div className="tabs">
             <button
-              className={panel === "export" ? "tab active" : "tab"}
-              onClick={() => setPanel("export")}
-            >
-              <ArrowDownToLine size={14} />
-              Export
-            </button>
-            <button
               className={panel === "input" ? "tab active" : "tab"}
               onClick={() => setPanel("input")}
             >
@@ -124,8 +116,6 @@ export function TrackInspector({
                 key={`${track.id}:${controller.clipId}`}
                 controller={controller}
               />
-            ) : panel === "export" ? (
-              <ExportSettings controller={controller} />
             ) : panel === "input" ? (
               <>
                 <div className="input-block">
@@ -150,8 +140,13 @@ export function TrackInspector({
                     <button
                       className="text-button"
                       disabled={s.playing}
-                      onClick={() => {
-                        if (confirm(`Remove ${track.name} from this session?`))
+                      onClick={async () => {
+                        if (
+                          await controller.confirmAction(
+                            `Remove ${track.name} from this session?`,
+                            "Remove track",
+                          )
+                        )
                           void controller.removeTrack(track);
                       }}
                     >
@@ -388,16 +383,20 @@ export function TrackInspector({
                         </button>
                       </div>
                     ))}
-                    <button
-                      disabled={
-                        s.playing || busy || (track.effects?.length ?? 0) >= 16
-                      }
-                      onClick={() =>
-                        task(() => api.plugin(track.id, false, true))
-                      }
-                    >
-                      <Plus size={16} /> Add VST3 effect
-                    </button>
+                    {track.pluginName && (
+                      <button
+                        disabled={
+                          s.playing ||
+                          busy ||
+                          (track.effects?.length ?? 0) >= 16
+                        }
+                        onClick={() =>
+                          task(() => api.plugin(track.id, false, true))
+                        }
+                      >
+                        <Plus size={16} /> Add VST3 effect
+                      </button>
+                    )}
                   </div>
                   <p className="plugin-note">
                     {track.kind === "midi"

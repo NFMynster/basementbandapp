@@ -46,13 +46,17 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
             onClick={async () => {
               if (
                 !dirty ||
-                confirm("Start a new session? Unsaved edits will be lost.")
+                (await controller.confirmAction(
+                  "Start a new session? Unsaved edits will be lost.",
+                  "New session",
+                ))
               ) {
                 const result = await run({ op: "new" }, false);
                 if (result) {
                   setDirty(false);
                   setClipId("");
                   setSelected("");
+                  controller.setPanel("input");
                 }
               }
             }}
@@ -63,10 +67,13 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
           <button
             title="Open session"
             disabled={busy || s.recording}
-            onClick={() => {
+            onClick={async () => {
               if (
                 !dirty ||
-                confirm("Open another session? Unsaved edits will be lost.")
+                (await controller.confirmAction(
+                  "Open another session? Unsaved edits will be lost.",
+                  "Open session",
+                ))
               )
                 task(() => api.open(), true);
             }}

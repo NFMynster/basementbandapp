@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -15,10 +15,20 @@ export function Modal({
   footer?: ReactNode;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
-    return () => previous?.focus();
+    const node = dialog.current;
+    return () => {
+      // Restore before the next surface focuses itself. Never steal focus from
+      // a control that already received it, including a native select popup.
+      const active = document.activeElement;
+      if (
+        previous?.isConnected &&
+        (active === document.body || (active && node?.contains(active)))
+      )
+        previous.focus({ preventScroll: true });
+    };
   }, []);
   return (
     <div

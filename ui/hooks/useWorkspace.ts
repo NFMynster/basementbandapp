@@ -91,6 +91,30 @@ export function useWorkspace() {
     inside: boolean;
   } | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [confirmation, setConfirmation] = useState<{
+    message: string;
+    acceptLabel: string;
+  } | null>(null);
+  const confirmResolver = useRef<((accepted: boolean) => void) | null>(null);
+  function confirmAction(message: string, acceptLabel = "Continue") {
+    confirmResolver.current?.(false);
+    return new Promise<boolean>((resolve) => {
+      confirmResolver.current = resolve;
+      setConfirmation({ message, acceptLabel });
+    });
+  }
+  function finishConfirmation(accepted: boolean) {
+    const resolve = confirmResolver.current;
+    confirmResolver.current = null;
+    setConfirmation(null);
+    resolve?.(accepted);
+  }
+  useEffect(
+    () => () => {
+      confirmResolver.current?.(false);
+    },
+    [],
+  );
   const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
     localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
   );
@@ -113,9 +137,7 @@ export function useWorkspace() {
     [notice, setNoticeState] = useState(""),
     [noticeTone, setNoticeTone] = useState<NoticeTone>("notice"),
     [noticeVersion, setNoticeVersion] = useState(0),
-    [panel, setPanel] = useState<
-      "input" | "plugins" | "export" | "eq" | "notes"
-    >("input"),
+    [panel, setPanel] = useState<"input" | "plugins" | "eq" | "notes">("input"),
     [showHelp, setHelp] = useState(false),
     [devices, setDevices] = useState<Devices | null>(null),
     [deviceLoading, setDeviceLoading] = useState(false),
@@ -262,9 +284,11 @@ export function useWorkspace() {
       // controlled range input visibly walks through every queued value.
       if (!optimistic || revision === optimisticRevision.current) accept(r);
       if (c.op === "undo" || c.op === "redo") {
-        setNotice(c.op === "undo" ? "Undo" : "Redo");
-      }
-      if (change) setDirty(true);
+        if ("tracks" in r && r.historyNotice) {
+          setNotice(r.historyNotice);
+          if (change) setDirty(true);
+        }
+      } else if (change) setDirty(true);
       return r;
     } catch (e) {
       if (optimistic && revision === optimisticRevision.current) setS(previous);
@@ -452,11 +476,14 @@ export function useWorkspace() {
     redo: () => {
       if (!s.playing) run({ op: "redo" });
     },
-    deleteTrack: () => {
+    deleteTrack: async () => {
       if (
         track &&
         !s.playing &&
-        confirm(`Delete ${track.name} and all its regions? You can undo this.`)
+        (await confirmAction(
+          `Delete ${track.name} and all its regions? You can undo this.`,
+          "Delete track",
+        ))
       )
         void removeTrack(track);
     },
@@ -624,6 +651,9 @@ export function useWorkspace() {
   return {
     ...shortcuts,
     ...layout,
+    confirmation,
+    confirmAction,
+    finishConfirmation,
     dropAudio,
     creatingTrack,
     setCreatingTrack,

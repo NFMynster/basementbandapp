@@ -10,6 +10,7 @@ import { Notices } from "./components/Notices";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { CreateTrackDialog } from "./components/CreateTrackDialog";
+import { Modal } from "./components/Modal";
 import { WelcomeDialog } from "./components/WelcomeDialog";
 export function App() {
   const controller = useWorkspace();
@@ -62,6 +63,27 @@ export function App() {
         <CreateTrackDialog controller={controller} />
       )}
       {controller.welcome && <WelcomeDialog controller={controller} />}
+      {controller.confirmation && (
+        <Modal
+          title="Confirm action"
+          className="confirmation-dialog"
+          onClose={() => controller.finishConfirmation(false)}
+        >
+          <h2>{controller.confirmation.acceptLabel}</h2>
+          <p>{controller.confirmation.message}</p>
+          <div className="modal-bottom">
+            <button onClick={() => controller.finishConfirmation(false)}>
+              Cancel
+            </button>
+            <button
+              className="primary"
+              onClick={() => controller.finishConfirmation(true)}
+            >
+              {controller.confirmation.acceptLabel}
+            </button>
+          </div>
+        </Modal>
+      )}
       {!!controller.s.countdown && (
         <div className="count-in-overlay" role="status" aria-live="polite">
           <span>GET READY</span>

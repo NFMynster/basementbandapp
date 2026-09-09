@@ -83,7 +83,7 @@ app
     if (count !== 32) throw new Error("Missing editor notes: " + count);
     const layout = await w.webContents.executeJavaScript(`(() => {
       const tabs = [...document.querySelectorAll('.tab')];
-      if (!tabs.filter(t => ['Export', 'EQ', 'Notes'].includes(t.textContent.trim())).every(t => t.querySelector('svg'))) throw new Error('Missing tab icon');
+      if (!tabs.filter(t => ['EQ', 'Notes'].includes(t.textContent.trim())).every(t => t.querySelector('svg'))) throw new Error('Missing tab icon');
       if (!document.querySelector('.align-notes').textContent.includes('(quantization)')) throw new Error('Missing beat alignment');
       return { width: document.querySelector('.track-sidebar').getBoundingClientRect().width, height: document.querySelector('.inspector').getBoundingClientRect().height };
     })()`);

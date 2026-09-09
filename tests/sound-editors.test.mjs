@@ -15,6 +15,8 @@ test("EQ processes audio and MIDI edits survive undo, copies and save/open", asy
   };
   try {
     let s = await send({ op: "state" });
+    assert.equal((await send({ op: "undo" })).historyNotice, undefined);
+    assert.equal((await send({ op: "redo" })).historyNotice, undefined);
     const audio = s.tracks[0].id;
     await send({
       op: "track",
@@ -68,11 +70,13 @@ test("EQ processes audio and MIDI edits survive undo, copies and save/open", asy
       60,
     );
     s = await send({ op: "undo" });
+    assert.equal(s.historyNotice, "Undo edit MIDI note");
     assert.equal(
       s.tracks.at(-1).clips.find((c) => c.id === clip.id).notes[0].note,
       60,
     );
     s = await send({ op: "redo" });
+    assert.equal(s.historyNotice, "Redo edit MIDI note");
     assert.equal(
       s.tracks.at(-1).clips.find((c) => c.id === clip.id).notes[0].note,
       64,

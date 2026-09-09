@@ -55,6 +55,7 @@ export type Track = {
   recordingPreview?: RecordingPreview;
 };
 export type Session = {
+  historyNotice?: string;
   canUndo?: boolean;
   canRedo?: boolean;
   recovered?: boolean;
