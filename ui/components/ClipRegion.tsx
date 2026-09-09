@@ -1,11 +1,12 @@
 import { useRef, useState, useCallback, type CSSProperties } from "react";
 import type { Clip, Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
-import { FadeHandles } from "./ClipSound";
 import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
 import { ArrowLeftToLine, ArrowRightToLine, Repeat2 } from "lucide-react";
+const loopCursor = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>')}") 12 12, crosshair`;
+
 export function ClipRegion({
   clip: c,
   track: t,
@@ -246,6 +247,8 @@ export function ClipRegion({
                     : "right"
                   : "move",
           };
+          if (drag.current.mode === "repeat")
+            e.currentTarget.style.cursor = loopCursor;
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
@@ -272,7 +275,10 @@ export function ClipRegion({
             e.currentTarget.style.cursor =
               !w.s.recording &&
               Math.min(left, right) <= Math.min(18, bounds.width / 3)
-                ? "ew-resize"
+                ? right <= Math.min(18, bounds.width / 3) &&
+                  e.clientY < bounds.top + bounds.height / 2
+                  ? loopCursor
+                  : "ew-resize"
                 : "";
             return;
           }
@@ -375,9 +381,6 @@ export function ClipRegion({
         <span className="trim-handle right" aria-hidden="true">
           <ArrowLeftToLine size={14} />
         </span>
-        {c.kind === "audio" && (
-          <FadeHandles clip={c} track={t} controller={w} />
-        )}
         <div className="clip-title">
           <span>{c.name}</span>
           {takes.length > 1 && (

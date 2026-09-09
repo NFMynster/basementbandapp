@@ -344,43 +344,12 @@ footer .audio-cpu.needs-attention {
   display: flex;
   flex-direction: column;
 }
-.midi-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 24px 8px;
-}
-.midi-region-title {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  min-width: 0;
-  font-size: 12px;
-}
-.midi-region-title strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.midi-region-title span {
-  flex-shrink: 0;
-  font-size: 10px;
-  color: #9699a4;
-  font-variant-numeric: tabular-nums;
-}
-.midi-header .new-midi-region {
-  flex-shrink: 0;
-  font-size: 11px;
-  gap: 6px;
-  padding: 5px 8px;
-}
 .midi-tools {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 16px;
-  padding: 0 24px 10px;
+  padding: 10px 24px;
   border-bottom: 1px solid #ffffff0d;
   font-size: 11px;
 }
@@ -616,54 +585,57 @@ footer .audio-cpu.needs-attention {
   cursor: crosshair;
 }
 .clip-sound {
-  display: flex;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+}
+.region-heading {
+  padding: 0 100px 18px 0;
+  font-size: 12px;
+}
+.region-heading strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.region-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.region-controls label {
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 28px;
+  gap: 24px 12px;
+  padding: 20px;
+  border: 1px solid #ffffff10;
+  border-radius: 12px;
+  background: #ffffff03;
+  font-size: 12px;
+}
+.region-controls input {
+  grid-column: 1 / -1;
+  grid-row: 2;
   width: 100%;
 }
-.clip-sound p {
-  color: #a0a5b1;
+.region-controls output {
+  grid-column: 2;
+  grid-row: 1;
+  color: #a5a8b3;
   font-size: 11px;
-}
-.clip-sound label {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 15px;
-  font-size: 11px;
-}
-.clip-sound output {
-  color: #b8cbe0;
   font-variant-numeric: tabular-nums;
 }
-.clip-fades {
+.region-reset {
   position: absolute;
-  inset: 24px 0 0;
-  pointer-events: none;
-  z-index: 3;
+  top: -6px;
+  right: 0;
+  font-size: 11px;
 }
-.clip-fades svg {
-  width: 100%;
-  height: 100%;
-  fill: #0003;
-}
-.fade-handle {
-  position: absolute;
-  top: 0;
-  width: 10px;
-  height: 10px;
-  border: 1px solid #fff;
-  border-radius: 3px;
-  background: #9ab6cc;
-  pointer-events: auto;
-  cursor: ew-resize;
-  opacity: 0;
-  touch-action: none;
-}
-.clip:hover .fade-handle,
-.clip.chosen .fade-handle,
-.fade-handle:focus-visible {
-  opacity: 1;
+.midi-tools .new-midi-region {
+  margin-left: auto;
 }
 .sound-browser {
   width: 650px;

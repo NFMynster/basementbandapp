@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Magnet,
   Copy,
@@ -28,7 +28,7 @@ export function MidiEditor({
   const notes = clip?.notes ?? [];
   const [division, setDivision] = useState(16),
     [snap, setSnap] = useState(true),
-    [zoom, setZoom] = useState(80);
+    [zoom, setZoom] = useState(0);
   const [selection, setSelection] = useState<number[]>([]),
     [preview, setPreview] = useState<Note[] | null>(null);
   const [pending, setPending] = useState(false),
@@ -52,8 +52,23 @@ export function MidiEditor({
   const selected = notes.filter(
     (n) => n.event !== undefined && selection.includes(n.event),
   );
-  const high = Math.min(127, Math.max(84, ...notes.map((n) => n.note + 4)));
-  const low = Math.max(0, Math.min(36, ...notes.map((n) => n.note - 4)));
+  const [fullKeyboard, setFullKeyboard] = useState(false);
+  const pitchRange = useMemo(
+    () =>
+      notes.length
+        ? {
+            high: Math.min(127, Math.max(...notes.map((n) => n.note)) + 2),
+            low: Math.max(0, Math.min(...notes.map((n) => n.note)) - 2),
+          }
+        : { high: 84, low: 36 },
+    [clip?.id],
+  );
+  const high = fullKeyboard
+    ? 127
+    : Math.max(pitchRange.high, ...notes.map((n) => n.note));
+  const low = fullKeyboard
+    ? 0
+    : Math.min(pitchRange.low, ...notes.map((n) => n.note));
   const [viewportWidth, setViewportWidth] = useState(600);
   const step = 240 / w.s.tempo / division,
     px = Math.max(
@@ -70,7 +85,7 @@ export function MidiEditor({
         0,
         (high - (notes[0]?.note ?? 60)) * row - 70,
       );
-  }, [clip?.id]);
+  }, [clip?.id, fullKeyboard]);
   useEffect(() => {
     const node = scroll.current;
     if (!node) return;
@@ -94,7 +109,12 @@ export function MidiEditor({
         (viewportWidth - 60) / Math.max(0.001, clip?.duration ?? 1),
         Math.min(640 / (60 / w.s.tempo), px * Math.exp(-event.deltaY * 0.008)),
       );
-      setZoom(Math.max(30, Math.min(640, nextPx * (60 / w.s.tempo))));
+      setZoom(
+        nextPx <=
+          (viewportWidth - 60) / Math.max(0.001, clip?.duration ?? 1) + 0.001
+          ? 0
+          : Math.min(640, nextPx * (60 / w.s.tempo)),
+      );
       requestAnimationFrame(() => {
         node.scrollLeft = time * nextPx + 60 - x;
       });
@@ -222,26 +242,6 @@ export function MidiEditor({
         }
       }}
     >
-      <div className="midi-header">
-        <div className="midi-region-title">
-          <strong title={clip?.name}>{clip?.name ?? "Note editor"}</strong>
-          {clip && (
-            <span>
-              {selected.length
-                ? `${selected.length} selected`
-                : `${notes.length} notes`}
-            </span>
-          )}
-        </div>
-        <button
-          className="new-midi-region"
-          disabled={unavailable || w.track.kind !== "midi"}
-          onClick={() => void createRegion()}
-        >
-          <Plus size={14} />
-          New region
-        </button>
-      </div>
       {clip && (
         <div className="midi-tools" role="group" aria-label="MIDI editor tools">
           <div
@@ -365,24 +365,48 @@ export function MidiEditor({
               />
               <output>{velocity}</output>
             </label>
+            <button
+              aria-label="Show full keyboard"
+              aria-pressed={fullKeyboard}
+              onClick={() => setFullKeyboard((v) => !v)}
+              title="Show all pitches, or fit the notes in this region"
+            >
+              Keyboard
+            </button>
             <label>
               Zoom
               <input
                 aria-label="Note editor zoom"
                 type="range"
-                min={30}
+                min={0}
                 max={640}
                 value={zoom}
                 onChange={(e) => setZoom(+e.target.value)}
               />
             </label>
           </div>
+          <button
+            className="new-midi-region"
+            disabled={unavailable || w.track.kind !== "midi"}
+            onClick={() => void createRegion()}
+          >
+            <Plus size={14} />
+            New region
+          </button>
         </div>
       )}
       {!clip ? (
         <div className="notes-empty">
           <Pencil size={22} aria-hidden="true" />
           <strong>A place for your notes</strong>
+          <button
+            className="new-midi-region"
+            disabled={unavailable || w.track.kind !== "midi"}
+            onClick={() => void createRegion()}
+          >
+            <Plus size={14} />
+            New region
+          </button>
           <span>
             Select a MIDI region, or use New region to start at the playhead.
           </span>
@@ -394,7 +418,10 @@ export function MidiEditor({
             tabIndex={0}
             aria-label="MIDI note grid"
             style={{
-              width: Math.max(viewportWidth, clip.duration * px + 60),
+              width: Math.max(
+                viewportWidth,
+                Math.round(clip.duration * px + 60),
+              ),
               height: (high - low + 1) * row + 24,
             }}
             onDoubleClick={(e) => {
@@ -466,18 +493,26 @@ export function MidiEditor({
             <div className="note-ruler">
               {Array.from(
                 { length: Math.ceil(clip.duration / (60 / w.s.tempo)) },
-                (_, i) => (
-                  <span key={i} style={{ left: 60 + i * zoom }}>
-                    {Math.floor(i / 4) + 1}.{(i % 4) + 1}
-                  </span>
-                ),
+                (_, i) =>
+                  i % Math.max(1, Math.ceil(36 / (px * (60 / w.s.tempo)))) ===
+                    0 && (
+                    <span
+                      key={i}
+                      style={{ left: 60 + i * px * (60 / w.s.tempo) }}
+                    >
+                      {Math.floor(i / 4) + 1}.{(i % 4) + 1}
+                    </span>
+                  ),
               )}
             </div>
             {Array.from({ length: high - low + 1 }, (_, i) => (
               <div
                 key={i}
                 className={`piano-row ${[1, 3, 6, 8, 10].includes((high - i) % 12) ? "black-key" : ""}`}
-                style={{ top: i * row + 24, backgroundSize: `${zoom}px 100%` }}
+                style={{
+                  top: i * row + 24,
+                  backgroundSize: `${px * (60 / w.s.tempo)}px 100%`,
+                }}
               >
                 <span>{name(high - i)}</span>
               </div>

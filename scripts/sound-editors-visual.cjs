@@ -91,6 +91,10 @@ app
       w.setSize(width, 800);
       await new Promise((r) => setTimeout(r, 200));
       await w.webContents.executeJavaScript(`(() => {
+        const piano = document.querySelector('.piano-scroll');
+        if (piano.scrollWidth > piano.clientWidth || piano.scrollHeight > piano.clientHeight) throw new Error('Fitted drum region should not need scrollbars');
+        const labels = [...document.querySelectorAll('.note-ruler span')];
+        if (labels.length > 1 && labels[1].getBoundingClientRect().left <= labels[0].getBoundingClientRect().right) throw new Error('Beat labels overlap');
         const toolbar = document.querySelector('.midi-tools');
         if (toolbar.scrollWidth > toolbar.clientWidth) throw new Error('MIDI toolbar overflows');
         const bounds = toolbar.getBoundingClientRect();
@@ -157,6 +161,23 @@ app
       );
     }
 
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[data-clip="clipg"]').dispatchEvent(new MouseEvent('dblclick', {bubbles:true}))`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    await w.webContents.executeJavaScript(`(() => {
+      if (document.querySelectorAll('.region-controls input').length !== 3) throw new Error('Missing region controls');
+      if (document.querySelector('.fade-handle')) throw new Error('Timeline fade handles remain');
+      const clip = document.querySelector('[data-clip="clipg"]'), r = clip.getBoundingClientRect();
+      clip.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, clientX:r.right-2, clientY:r.top+4}));
+      if (!clip.style.cursor.includes('data:image/svg+xml')) throw new Error('Missing loop cursor');
+      clip.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, clientX:r.right-2, clientY:r.bottom-4}));
+      if (clip.style.cursor !== 'ew-resize') throw new Error('Trim cursor changed');
+    })()`);
+    writeFileSync(
+      "artifacts/screenshots/region-redesign.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
     const load = await w.webContents.executeJavaScript(`(async () => {
       const output = document.querySelector('.audio-cpu output');
       let changes = 0;

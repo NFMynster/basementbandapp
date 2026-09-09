@@ -476,12 +476,14 @@ footer {
   font-size: 11px;
 }
 .plugins-panel .plugin-chain {
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 0 3px;
-  overflow: visible;
+  flex-direction: row;
+  gap: 12px;
+  padding: 0 0 10px;
+  overflow-x: auto;
 }
 .plugins-panel .plugin-slot {
+  flex: 0 0 300px;
+  flex-wrap: wrap;
   min-width: 0;
   min-height: 70px;
   border: 1px solid #ffffff10;
@@ -492,7 +494,7 @@ footer {
 }
 .plugins-panel .plugin-slot > div {
   order: 1;
-  flex: 1;
+  flex: 1 0 180px;
   max-width: none;
   min-width: 0;
 }

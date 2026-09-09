@@ -19,6 +19,9 @@ const track = (id, name, color, input) => ({
   clips: [
     {
       id: "clip" + id,
+      kind: "audio",
+      active: true,
+      position: 0,
       name: name + " · take 1",
       start: 0,
       duration: 16,

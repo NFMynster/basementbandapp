@@ -3,8 +3,8 @@ import { TrackEffect } from "./TrackEffects";
 import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
-  ArrowUp,
-  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   AudioLines,
   ChartNoAxesColumn,
   Piano,
@@ -125,7 +125,7 @@ export function TrackInspector({
           </div>
         </div>
         {track && (
-          <div className={`inspector-content inspector-${panel}`}>
+          <div key={panel} className={`inspector-content inspector-${panel}`}>
             {panel === "region" ? (
               <ClipSound controller={controller} />
             ) : panel === "eq" ? (
@@ -364,7 +364,7 @@ export function TrackInspector({
                                   })
                                 }
                               >
-                                <ArrowDown size={14} />
+                                <ArrowRight size={14} />
                               </button>
                             )}
                           <button
@@ -483,7 +483,7 @@ export function TrackInspector({
                             })
                           }
                         >
-                          <ArrowUp size={14} />
+                          <ArrowLeft size={14} />
                         </button>
                         <button
                           aria-label={`Move ${effect.name} later`}
@@ -501,7 +501,7 @@ export function TrackInspector({
                             })
                           }
                         >
-                          <ArrowDown size={14} />
+                          <ArrowRight size={14} />
                         </button>
                         <button
                           title={`Bypass ${effect.name}`}
