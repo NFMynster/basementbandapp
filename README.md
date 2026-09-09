@@ -1,6 +1,30 @@
 # Basement Band
 
-A small, local recording room for jamming together. Record audio and MIDI tracks, loop takes, and bring your own VST3 instruments/effects. React + Electron for the desktop UI; C++/JUCE for audio. No cloud, C# or .NET runtime.
+**A small, local recording room for jamming together.**
+
+Plug in, hit record, play. Multi-track audio and MIDI, loop takes, your own VST3 instruments and effects. React + Electron for the desktop UI, C++/JUCE for the audio engine. No cloud, no logins, no subscription.
+
+Grab a precompiled release - or build it yourself for completely free
+
+## What it is
+
+A simple DAW built around usability. The kind of thing you open when the band is already in the room and nobody wants to spend forty minutes on setup.
+
+- **Multi-track recording.** Arm as many tracks as your interface has inputs and capture the whole take at once.
+- **Audio and MIDI side by side.** Load a VST3 instrument on a MIDI track, play it from your controller, record it like any other part.
+- **Loop takes.** Loop a section, run it until it's right, then pick the take you liked.
+- **Your plug-ins.** Bring your own VST3s. Nothing to buy, nothing to unlock.
+- **Everything stays on your disk.** Projects and media live in a folder you choose. Export separate tracks individually or as one mix.
+- **Fast to learn.** Pick an input, arm a track, hit record. Usability is the top priority.
+
+Good for: basement rehearsals, demos, songwriting, capturing an idea before it evaporates.
+
+## What it is not
+
+- **Not a glorified asset browser.** No sample store, no loop marketplace, no carousel of things to buy on the landing screen. It's a recorder.
+- **Not a professional mixing and mastering suite.** There is no surround panner, no spectral repair, no 40-band linear-phase anything. Mix the record somewhere else if that's what the record needs.
+- **Not a login.** No account, no activation server, no online check, no subscription that lapses and takes your session with it. It runs fully offline.
+- **Not a dongle host.** Nothing is licensed to a USB stick you'll leave at the rehearsal space.
 
 ## Build and run
 
@@ -31,21 +55,6 @@ npm run package:mac  # on macOS: Apple Silicon DMG
 
 Build on the target OS. Files go to `release/`. Signing/notarization needs your own credentials; Mac hardware and permissions still need platform validation. [Build, debugging and troubleshooting](docs/BUILD.md)
 
-## First recording
-
-1. In **Input settings**, choose your audio interface/output and each track's input channel. Use **Live playing** for responsive pads/monitoring, or **Stable mixing** for heavy plug-ins. Click **Done**.
-2. Use **+** to choose Audio or MIDI. A MIDI track needs a VST3 instrument for sound; external MIDI hardware is optional for plug-in preview.
-3. The headphone button enables live monitoring. Use headphones to avoid feedback; leave it off when using your interface's direct monitoring. **R** marks tracks for simultaneous recording.
-4. Drag the ruler's top half to loop; bottom half to seek. Loop recording keeps selectable takes. **123** enables count-in.
-5. Right-click regions to edit, or the timeline to add an audio file at that position. **Save** preserves the project/media; **Export** makes separate stems or one mix.
-
-Output volume affects listening, not exported files. Plug-in editor pad clicks are preview only; record MIDI using a MIDI input. This is an early DAW: one audio interface, one plug-in per track, no undo or piano roll yet. [Timing and limitations](docs/RUNTIME.md)
-
-## Logs and checks
-
-If startup fails, click **Open logs**. It is also in **Quick guide**. On Mac: `~/Library/Logs/Basement Band/main.log`. Allow microphone access in **System Settings → Privacy & Security → Microphone**, then restart.
-
-After building: `npm test`, `npm run check`, `npm run test:desktop`.
 
 ## License
 

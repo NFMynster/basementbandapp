@@ -46,22 +46,32 @@ test("effect chains survive fast structural undo, redo and session recovery", as
     await send({ op: "bypass", track, effect: effects[0].id, value: true });
     s = await send({ op: "import", track, path: file, position: 10 });
     const imported = s.tracks[0].clips.at(-1).id;
+    s = await send({ op: "undo" });
+    assert.ok(
+      !s.tracks[0].clips.some((c) => c.id === imported),
+      "Import is undoable",
+    );
+    s = await send({ op: "undo" });
+    assert.equal(s.tracks[0].effects[0].bypass, false, "Bypass is undoable");
+    s = await send({ op: "undo" });
+    assert.ok(Math.abs(s.tracks[0].gain - 1) < 1e-6);
     const started = performance.now();
     s = await send({ op: "undo" });
     t.diagnostic(
       `Undo with three loaded VSTs: ${(performance.now() - started).toFixed(1)} ms`,
     );
     assert.equal(s.tracks[0].clips.find((c) => c.id === clip).start, 0);
-    assert.ok(
-      s.tracks[0].clips.some((c) => c.id === imported),
-      "Later imports survive undo",
+    assert.equal(
+      s.looping,
+      true,
+      "Loop selection remains independent of edit history",
     );
-    assert.equal(s.looping, true);
     assert.equal(s.loopStart, 4);
+    for (let i = 0; i < 4; i++) s = await send({ op: "redo" });
+    assert.equal(s.tracks[0].clips.find((c) => c.id === clip).start, 2);
+    assert.ok(s.tracks[0].clips.some((c) => c.id === imported));
     assert.ok(Math.abs(s.tracks[0].gain - 0.7) < 1e-6);
     assert.equal(s.tracks[0].effects[0].bypass, true);
-    s = await send({ op: "redo" });
-    assert.equal(s.tracks[0].clips.find((c) => c.id === clip).start, 2);
     // Moving between tracks retains the media path in recovery/history.
     const destination = s.tracks[1].id;
     await send({
@@ -178,13 +188,13 @@ test("unsaved session recovery and undo/redo preserve deleted and trimmed audio"
     await send({ op: "track", track, gain: 0.3, historyGroup: "drag-one" });
     s = await send({ op: "undo" });
     assert.ok(
-      Math.abs(s.tracks[0].gain - 0.3) < 1e-6,
-      "Volume gestures are not undoable",
+      Math.abs(s.tracks[0].gain - originalGain) < 1e-6,
+      "The entire volume gesture undoes in one step",
     );
     s = await send({ op: "redo" });
     assert.ok(
       Math.abs(s.tracks[0].gain - 0.3) < 1e-6,
-      "Redo does not restore volume gestures",
+      "Redo restores the final gesture value",
     );
     assert.notEqual(s.tracks[0].gain, originalGain);
     await send({ op: "rename", title: "Unsaved jam" });

@@ -96,6 +96,13 @@ const devices = {
   bufferSize: 256,
 };
 contextBridge.exposeInMainWorld("basement", {
+  soundLibrary: async () => ({
+    plugins: [],
+    presets: [],
+    scanning: false,
+    progress: "",
+    errors: [],
+  }),
   command: async (c) => {
     if (c.op === "devices") return devices;
     if (c.op === "configure") {

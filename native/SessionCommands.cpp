@@ -27,6 +27,10 @@ void Engine::restoreSession(const var &c) {
   stop();
   auto session = c["session"];
   const bool preserve = flag(c, "preservePlugins");
+  auto replacePlugins = [&](const String &id) {
+    if (c["replacePlugins"].isArray()) for (auto &v : *c["replacePlugins"].getArray()) if (v.toString() == id) return true;
+    return false;
+  };
   require(session["tracks"].isArray(), "Invalid session tracks");
   // Decode before replacing the existing session, so missing/corrupt media
   // cannot destroy it.
@@ -66,6 +70,9 @@ void Engine::restoreSession(const var &c) {
       clip->name = str(cv, "name");
       clip->start = number(cv, "start");
       clip->id = str(cv, "id");
+      clip->gain = (float)number(cv, "gain", 1);
+      clip->fadeIn = number(cv, "fadeIn");
+      clip->fadeOut = number(cv, "fadeOut");
       clip->offset = number(cv, "offset");
       clip->length = number(cv, "length");
       require(clip->offset >= 0 && clip->offset < clip->sourceDuration() &&
@@ -83,12 +90,12 @@ void Engine::restoreSession(const var &c) {
               "Invalid original source bounds");
       t->clips.push_back(std::move(clip));
     }
-    const bool existing = preserve && std::any_of(tracks.begin(), tracks.end(), [&](auto &live) { return live->id == t->id; });
+    const bool existing = preserve && !replacePlugins(t->id) && std::any_of(tracks.begin(), tracks.end(), [&](auto &live) { return live->id == t->id; });
     if (!existing && str(v, "pluginPath").isNotEmpty())
-      loadPlugin(*t, str(v, "pluginPath"), str(v, "pluginState"));
+      loadPlugin(*t, str(v, "pluginPath"), str(v, "pluginState"), false, (int)number(v, "pluginUid"));
     if (!existing && v["effects"].isArray())
       for (auto &slot : *v["effects"].getArray()) {
-        loadPlugin(*t, str(slot, "path"), str(slot, "state"), true);
+        loadPlugin(*t, str(slot, "path"), str(slot, "state"), true, (int)number(slot, "uid"));
         t->effects.back().id = str(slot, "id");
         t->effects.back().bypass = flag(slot, "bypass");
       }
@@ -102,10 +109,23 @@ void Engine::restoreSession(const var &c) {
   if (preserve)
     for (auto &t : loaded) {
       auto found = std::find_if(tracks.begin(), tracks.end(), [&](auto &live) { return live && live->id == t->id; });
-      if (found == tracks.end()) continue;
-      // Keep processors, editors' parameters, routing and mix settings alive.
-      (*found)->clips = std::move(t->clips);
-      t = std::move(*found);
+      if (found == tracks.end() || replacePlugins(t->id)) continue;
+      // Keep live processor instances while restoring the requested metadata.
+      t->plugin = std::move((*found)->plugin);
+      t->pluginPath = (*found)->pluginPath;
+      t->pluginName = (*found)->pluginName;
+      t->pluginUid = (*found)->pluginUid;
+      for (auto &v : *session["tracks"].getArray()) {
+        if (str(v, "id") != t->id || !v["effects"].isArray()) continue;
+        for (auto &slot : *v["effects"].getArray()) {
+          auto effect = std::find_if((*found)->effects.begin(), (*found)->effects.end(), [&](auto &e) { return e.id == str(slot, "id"); });
+          require(effect != (*found)->effects.end(), "Effect history no longer matches");
+          effect->bypass = flag(slot, "bypass");
+          t->effects.push_back(std::move(*effect));
+        }
+      }
+      if (t->plugin) t->plugin->setPlayHead(&t->playHead);
+      for (auto &effect : t->effects) effect.plugin->setPlayHead(&t->playHead);
     }
   tracks = std::move(loaded);
   folder = str(c, "folder");

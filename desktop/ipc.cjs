@@ -25,6 +25,9 @@ const COMMANDS = new Set([
   "bypass",
   "editor",
   "editClip",
+  "createMidi",
+  "reorderEffect",
+  "preset",
   "metronome",
   "countIn",
   "master",
@@ -66,6 +69,74 @@ async function removeCreatedTrack(request, trackId, state) {
 }
 
 function registerIpc(win, request) {
+  let library;
+  ipcMain.handle("soundLibrary", async (event, command) => {
+    assertSender(event, win);
+    const allowed = [
+      "list",
+      "scan",
+      "scanFolder",
+      "favorite",
+      "load",
+      "savePreset",
+      "applyPreset",
+      "deletePreset",
+    ];
+    if (!command || !allowed.includes(command.op))
+      throw new Error("Unknown library action");
+    if (!library) {
+      const { PluginLibrary } = require("./plugin-library.cjs");
+      const home = app.getPath("home");
+      const roots =
+        process.platform === "win32"
+          ? [
+              path.join(
+                process.env.CommonProgramFiles ||
+                  "C:/Program Files/Common Files",
+                "VST3",
+              ),
+              path.join(
+                process.env.LOCALAPPDATA || home,
+                "Programs/Common/VST3",
+              ),
+            ]
+          : process.platform === "darwin"
+            ? [
+                "/Library/Audio/Plug-Ins/VST3",
+                path.join(home, "Library/Audio/Plug-Ins/VST3"),
+              ]
+            : [
+                "/usr/lib/vst3",
+                "/usr/local/lib/vst3",
+                path.join(home, ".vst3"),
+              ];
+      const root = app.isPackaged
+        ? process.resourcesPath
+        : path.join(__dirname, "..");
+      library = new PluginLibrary(
+        app.getPath("userData"),
+        path.join(
+          root,
+          "artifacts/native",
+          process.platform === "win32" ? "BasementAudio.exe" : "BasementAudio",
+        ),
+        roots,
+      );
+    }
+    if (command.op === "scanFolder") {
+      const result = await dialog.showOpenDialog(win, {
+        title: "Scan plug-in folder",
+        properties: ["openDirectory"],
+      });
+      if (result.canceled) return library.command({ op: "list" }, request);
+      return library.command(
+        { op: "scan", folder: result.filePaths[0] },
+        request,
+      );
+    }
+    // Scan paths come only from the system locations or the native folder picker.
+    return library.command({ ...command, folder: undefined }, request);
+  });
   ipcMain.handle("command", async (event, cmd) => {
     assertSender(event, win);
     if (!cmd || !COMMANDS.has(cmd.op)) throw new Error("Unknown command");

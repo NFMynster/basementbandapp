@@ -18,7 +18,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::atomic<double> position{0};
   int block = 256;
   std::atomic<bool> playing{false}, recording{false};
-  bool looping = false;
+  bool looping = false, exporting = false;
   float masterGain = 1.0f;
   std::atomic<float> masterPeak{0};
   bool metronome = false, countIn = false, cycleRecording = false;
@@ -38,7 +38,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::unique_ptr<Clip> readClip(String path, String name, double start);
   void add(String name, String color, int input);
   void stop();
-  void loadPlugin(Track &track, const String &path, const String &state = {}, bool effect = false);
+  void loadPlugin(Track &track, const String &path, const String &state = {}, bool effect = false, int uid = 0);
 
 public:
   void initializeAudio(bool inputAllowed = true);
@@ -65,6 +65,7 @@ private:
   var exportAudio(const var &command);
   std::unique_ptr<Clip> readMidiClip(String path, String name, double start);
   void finishMidiTake(Track &track);
+  void persistMidi(Clip &clip, std::shared_ptr<MidiMessageSequence> sequence);
   void preparePlayback(double start, bool cycle);
   void prepareTrack(Track &track, double start, bool cycle);
   void sendPanic(Track &track);

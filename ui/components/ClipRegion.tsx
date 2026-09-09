@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, type CSSProperties } from "react";
 import type { Clip, Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
+import { FadeHandles } from "./ClipSound";
 import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
@@ -67,14 +68,23 @@ export function ClipRegion({
             Math.max(
               Math.max(
                 -c.start,
-                ...[c, ...takes].map((take) => take.sourceStart - take.offset),
+                ...(c.kind === "midi"
+                  ? [c.duration - 1200]
+                  : [c, ...takes].map(
+                      (take) => take.sourceStart - take.offset,
+                    )),
               ),
               delta,
             ),
             Math.max(0, shortest - 2 / w.s.sampleRate),
           )
         : Math.max(
-            Math.min(c.sourceEnd - c.offset - c.duration, delta),
+            Math.min(
+              c.kind === "midi"
+                ? 1200 - c.duration
+                : c.sourceEnd - c.offset - c.duration,
+              delta,
+            ),
             -c.duration + 2 / w.s.sampleRate,
           );
     return drag.current!.mode === "left"
@@ -152,10 +162,8 @@ export function ClipRegion({
           select();
         }}
         onDoubleClick={() => {
-          if (c.kind === "midi") {
-            select();
-            w.setPanel("notes");
-          }
+          select();
+          w.setPanel(c.kind === "midi" ? "notes" : "region");
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -314,6 +322,9 @@ export function ClipRegion({
         <span className="trim-handle right" aria-hidden="true">
           <ArrowLeftToLine size={14} />
         </span>
+        {c.kind === "audio" && (
+          <FadeHandles clip={c} track={t} controller={w} />
+        )}
         <div className="clip-title">
           <span>{c.name}</span>
           {takes.length > 1 && (

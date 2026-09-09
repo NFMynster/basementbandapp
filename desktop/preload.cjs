@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("basement", {
   openLicenses: () => invoke("licenses"),
   openLogs: () => invoke("logs"),
   restart: () => invoke("restart"),
+  soundLibrary: (command) => invoke("soundLibrary", command),
   command: (command) => invoke("command", command),
   save: () => invoke("save"),
   open: () => invoke("open"),

@@ -110,6 +110,9 @@ function validate(session) {
       assertValid(["audio", "midi"].includes(clip.kind), "Invalid region kind");
       assertValid(clip.kind === track.kind, "Region type does not match track");
       number(clip.start, 0, Number.MAX_VALUE);
+      if (clip.gain !== undefined) number(clip.gain, 0, 4);
+      for (const key of ["fadeIn", "fadeOut"])
+        if (clip[key] !== undefined) number(clip[key], 0, 1200);
       number(clip.offset, 0, 1200);
       number(clip.sourceStart, 0, 1200);
       number(clip.sourceEnd, clip.sourceStart, 1200);

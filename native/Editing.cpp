@@ -36,7 +36,51 @@ void Engine::editClip(const var &c) {
   require(found != t.clips.end(), "Region no longer exists");
   auto &clip = **found;
   const auto action = str(c, "action");
-  if (action == "note" || action == "quantize") {
+  if (action == "sound") {
+    require(!clip.isMidi, "Clip volume and fades apply to audio regions");
+    const double gain = number(c, "gain", clip.gain), fadeIn = number(c, "fadeIn", clip.fadeIn), fadeOut = number(c, "fadeOut", clip.fadeOut);
+    require(std::isfinite(gain) && gain >= 0 && gain <= 4 && std::isfinite(fadeIn) && std::isfinite(fadeOut) && fadeIn >= 0 && fadeOut >= 0 && fadeIn <= clip.duration() && fadeOut <= clip.duration(), "Invalid clip volume or fade");
+    clip.gain = (float)gain;
+    clip.fadeIn = fadeIn;
+    clip.fadeOut = fadeOut;
+    return;
+  } else if (action == "notes") {
+    require(clip.isMidi && clip.active && c["edits"].isArray(), "Select an active MIDI region");
+    auto &edits = *c["edits"].getArray();
+    require(edits.size() <= 2048, "Edit at most 2048 notes at a time");
+    auto sequence = std::make_shared<MidiMessageSequence>(*clip.events);
+    sequence->updateMatchedPairs();
+    std::vector<int> removed;
+    std::vector<MidiMessage> added;
+    for (auto &v : edits) {
+      const double rawIndex = number(v, "event", -1);
+      require(std::isfinite(rawIndex) && rawIndex == std::floor(rawIndex) && rawIndex >= -1 && rawIndex < sequence->getNumEvents(), "Invalid note index");
+      const int index = (int)rawIndex;
+      int channel = 1, velocity = 100;
+      if (index >= 0) {
+        auto *event = sequence->getEventPointer(index);
+        require(event->message.isNoteOn() && event->noteOffObject, "Note no longer exists");
+        require(std::find(removed.begin(), removed.end(), index) == removed.end(), "Duplicate note edit");
+        channel = event->message.getChannel();
+        velocity = event->message.getVelocity();
+        removed.push_back(index);
+        removed.push_back(sequence->getIndexOf(event->noteOffObject));
+      }
+      if (flag(v, "delete")) { require(index >= 0, "Choose a note to delete"); continue; }
+      const double begin = number(v, "start"), duration = number(v, "duration"), pitch = number(v, "note", -1);
+      const double rawVelocity = number(v, "velocity", velocity), rawChannel = number(v, "channel", channel);
+      require(std::isfinite(begin) && std::isfinite(duration) && begin >= 0 && duration >= 0.001 && begin + duration <= clip.duration() + 1e-8 && std::isfinite(pitch) && pitch >= 0 && pitch <= 127 && pitch == std::floor(pitch) && std::isfinite(rawVelocity) && rawVelocity >= 1 && rawVelocity <= 127 && rawVelocity == std::floor(rawVelocity) && rawChannel >= 1 && rawChannel <= 16 && rawChannel == std::floor(rawChannel), "Invalid MIDI note");
+      auto on = MidiMessage::noteOn((int)rawChannel, (int)pitch, (uint8)rawVelocity);
+      auto off = MidiMessage::noteOff((int)rawChannel, (int)pitch);
+      on.setTimeStamp(clip.offset + begin); off.setTimeStamp(clip.offset + begin + duration);
+      added.push_back(on); added.push_back(off);
+    }
+    std::sort(removed.rbegin(), removed.rend());
+    for (int index : removed) sequence->deleteEvent(index, false);
+    require(sequence->getNumEvents() + (int)added.size() <= 262144, "Too many MIDI events");
+    for (const auto &event : added) sequence->addEvent(event);
+    persistMidi(clip, sequence);
+  } else if (action == "note" || action == "quantize") {
     require(clip.isMidi && clip.active, "Select an active MIDI region");
     auto sequence = std::make_shared<MidiMessageSequence>(*clip.events);
     sequence->updateMatchedPairs();
@@ -77,25 +121,7 @@ void Engine::editClip(const var &c) {
     event->message.setTimeStamp(clip.offset + begin);
     event->noteOffObject->message.setTimeStamp(clip.offset + begin + duration);
     }
-    sequence->sort();
-    sequence->updateMatchedPairs();
-    MidiMessageSequence disk(*sequence);
-    for (auto *item : disk) item->message.setTimeStamp(item->message.getTimeStamp() * 1000);
-    auto end = MidiMessage::endOfTrack();
-    end.setTimeStamp(clip.sourceDuration() * 1000);
-    disk.addEvent(end);
-    MidiFile file;
-    file.setSmpteTimeFormat(25, 40);
-    file.addTrack(disk);
-    const auto path = File(folder).getChildFile(Uuid().toString() + ".mid");
-    {
-      FileOutputStream output(path);
-      require(output.openedOk() && file.writeTo(output), "Could not save edited MIDI");
-    }
-    clip.events = sequence;
-    clip.path = path.getFullPathName();
-    clip.cachedKey.clear();
-    clip.eventPosition = -1;
+    persistMidi(clip, sequence);
   } else if (action == "take") {
     require(clip.takeGroup.isNotEmpty(), "This region has no alternate takes");
     for (auto &other : t.clips)
@@ -104,6 +130,34 @@ void Engine::editClip(const var &c) {
   } else if (action == "trim") {
     const double start = number(c, "position"), length = number(c, "length");
     const double delta = start - clip.start;
+    if (clip.isMidi) {
+      require(std::isfinite(start) && std::isfinite(length) && start >= 0 &&
+                  length >= 1 / rate && length <= 1200,
+              "MIDI regions must be shorter than 20 minutes");
+      const auto group = clip.takeGroup;
+      for (const auto &part : t.clips)
+        if (part.get() == &clip || (group.isNotEmpty() && part->takeGroup == group)) {
+          const double shift = jmax(0.0, -(part->offset + delta));
+          require(jmax(part->midiLength + shift, part->offset + delta + shift + length) <= 1200,
+                  "MIDI source must stay within 20 minutes");
+        }
+      for (auto &part : t.clips)
+        if (part.get() == &clip || (group.isNotEmpty() && part->takeGroup == group)) {
+          const double shift = jmax(0.0, -(part->offset + delta));
+          const double sourceEnd = part->trimEnd();
+          auto sequence = std::make_shared<MidiMessageSequence>(*part->events);
+          if (shift > 0)
+            for (auto *event : *sequence)
+              event->message.setTimeStamp(event->message.getTimeStamp() + shift);
+          part->offset += delta + shift;
+          part->start = start;
+          part->length = length;
+          part->midiLength = jmax(part->midiLength + shift, part->offset + length);
+          part->sourceStart = jmin(part->sourceStart + shift, part->offset);
+          part->sourceEnd = jmax(sourceEnd + shift, part->offset + length);
+          persistMidi(*part, sequence);
+        }
+    } else {
     require(std::isfinite(start) && std::isfinite(length) && start >= 0 &&
                 clip.offset + delta >= clip.sourceStart - 1e-8 &&
                 length >= 1 / rate && clip.offset + delta + length <= clip.trimEnd() + 1e-8,
@@ -119,7 +173,10 @@ void Engine::editClip(const var &c) {
         part->length = jmin(length, part->trimEnd() - part->offset - delta);
         part->offset += delta;
         part->start = start;
+        part->fadeIn = jmin(part->fadeIn, part->length);
+        part->fadeOut = jmin(part->fadeOut, part->length);
       }
+    }
   } else if (action == "split") {
     const double at = number(c, "position") - clip.start;
     require(at > 1 / rate && at < clip.duration() - 1 / rate,
@@ -175,6 +232,8 @@ void Engine::editClip(const var &c) {
       for (auto &part : t.clips)
         if (part->takeGroup == group) {
           part->start = start;
+        part->fadeIn = jmin(part->fadeIn, part->length);
+        part->fadeOut = jmin(part->fadeOut, part->length);
           moved.push_back(std::move(part));
         }
       std::erase_if(t.clips, [](auto &part) { return !part; });

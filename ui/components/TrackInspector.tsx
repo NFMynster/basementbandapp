@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  AudioLines,
   ChartNoAxesColumn,
   Piano,
   ChevronDown,
@@ -13,6 +16,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
+import { ClipSound } from "./ClipSound";
 import { PanelResize } from "./PanelResize";
 import { TrackEqualizer } from "./TrackEqualizer";
 import { MidiEditor } from "./MidiEditor";
@@ -23,6 +27,7 @@ export function TrackInspector({
   controller: WorkspaceController;
 }) {
   const inspector = useRef<HTMLElement>(null);
+  const effectDrag = useRef<string | null>(null);
   useEffect(() => {
     if (controller.propertiesPing)
       inspector.current?.focus({ preventScroll: true });
@@ -95,6 +100,17 @@ export function TrackInspector({
               <ChartNoAxesColumn size={14} />
               EQ
             </button>
+            {track?.clips.some(
+              (c) => c.id === controller.clipId && c.kind === "audio",
+            ) && (
+              <button
+                className={panel === "region" ? "tab active" : "tab"}
+                onClick={() => setPanel("region")}
+              >
+                <AudioLines size={14} />
+                Region
+              </button>
+            )}
             {track?.kind === "midi" && (
               <button
                 className={panel === "notes" ? "tab active" : "tab"}
@@ -109,7 +125,9 @@ export function TrackInspector({
         </div>
         {track && (
           <div className="inspector-content">
-            {panel === "eq" ? (
+            {panel === "region" ? (
+              <ClipSound controller={controller} />
+            ) : panel === "eq" ? (
               <TrackEqualizer track={track} update={update} />
             ) : panel === "notes" ? (
               <MidiEditor
@@ -246,7 +264,17 @@ export function TrackInspector({
             ) : (
               <>
                 <div className="plugin-intro">
-                  <span className="eyebrow">BRING YOUR OWN SOUND</span>
+                  <button
+                    disabled={s.playing || busy}
+                    onClick={() =>
+                      controller.setSoundBrowser({
+                        track: track.id,
+                        presets: true,
+                      })
+                    }
+                  >
+                    Track presets
+                  </button>
                   <h3>
                     {track.kind === "midi"
                       ? "Your drum kit. Your keys."
@@ -263,9 +291,64 @@ export function TrackInspector({
                     className="plugin-chain"
                     aria-label="Plug-ins in processing order"
                   >
-                    <div className="plugin-slot">
+                    <div
+                      className="plugin-slot"
+                      draggable={
+                        track.kind === "audio" &&
+                        !!track.pluginName &&
+                        !s.playing &&
+                        !busy
+                      }
+                      onDragStart={(e) => {
+                        effectDrag.current = "primary";
+                        e.dataTransfer.setData("text/plain", "primary");
+                      }}
+                      onDragEnd={() => {
+                        effectDrag.current = null;
+                      }}
+                      onDragOver={(e) => {
+                        if (track.kind === "audio" && effectDrag.current) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }
+                      }}
+                      onDrop={(e) => {
+                        if (
+                          track.kind !== "audio" ||
+                          !effectDrag.current ||
+                          effectDrag.current === "primary"
+                        )
+                          return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void run({
+                          op: "reorderEffect",
+                          track: track.id,
+                          effect: effectDrag.current,
+                          index: -1,
+                        });
+                        effectDrag.current = null;
+                      }}
+                    >
                       {track.pluginName ? (
                         <>
+                          {track.kind === "audio" &&
+                            !!track.effects?.length && (
+                              <button
+                                aria-label="Move first effect later"
+                                disabled={s.playing || busy}
+                                onClick={() =>
+                                  void run({
+                                    op: "reorderEffect",
+                                    track: track.id,
+                                    effect: "primary",
+                                    index: 0,
+                                  })
+                                }
+                              >
+                                <ArrowRight size={14} />
+                              </button>
+                            )}
                           <button
                             title="Bypass plugin"
                             className={track.bypass ? "" : "on"}
@@ -299,7 +382,9 @@ export function TrackInspector({
                           <button
                             title="Replace plugin"
                             disabled={s.playing || busy}
-                            onClick={() => task(() => api.plugin(track.id))}
+                            onClick={() =>
+                              controller.setSoundBrowser({ track: track.id })
+                            }
                           >
                             Replace
                           </button>
@@ -316,7 +401,9 @@ export function TrackInspector({
                       ) : (
                         <button
                           disabled={s.playing || busy}
-                          onClick={() => task(() => api.plugin(track.id))}
+                          onClick={() =>
+                            controller.setSoundBrowser({ track: track.id })
+                          }
                         >
                           <Plus size={20} />
                           <span>
@@ -329,7 +416,73 @@ export function TrackInspector({
                       )}
                     </div>
                     {(track.effects ?? []).map((effect, index) => (
-                      <div className="plugin-slot" key={effect.id}>
+                      <div
+                        className="plugin-slot"
+                        key={effect.id}
+                        draggable={!s.playing && !busy}
+                        onDragStart={(e) => {
+                          effectDrag.current = effect.id;
+                          e.dataTransfer.setData("text/plain", effect.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => {
+                          effectDrag.current = null;
+                        }}
+                        onDragOver={(e) => {
+                          if (effectDrag.current) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (!effectDrag.current) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void run({
+                            op: "reorderEffect",
+                            track: track.id,
+                            effect: effectDrag.current,
+                            index,
+                          });
+                          effectDrag.current = null;
+                        }}
+                      >
+                        <button
+                          aria-label={`Move ${effect.name} earlier`}
+                          disabled={
+                            s.playing ||
+                            busy ||
+                            (track.kind === "midi" && index === 0)
+                          }
+                          onClick={() =>
+                            void run({
+                              op: "reorderEffect",
+                              track: track.id,
+                              effect: effect.id,
+                              index: index - 1,
+                            })
+                          }
+                        >
+                          <ArrowLeft size={14} />
+                        </button>
+                        <button
+                          aria-label={`Move ${effect.name} later`}
+                          disabled={
+                            s.playing ||
+                            busy ||
+                            index === (track.effects?.length ?? 0) - 1
+                          }
+                          onClick={() =>
+                            void run({
+                              op: "reorderEffect",
+                              track: track.id,
+                              effect: effect.id,
+                              index: index + 1,
+                            })
+                          }
+                        >
+                          <ArrowRight size={14} />
+                        </button>
                         <button
                           title={`Bypass ${effect.name}`}
                           aria-pressed={!effect.bypass}
@@ -391,7 +544,10 @@ export function TrackInspector({
                           (track.effects?.length ?? 0) >= 16
                         }
                         onClick={() =>
-                          task(() => api.plugin(track.id, false, true))
+                          controller.setSoundBrowser({
+                            track: track.id,
+                            append: true,
+                          })
                         }
                       >
                         <Plus size={16} /> Add VST3 effect

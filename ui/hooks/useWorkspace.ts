@@ -71,6 +71,11 @@ function rulerPosition(
 
 export function useWorkspace() {
   const layout = usePanelLayout();
+  const [soundBrowser, setSoundBrowser] = useState<{
+    track: string;
+    append?: boolean;
+    presets?: boolean;
+  } | null>(null);
   const [creatingTrack, setCreatingTrack] = useState(false);
   const [welcome, setWelcome] = useState(
     () => localStorage.getItem("basement.hideWelcome") !== "1",
@@ -137,7 +142,9 @@ export function useWorkspace() {
     [notice, setNoticeState] = useState(""),
     [noticeTone, setNoticeTone] = useState<NoticeTone>("notice"),
     [noticeVersion, setNoticeVersion] = useState(0),
-    [panel, setPanel] = useState<"input" | "plugins" | "eq" | "notes">("input"),
+    [panel, setPanel] = useState<
+      "input" | "plugins" | "eq" | "notes" | "region"
+    >("input"),
     [showHelp, setHelp] = useState(false),
     [devices, setDevices] = useState<Devices | null>(null),
     [deviceLoading, setDeviceLoading] = useState(false),
@@ -230,6 +237,27 @@ export function useWorkspace() {
               : track,
           ),
         };
+      case "editClip": {
+        if (command.action !== "sound") return null;
+        const patch = Object.fromEntries(
+          ["gain", "fadeIn", "fadeOut"]
+            .filter((key) => command[key as "gain"] !== undefined)
+            .map((key) => [key, command[key as "gain"]]),
+        );
+        return {
+          ...s,
+          tracks: s.tracks.map((t) =>
+            t.id !== command.track
+              ? t
+              : {
+                  ...t,
+                  clips: t.clips.map((c) =>
+                    c.id !== command.clip ? c : { ...c, ...patch },
+                  ),
+                },
+          ),
+        };
+      }
       case "track": {
         const { op: ignored, track: trackId, historyGroup, ...patch } = command;
         return {
@@ -651,6 +679,8 @@ export function useWorkspace() {
   return {
     ...shortcuts,
     ...layout,
+    soundBrowser,
+    setSoundBrowser,
     confirmation,
     confirmAction,
     finishConfirmation,

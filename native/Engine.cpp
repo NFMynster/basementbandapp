@@ -149,12 +149,12 @@ var Engine::state(bool full, bool pluginState) {
                      {"eqMid", t->eqMid}, {"eqTreble", t->eqTreble},
                      {"peak", t->peak.load()},
                      {"clips", clips},
-                     {"pluginName", t->pluginName},
+                     {"pluginName", t->pluginName}, {"pluginUid", t->pluginUid},
                      {"bypass", t->bypass}});
     const auto preview = recordingPreview(*t, position.load());
     Array<var> effects;
     for (auto &effect : t->effects) {
-      auto slot = object({{"id", effect.id}, {"name", effect.name}, {"bypass", effect.bypass}});
+      auto slot = object({{"id", effect.id}, {"name", effect.name}, {"uid", effect.uid}, {"bypass", effect.bypass}});
       if (full) {
         slot.getDynamicObject()->setProperty("path", effect.path);
         if (pluginState) {

@@ -47,6 +47,8 @@ var Engine::exportAudio(const var &c) {
   const auto total = (int64)std::ceil((duration + tail) * rate);
   const int frames = jlimit(1, 8192, block);
   Array<var> files;
+  exporting = true;
+  const ScopeGuard finishExport([&] { exporting = false; });
   // Reset DSP history, not parameters; exports must not inherit the last playback tail.
   for (auto *t : selected)
     prepareTrack(*t, 0, false);

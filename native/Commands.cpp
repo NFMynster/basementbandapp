@@ -60,6 +60,83 @@ var Engine::command(const var &c) {
       }
     return state();
   }
+  if (op == "preset") {
+    require(!playing, "Stop playback before applying a preset");
+    auto &t = track(c);
+    const auto preset = JSON::parse(str(c, "preset"));
+    require(preset.isObject() && (str(preset, "kind") == "midi") == t.isMidi, "Choose a preset for this track type");
+    Track prepared;
+    prepared.isMidi = t.isMidi;
+    prepared.scratch.setSize(2, jmax(block, 8192));
+    prepared.liveMidi.ensureSize(65536);
+    if (str(preset, "pluginPath").isNotEmpty()) loadPlugin(prepared, str(preset, "pluginPath"), str(preset, "pluginState"), false, (int)number(preset, "pluginUid"));
+    if (preset["effects"].isArray()) for (auto &slot : *preset["effects"].getArray()) {
+      loadPlugin(prepared, str(slot, "path"), str(slot, "state"), true, (int)number(slot, "uid"));
+      prepared.effects.back().bypass = flag(slot, "bypass");
+    }
+    const ScopedLock lock(guard);
+    t.plugin = std::move(prepared.plugin); t.pluginPath = prepared.pluginPath; t.pluginName = prepared.pluginName; t.pluginUid = prepared.pluginUid;
+    t.effects = std::move(prepared.effects);
+    t.bypass = flag(preset, "bypass");
+    t.gain = (float)jlimit(0.0, 1.5, number(preset, "gain", 0.8));
+    t.pan = (float)jlimit(-1.0, 1.0, number(preset, "pan"));
+    t.eqBass = (float)jlimit(-12.0, 12.0, number(preset, "eqBass"));
+    t.eqMid = (float)jlimit(-12.0, 12.0, number(preset, "eqMid"));
+    t.eqTreble = (float)jlimit(-12.0, 12.0, number(preset, "eqTreble"));
+    t.eqEnabled = !preset.hasProperty("eqEnabled") || flag(preset, "eqEnabled");
+    if (t.plugin) t.plugin->setPlayHead(&t.playHead);
+    for (auto &effect : t.effects) effect.plugin->setPlayHead(&t.playHead);
+    prepareTrack(t, position, looping);
+    return state();
+  }
+  if (op == "createMidi") {
+    require(!recording, "Stop recording before creating a region");
+    auto &t = track(c);
+    require(t.isMidi, "Choose a MIDI track");
+    const double at = number(c, "position"), duration = number(c, "length", 960.0 / tempo);
+    require(std::isfinite(at) && at >= 0 && std::isfinite(duration) && duration >= 0.001 && duration <= 1200, "Invalid MIDI region");
+    auto clip = std::make_unique<Clip>();
+    clip->isMidi = true; clip->name = t.name + " notes"; clip->start = at; clip->midiLength = duration;
+    persistMidi(*clip, std::make_shared<MidiMessageSequence>());
+    const ScopedLock lock(guard);
+    t.clips.push_back(std::move(clip));
+    prepareTrack(t, position, looping);
+    return state();
+  }
+  if (op == "reorderEffect") {
+    require(!playing, "Stop playback before reordering effects");
+    auto &t = track(c);
+    const double raw = number(c, "index", -1);
+    require(raw >= (t.isMidi ? 0 : -1) && raw < (double)t.effects.size() && raw == std::floor(raw), "Invalid effect position");
+    require(raw != -1 || t.plugin != nullptr, "Load the first effect before reordering");
+    const ScopedLock lock(guard);
+    if (str(c, "effect") == "primary") {
+      require(!t.isMidi && t.plugin && raw >= 0 && !t.effects.empty(), "Instrument stays first");
+      Effect previous; previous.plugin = std::move(t.plugin); previous.path = t.pluginPath; previous.name = t.pluginName; previous.uid = t.pluginUid; previous.bypass = t.bypass;
+      auto first = std::move(t.effects.front()); t.effects.erase(t.effects.begin());
+      t.plugin = std::move(first.plugin); t.pluginPath = first.path; t.pluginName = first.name; t.pluginUid = first.uid; t.bypass = first.bypass;
+      t.effects.insert(t.effects.begin() + (int)raw, std::move(previous));
+    } else {
+      auto found = std::find_if(t.effects.begin(), t.effects.end(), [&](auto &e) { return e.id == str(c, "effect"); });
+      require(found != t.effects.end(), "Effect no longer exists");
+      auto effect = std::move(*found); t.effects.erase(found);
+      if (raw == -1) {
+        Effect previous; previous.plugin = std::move(t.plugin); previous.path = t.pluginPath; previous.name = t.pluginName; previous.uid = t.pluginUid; previous.bypass = t.bypass;
+        t.plugin = std::move(effect.plugin); t.pluginPath = effect.path; t.pluginName = effect.name; t.pluginUid = effect.uid; t.bypass = effect.bypass;
+        t.effects.insert(t.effects.begin(), std::move(previous));
+      } else t.effects.insert(t.effects.begin() + (int)raw, std::move(effect));
+    }
+    prepareTrack(t, position, looping);
+    return state();
+  }
+  if (op == "scanPlugin") {
+    require(testDevice, "Scanning requires the scanner process");
+    OwnedArray<PluginDescription> found;
+    for (int i = 0; i < plugins.getNumFormats(); ++i) plugins.getFormat(i)->findAllTypesForFile(found, str(c, "path"));
+    Array<var> result;
+    for (auto *p : found) result.add(object({{"name", p->name}, {"path", p->fileOrIdentifier}, {"manufacturer", p->manufacturerName}, {"instrument", p->isInstrument}, {"uid", p->uniqueId}}));
+    return result;
+  }
   if (op == "editClip") {
     editClip(c);
     return state();
@@ -153,6 +230,9 @@ var Engine::command(const var &c) {
       tracks.back()->color = "#b0c4a7";
       tracks.back()->icon = "keys";
     }
+    auto settings = c.clone();
+    settings.getDynamicObject()->setProperty("track", tracks.back()->id);
+    try { updateTrack(settings); } catch (...) { tracks.pop_back(); throw; }
   } else if (op == "track") {
     updateTrack(c);
   } else if (op == "removeTrack") {
@@ -200,7 +280,7 @@ var Engine::command(const var &c) {
   } else if (op == "plugin") {
     auto &t = track(c);
     const bool effect = flag(c, "append");
-    loadPlugin(t, str(c, "path"), {}, effect);
+    loadPlugin(t, str(c, "path"), {}, effect, (int)number(c, "uid"));
     if (!testDevice)
       editor = std::make_unique<PluginWindow>(effect ? *t.effects.back().plugin : *t.plugin);
   } else if (op == "bypass") {

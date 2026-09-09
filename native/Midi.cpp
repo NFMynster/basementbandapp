@@ -52,6 +52,28 @@ std::unique_ptr<Clip> Engine::readMidiClip(String path, String name, double star
   return clone(*mediaCache[path]);
 }
 
+void Engine::persistMidi(Clip &clip, std::shared_ptr<MidiMessageSequence> sequence) {
+  sequence->sort();
+  sequence->updateMatchedPairs();
+  MidiMessageSequence disk(*sequence);
+  for (auto *item : disk) item->message.setTimeStamp(item->message.getTimeStamp() * 1000);
+  auto end = MidiMessage::endOfTrack();
+  end.setTimeStamp(clip.sourceDuration() * 1000);
+  disk.addEvent(end);
+  MidiFile file;
+  file.setSmpteTimeFormat(25, 40);
+  file.addTrack(disk);
+  const auto path = File(folder).getChildFile(Uuid().toString() + ".mid");
+  {
+    FileOutputStream output(path);
+    require(output.openedOk() && file.writeTo(output), "Could not save edited MIDI");
+  }
+  clip.events = std::move(sequence);
+  clip.path = path.getFullPathName();
+  clip.cachedKey.clear();
+  clip.eventPosition = -1;
+}
+
 void Engine::finishMidiTake(Track &t) {
   t.midiRecording = false;
   if (t.midiTake.empty())

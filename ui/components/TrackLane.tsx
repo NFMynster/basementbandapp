@@ -31,8 +31,36 @@ export function TrackLane({
         void dropAudio(Array.from(event.dataTransfer.files), track.id);
       }}
       onContextMenu={(event) => onMenu(event, track)}
-      onDoubleClick={(event) => {
-        if (event.target === event.currentTarget) openProperties(track.id);
+      onDoubleClick={async (event) => {
+        if (event.target !== event.currentTarget) return;
+        if (track.kind !== "midi") {
+          openProperties(track.id);
+          return;
+        }
+        if (s.recording || controller.busy) return;
+        const at = Math.max(
+          0,
+          Math.round(
+            (event.clientX - event.currentTarget.getBoundingClientRect().left) /
+              pxPerSecond /
+              (60 / s.tempo),
+          ) *
+            (60 / s.tempo),
+        );
+        const result = await controller.run({
+          op: "createMidi",
+          track: track.id,
+          position: at,
+          length: 960 / s.tempo,
+        });
+        const created = result?.tracks
+          .find((t) => t.id === track.id)
+          ?.clips.at(-1);
+        if (created) {
+          setSelected(track.id);
+          setClipId(created.id);
+          controller.setPanel("notes");
+        }
       }}
       onClick={() => {
         setSelected(track.id);

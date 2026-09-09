@@ -91,13 +91,13 @@ export function CreateTrackDialog({
           disabled={creating || c.s.recording}
           onClick={async () => {
             setCreating(true);
-            const result = await c.run({ op: "addTrack", kind });
+            const result = await c.run({
+              op: "addTrack",
+              kind,
+              ...(kind === "audio" ? { input } : { midiDevice: device }),
+            });
             if (result) {
               const track = result.tracks.at(-1)!;
-              await c.update(
-                track,
-                kind === "audio" ? { input } : { midiDevice: device },
-              );
               c.openProperties(track.id);
               c.setPanel(kind === "midi" ? "plugins" : "input");
               c.setCreatingTrack(false);

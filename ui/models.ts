@@ -2,6 +2,9 @@ export type TrackIconName =
   "guitar" | "bass" | "drums" | "keys" | "mic" | "audio";
 
 export type Clip = {
+  gain?: number;
+  fadeIn?: number;
+  fadeOut?: number;
   offset: number;
   sourceStart: number;
   sourceEnd: number;
@@ -9,7 +12,14 @@ export type Clip = {
   take: number;
   active: boolean;
   kind: "audio" | "midi";
-  notes?: { event?: number; start: number; duration: number; note: number }[];
+  notes?: {
+    event?: number;
+    velocity?: number;
+    channel?: number;
+    start: number;
+    duration: number;
+    note: number;
+  }[];
   id: string;
   name: string;
   start: number;
@@ -133,14 +143,39 @@ export type SessionCommand =
         | "undo"
         | "redo";
     }
-  | { op: "addTrack"; kind?: "audio" | "midi" }
+  | { op: "createMidi"; track: string; position: number; length?: number }
+  | { op: "reorderEffect"; track: string; effect: string; index: number }
+  | { op: "preset"; track: string; preset: string }
+  | ({ op: "addTrack"; kind?: "audio" | "midi" } & TrackPatch)
   | { op: "metronome" | "countIn"; value: boolean }
   | { op: "master"; value: number; historyGroup?: string }
   | {
       op: "editClip";
       track: string;
       clip: string;
-      action: "move" | "copy" | "split" | "take" | "trim" | "note" | "quantize";
+      action:
+        | "move"
+        | "copy"
+        | "split"
+        | "take"
+        | "trim"
+        | "note"
+        | "quantize"
+        | "notes"
+        | "sound";
+      gain?: number;
+      fadeIn?: number;
+      fadeOut?: number;
+      historyGroup?: string;
+      edits?: {
+        event?: number;
+        start?: number;
+        duration?: number;
+        note?: number;
+        velocity?: number;
+        channel?: number;
+        delete?: boolean;
+      }[];
       division?: number;
       event?: number;
       pitch?: number;
@@ -173,7 +208,39 @@ export type ExportOptions = {
   track?: string;
 };
 export type ExportResult = { folder: string; files: string[] };
+export type LibraryCommand = {
+  op:
+    | "list"
+    | "scan"
+    | "scanFolder"
+    | "favorite"
+    | "load"
+    | "savePreset"
+    | "applyPreset"
+    | "deletePreset";
+  id?: string;
+  track?: string;
+  append?: boolean;
+  name?: string;
+};
+export type SoundLibrary = {
+  plugins: {
+    id: string;
+    name: string;
+    manufacturer: string;
+    path: string;
+    instrument: boolean;
+    favorite: boolean;
+    recent: number;
+  }[];
+  presets: { id: string; name: string; kind: "audio" | "midi" }[];
+  scanning: boolean;
+  progress: string;
+  errors: string[];
+  session?: Session;
+};
 export interface DesktopApi {
+  soundLibrary(command: LibraryCommand): Promise<SoundLibrary>;
   openLicenses(): Promise<string>;
   openLogs(): Promise<string>;
   restart(): Promise<void>;

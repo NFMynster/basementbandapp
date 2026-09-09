@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  Magnet,
+  Copy,
+  Plus,
+  Trash2,
+  Pencil,
+  MousePointer2,
+  ClipboardPaste,
+} from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
-import type { Clip } from "../models";
-
+import type { Clip, SessionCommand } from "../models";
 type Note = NonNullable<Clip["notes"]>[number];
-const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+type Edit = NonNullable<
+  Extract<SessionCommand, { op: "editClip" }>["edits"]
+>[number];
+let clipboard: Note[] = [];
+const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const name = (n: number) => `${names[n % 12]}${Math.floor(n / 12) - 1}`;
 export function MidiEditor({
   controller: w,
@@ -13,115 +25,287 @@ export function MidiEditor({
   const clip = w.track?.clips.find(
     (c) => c.id === w.clipId && c.kind === "midi" && c.active,
   );
-  const [division, setDivision] = useState(16);
-  const [snap, setSnap] = useState(true),
-    [zoom, setZoom] = useState(100),
-    [selected, setSelected] = useState<number>();
-  const [preview, setPreview] = useState<Note | null>(null),
-    [pending, setPending] = useState(false);
+  const notes = clip?.notes ?? [];
+  const [division, setDivision] = useState(16),
+    [snap, setSnap] = useState(true),
+    [zoom, setZoom] = useState(80);
+  const [selection, setSelection] = useState<number[]>([]),
+    [preview, setPreview] = useState<Note[] | null>(null);
+  const [pending, setPending] = useState(false),
+    [draw, setDraw] = useState(false),
+    [velocity, setVelocity] = useState(100),
+    [pasteAt, setPasteAt] = useState(0);
+  const [marquee, setMarquee] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const drag = useRef<{
     x: number;
     y: number;
-    note: Note;
+    notes: Note[];
     resize: boolean;
   } | null>(null);
+  const box = useRef<{ x: number; y: number; selected: number[] } | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
-  const notes = clip?.notes ?? [];
-  const high = Math.min(127, Math.max(72, ...notes.map((n) => n.note + 4)));
-  const low = Math.max(0, Math.min(48, ...notes.map((n) => n.note - 4)));
+  const selected = notes.filter(
+    (n) => n.event !== undefined && selection.includes(n.event),
+  );
+  const high = Math.min(127, Math.max(84, ...notes.map((n) => n.note + 4)));
+  const low = Math.max(0, Math.min(36, ...notes.map((n) => n.note - 4)));
   const step = 240 / w.s.tempo / division,
     px = zoom / (60 / w.s.tempo),
     row = 20;
+  const unavailable = w.s.recording || w.busy;
+  const disabled = pending || unavailable;
+  const quantize = (v: number) => (snap ? Math.round(v / step) * step : v);
   useEffect(() => {
-    if (scroll.current && notes.length)
-      scroll.current.scrollTop = Math.max(0, (high - notes[0].note) * row - 80);
+    if (scroll.current)
+      scroll.current.scrollTop = Math.max(
+        0,
+        (high - (notes[0]?.note ?? 60)) * row - 70,
+      );
   }, [clip?.id]);
-  const disabled = pending || w.s.recording || w.busy;
-  async function commit(note: Note) {
-    if (!clip || note.event === undefined) return;
-    setPending(true);
-    await w.run({
-      op: "editClip",
-      action: "note",
-      track: w.track.id,
-      clip: clip.id,
-      event: note.event,
-      position: note.start,
-      length: note.duration,
-      pitch: note.note,
-    });
-    setPending(false);
-    setPreview(null);
-    setSelected(undefined);
-  }
-  async function alignNotes() {
-    if (!clip || disabled) return;
+  async function edit(edits: Edit[]) {
+    if (!clip || disabled || !edits.length) return;
     setPending(true);
     const result = await w.run({
       op: "editClip",
-      action: "quantize",
+      action: "notes",
       track: w.track.id,
       clip: clip.id,
-      division,
+      edits,
     });
     setPending(false);
     setPreview(null);
-    setSelected(undefined);
-    if (result)
+    const updated =
+      result?.tracks
+        .find((t) => t.id === w.track.id)
+        ?.clips.find((c) => c.id === clip.id)?.notes ?? [];
+    setSelection(
+      updated
+        .filter((n) =>
+          edits.some(
+            (e) =>
+              !e.delete &&
+              e.start !== undefined &&
+              Math.abs(n.start - e.start) < 0.001 &&
+              n.note === e.note,
+          ),
+        )
+        .flatMap((n) => (n.event === undefined ? [] : [n.event])),
+    );
+  }
+  const copy = () => {
+    clipboard = selected.map((n) => ({ ...n }));
+    if (clipboard.length)
       w.setNotice(
-        `Aligned notes to the 1/${division} beat grid. Undo is available when playback is stopped.`,
+        `Copied ${clipboard.length} note${clipboard.length === 1 ? "" : "s"}.`,
       );
+  };
+  function paste() {
+    if (!clip || !clipboard.length) return;
+    const first = Math.min(...clipboard.map((n) => n.start));
+    const span =
+      Math.max(...clipboard.map((n) => n.start + n.duration)) - first;
+    if (span > clip.duration) {
+      w.setNotice("These notes need a longer region.", "warning");
+      return;
+    }
+    const at = Math.max(0, Math.min(clip.duration - span, pasteAt));
+    void edit(
+      clipboard.map((n) => ({
+        ...n,
+        event: undefined,
+        start: at + n.start - first,
+      })),
+    );
+  }
+  function add(x: number, y: number) {
+    if (!clip || disabled) return;
+    const start = Math.max(
+      0,
+      Math.min(clip.duration - 0.001, quantize((x - 60) / px)),
+    );
+    void edit([
+      {
+        start,
+        duration: Math.min(step, clip.duration - start),
+        note: Math.max(low, Math.min(high, high - Math.floor((y - 24) / row))),
+        velocity,
+        channel: w.track.midiChannel || 1,
+      },
+    ]);
+  }
+  async function createRegion() {
+    if (disabled) return;
+    const result = await w.run({
+      op: "createMidi",
+      track: w.track.id,
+      position: w.s.position,
+      length: 960 / w.s.tempo,
+    });
+    const created = result?.tracks
+      .find((t) => t.id === w.track.id)
+      ?.clips.at(-1);
+    if (created) {
+      w.setClipId(created.id);
+      w.setPanel("notes");
+    }
   }
   return (
     <div
-      className="midi-editor"
+      className="midi-editor complete-midi"
       onKeyDown={(e) => {
-        if (["Delete", "Backspace"].includes(e.key)) e.stopPropagation();
+        const mod = e.ctrlKey || e.metaKey;
+        if (
+          mod &&
+          ["a", "c", "v", "d"].includes(e.key.toLowerCase()) &&
+          !(e.target instanceof HTMLInputElement)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key.toLowerCase() === "a")
+            setSelection(
+              notes.flatMap((n) => (n.event === undefined ? [] : [n.event])),
+            );
+          if (e.key.toLowerCase() === "c") copy();
+          if (e.key.toLowerCase() === "v") paste();
+          if (e.key.toLowerCase() === "d") {
+            copy();
+            paste();
+          }
+        }
+        if (
+          ["Delete", "Backspace"].includes(e.key) &&
+          !(e.target instanceof HTMLInputElement)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          void edit(selected.map((n) => ({ event: n.event, delete: true })));
+        }
       }}
     >
-      <div className="midi-align-tools">
+      <div
+        className="midi-tools midi-align-tools"
+        role="group"
+        aria-label="MIDI editor tools"
+      >
+        <strong title={clip?.name}>{clip?.name ?? "Note editor"}</strong>
         <button
+          className="new-midi-region"
+          disabled={unavailable || w.track.kind !== "midi"}
+          onClick={() => void createRegion()}
+        >
+          <Plus size={14} />
+          New region
+        </button>
+        <button
+          disabled={unavailable || !notes.length}
           className="align-notes"
-          disabled={disabled || !notes.length}
-          onClick={() => void alignNotes()}
-          title="Move note starts in this region to the nearest beat grid. Keeps note lengths; notes crossing trimmed edges stay in place."
+          title="Align the selected region to the beat grid; keeps note lengths"
+          onClick={async () => {
+            if (!clip || disabled) return;
+            setPending(true);
+            const r = await w.run({
+              op: "editClip",
+              action: "quantize",
+              track: w.track.id,
+              clip: clip.id,
+              division,
+            });
+            setPending(false);
+            setSelection([]);
+            if (r) w.setNotice("Aligned MIDI notes to the beat grid.");
+          }}
         >
           Align to beat <span>(quantization)</span>
         </button>
         <select
           aria-label="Beat alignment grid"
           value={division}
-          disabled={disabled}
+          disabled={unavailable}
           onChange={(e) => setDivision(+e.target.value)}
         >
-          {[4, 8, 16, 32].map((value) => (
-            <option key={value} value={value}>
-              1/{value}
-              {value === 4
-                ? " - Quarter notes"
-                : value === 8
-                  ? " - Eighth notes"
-                  : value === 16
-                    ? " - Sixteenth notes"
-                    : " - Thirty-second notes"}
+          {[4, 8, 16, 32].map((v) => (
+            <option key={v} value={v}>
+              1/{v} notes
             </option>
           ))}
         </select>
-        <span>Selected region; keeps note lengths</span>
-      </div>
-      <div className="midi-tools">
-        <strong>{clip?.name ?? "Note editor"}</strong>
-        <span>
-          Drag to move · drag right edge to resize · arrow keys to nudge
-        </span>
+        <button
+          className="midi-tool-start"
+          title="Select notes; drag a box or Shift-click for multiple notes"
+          aria-label="Select notes"
+          aria-pressed={!draw}
+          onClick={() => setDraw(false)}
+        >
+          <MousePointer2 size={14} />
+        </button>
+        <button
+          title="Draw notes by clicking the grid"
+          aria-label="Draw notes"
+          aria-pressed={draw}
+          onClick={() => setDraw(true)}
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          title="Copy selected notes (Ctrl/Cmd+C)"
+          aria-label="Copy notes"
+          disabled={!selected.length}
+          onClick={copy}
+        >
+          <Copy size={14} />
+        </button>
+        <button
+          title="Paste at the last clicked grid position (Ctrl/Cmd+V)"
+          aria-label="Paste notes"
+          disabled={unavailable || !clip}
+          onClick={paste}
+        >
+          <ClipboardPaste size={14} />
+        </button>
+        <button
+          title="Delete selected notes"
+          aria-label="Delete notes"
+          disabled={unavailable || !selected.length}
+          onClick={() =>
+            void edit(selected.map((n) => ({ event: n.event, delete: true })))
+          }
+        >
+          <Trash2 size={14} />
+        </button>
         <label>
+          Velocity
           <input
-            type="checkbox"
-            checked={snap}
-            onChange={(e) => setSnap(e.target.checked)}
-          />{" "}
-          Snap 1/{division}
+            aria-label="Note velocity"
+            type="range"
+            min={1}
+            max={127}
+            value={velocity}
+            disabled={unavailable}
+            onChange={(e) => setVelocity(+e.target.value)}
+            onPointerUp={() => {
+              if (selected.length)
+                void edit(selected.map((n) => ({ ...n, velocity })));
+            }}
+            onKeyUp={(e) => {
+              if (e.key.startsWith("Arrow") && selected.length)
+                void edit(selected.map((n) => ({ ...n, velocity })));
+            }}
+          />
+          <output>{velocity}</output>
         </label>
+        <button
+          title={snap ? "Snap to grid: on" : "Snap to grid: off"}
+          aria-label="Snap to grid"
+          aria-pressed={snap}
+          onClick={() => setSnap((value) => !value)}
+        >
+          <Magnet size={14} />
+        </button>
         <label>
           Zoom
           <input
@@ -136,20 +320,82 @@ export function MidiEditor({
       </div>
       {!clip ? (
         <div className="notes-empty">
-          Select a MIDI region to edit its notes. Double-click a region to open
-          it here.
-        </div>
-      ) : !notes.length ? (
-        <div className="notes-empty">
-          This region has no notes. Record or import MIDI to get started.
+          Select a MIDI region, or create one at the playhead.
         </div>
       ) : (
         <div className="piano-scroll" ref={scroll}>
           <div
-            className="piano-grid"
+            className={`piano-grid ${draw ? "drawing" : ""}`}
+            tabIndex={0}
+            aria-label="MIDI note grid"
             style={{
               width: Math.max(600, clip.duration * px + 60),
               height: (high - low + 1) * row + 24,
+            }}
+            onDoubleClick={(e) => {
+              if (draw || (e.target as HTMLElement).closest(".piano-note"))
+                return;
+              const r = e.currentTarget.getBoundingClientRect();
+              add(e.clientX - r.left, e.clientY - r.top);
+            }}
+            onPointerDown={(e) => {
+              if (
+                e.button !== 0 ||
+                disabled ||
+                (e.target as HTMLElement).closest(".piano-note")
+              )
+                return;
+              const r = e.currentTarget.getBoundingClientRect(),
+                x = e.clientX - r.left,
+                y = e.clientY - r.top;
+              if (x < 60 || y < 24) return;
+              e.preventDefault();
+              e.currentTarget.focus();
+              setPasteAt(Math.max(0, quantize((x - 60) / px)));
+              if (draw) {
+                add(x, y);
+                return;
+              }
+              box.current = { x, y, selected: e.shiftKey ? selection : [] };
+              if (!e.shiftKey) setSelection([]);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!box.current) return;
+              const r = e.currentTarget.getBoundingClientRect(),
+                x = e.clientX - r.left,
+                y = e.clientY - r.top;
+              const b = {
+                x: Math.min(x, box.current.x),
+                y: Math.min(y, box.current.y),
+                width: Math.abs(x - box.current.x),
+                height: Math.abs(y - box.current.y),
+              };
+              setMarquee(b);
+              setSelection([
+                ...new Set([
+                  ...box.current.selected,
+                  ...notes
+                    .filter(
+                      (n) =>
+                        60 + n.start * px <= b.x + b.width &&
+                        60 + (n.start + n.duration) * px >= b.x &&
+                        25 + (high - n.note) * row <= b.y + b.height &&
+                        25 + (high - n.note + 1) * row >= b.y,
+                    )
+                    .flatMap((n) => (n.event === undefined ? [] : [n.event])),
+                ]),
+              ]);
+            }}
+            onPointerUp={(e) => {
+              box.current = null;
+              setMarquee(null);
+              if (e.currentTarget.hasPointerCapture(e.pointerId))
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }}
+            onPointerCancel={() => {
+              box.current = null;
+              setMarquee(null);
             }}
           >
             <div className="note-ruler">
@@ -164,57 +410,83 @@ export function MidiEditor({
             </div>
             {Array.from({ length: high - low + 1 }, (_, i) => (
               <div
-                className={`piano-row ${[1, 3, 6, 8, 10].includes((high - i) % 12) ? "black-key" : ""}`}
                 key={i}
+                className={`piano-row ${[1, 3, 6, 8, 10].includes((high - i) % 12) ? "black-key" : ""}`}
                 style={{ top: i * row + 24, backgroundSize: `${zoom}px 100%` }}
               >
                 <span>{name(high - i)}</span>
               </div>
             ))}
             {notes.map((n) => {
-              const current =
-                preview && preview.event === n.event ? preview : n;
+              const current = preview?.find((p) => p.event === n.event) ?? n;
               return (
                 <button
                   key={n.event}
-                  className={`piano-note ${selected === n.event ? "selected" : ""}`}
-                  disabled={disabled || n.event === undefined}
-                  aria-label={`${name(current.note)}, ${current.start.toFixed(2)} seconds, duration ${current.duration.toFixed(2)} seconds`}
+                  className={`piano-note ${n.event !== undefined && selection.includes(n.event) ? "selected" : ""}`}
+                  disabled={unavailable || n.event === undefined}
+                  aria-label={`${name(current.note)}, ${current.start.toFixed(2)} seconds, velocity ${current.velocity ?? 100}`}
                   style={{
                     left: 60 + current.start * px,
                     top: 25 + (high - current.note) * row,
                     width: Math.max(8, current.duration * px),
                     height: row - 2,
+                    opacity: 0.55 + ((current.velocity ?? 100) / 127) * 0.45,
                   }}
+                  onDoubleClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => {
                     if (!e.key.startsWith("Arrow") || disabled) return;
                     e.preventDefault();
-                    const next = { ...n };
-                    if (e.key === "ArrowUp")
-                      next.note = Math.min(127, n.note + 1);
-                    if (e.key === "ArrowDown")
-                      next.note = Math.max(0, n.note - 1);
+                    e.stopPropagation();
+                    const group = selected.length ? selected : [n];
+                    let dt = 0,
+                      dp = 0;
                     if (e.key === "ArrowLeft" || e.key === "ArrowRight")
-                      next.start = Math.max(
-                        0,
-                        Math.min(
-                          clip.duration - n.duration,
-                          n.start +
-                            (e.key === "ArrowLeft" ? -1 : 1) *
-                              (snap ? step : 0.01),
-                        ),
-                      );
-                    void commit(next);
+                      dt =
+                        (e.key === "ArrowLeft" ? -1 : 1) * (snap ? step : 0.01);
+                    else
+                      dp =
+                        (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 12 : 1);
+                    dt = Math.max(
+                      -Math.min(...group.map((p) => p.start)),
+                      Math.min(
+                        clip.duration -
+                          Math.max(...group.map((p) => p.start + p.duration)),
+                        dt,
+                      ),
+                    );
+                    dp = Math.max(
+                      -Math.min(...group.map((p) => p.note)),
+                      Math.min(127 - Math.max(...group.map((p) => p.note)), dp),
+                    );
+                    void edit(
+                      group.map((p) => ({
+                        ...p,
+                        start: p.start + dt,
+                        note: p.note + dp,
+                      })),
+                    );
                   }}
                   onPointerDown={(e) => {
-                    if (e.button !== 0 || disabled) return;
+                    if (e.button !== 0 || disabled || n.event === undefined)
+                      return;
                     e.preventDefault();
+                    e.stopPropagation();
                     e.currentTarget.focus();
-                    setSelected(n.event);
+                    setVelocity(n.velocity ?? 100);
+                    if (e.shiftKey) {
+                      setSelection(
+                        selection.includes(n.event)
+                          ? selection.filter((id) => id !== n.event)
+                          : [...selection, n.event],
+                      );
+                      return;
+                    }
+                    const group = selection.includes(n.event) ? selected : [n];
+                    setSelection(group.map((p) => p.event!));
                     drag.current = {
                       x: e.clientX,
                       y: e.clientY,
-                      note: n,
+                      notes: group,
                       resize:
                         e.currentTarget.getBoundingClientRect().right -
                           e.clientX <
@@ -224,52 +496,72 @@ export function MidiEditor({
                   }}
                   onPointerMove={(e) => {
                     const d = drag.current;
-                    if (!d || d.note.event !== n.event) return;
-                    const delta = (e.clientX - d.x) / px;
-                    const quantize = (v: number) =>
-                      snap ? Math.round(v / step) * step : v;
-                    setPreview({
-                      ...d.note,
-                      ...(d.resize
-                        ? {
-                            duration: Math.max(
-                              0.001,
-                              Math.min(
-                                clip.duration - d.note.start,
-                                quantize(d.note.duration + delta),
-                              ),
+                    if (!d) return;
+                    e.stopPropagation();
+                    let dt = (e.clientX - d.x) / px;
+                    if (snap) dt = Math.round(dt / step) * step;
+                    let dp = -Math.round((e.clientY - d.y) / row);
+                    dp = Math.max(
+                      low - Math.min(...d.notes.map((p) => p.note)),
+                      Math.min(
+                        high - Math.max(...d.notes.map((p) => p.note)),
+                        dp,
+                      ),
+                    );
+                    if (d.resize) {
+                      dt = Math.max(
+                        0.001 - Math.min(...d.notes.map((p) => p.duration)),
+                        Math.min(
+                          clip.duration -
+                            Math.max(
+                              ...d.notes.map((p) => p.start + p.duration),
                             ),
-                          }
-                        : {
-                            start: Math.max(
-                              0,
-                              Math.min(
-                                clip.duration - d.note.duration,
-                                quantize(d.note.start + delta),
-                              ),
+                          dt,
+                        ),
+                      );
+                      setPreview(
+                        d.notes.map((p) => ({
+                          ...p,
+                          duration: p.duration + dt,
+                        })),
+                      );
+                    } else {
+                      dt = Math.max(
+                        -Math.min(...d.notes.map((p) => p.start)),
+                        Math.min(
+                          clip.duration -
+                            Math.max(
+                              ...d.notes.map((p) => p.start + p.duration),
                             ),
-                            note: Math.max(
-                              low,
-                              Math.min(
-                                high,
-                                d.note.note -
-                                  Math.round((e.clientY - d.y) / row),
-                              ),
-                            ),
-                          }),
-                    });
+                          dt,
+                        ),
+                      );
+                      setPreview(
+                        d.notes.map((p) => ({
+                          ...p,
+                          start: p.start + dt,
+                          note: p.note + dp,
+                        })),
+                      );
+                    }
                   }}
                   onPointerUp={(e) => {
+                    e.stopPropagation();
                     if (!drag.current) return;
+                    const d = drag.current;
                     drag.current = null;
-                    e.currentTarget.releasePointerCapture(e.pointerId);
+                    if (e.currentTarget.hasPointerCapture(e.pointerId))
+                      e.currentTarget.releasePointerCapture(e.pointerId);
                     if (
                       preview &&
-                      (preview.start !== n.start ||
-                        preview.duration !== n.duration ||
-                        preview.note !== n.note)
+                      preview.some(
+                        (p, i) =>
+                          p.start !== d.notes[i].start ||
+                          p.note !== d.notes[i].note ||
+                          p.duration !== d.notes[i].duration,
+                      )
                     )
-                      void commit(preview);
+                      void edit(preview);
                     else setPreview(null);
                   }}
                   onPointerCancel={() => {
@@ -282,6 +574,17 @@ export function MidiEditor({
                 </button>
               );
             })}
+            {marquee && (
+              <div
+                className="note-marquee"
+                style={{
+                  left: marquee.x,
+                  top: marquee.y,
+                  width: marquee.width,
+                  height: marquee.height,
+                }}
+              />
+            )}
           </div>
         </div>
       )}

@@ -11,6 +11,20 @@ static void panicMidi(MidiBuffer &buffer, int sample) {
 }
 // Shared sample interpolation and plug-in processing for playback and export.
 void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float *liveInput) {
+  double transportTime = start < 0 ? position.load() : start;
+  if (cycle && loopEnd > loopStart && transportTime >= loopEnd)
+    transportTime = loopStart + std::fmod(transportTime - loopStart, loopEnd - loopStart);
+  auto &info = t.playHead.info;
+  info.setTimeInSeconds(transportTime);
+  info.setTimeInSamples((int64)std::llround(transportTime * rate));
+  info.setBpm(tempo);
+  info.setTimeSignature(AudioPlayHead::TimeSignature{4, 4});
+  info.setPpqPosition(transportTime * tempo / 60);
+  info.setPpqPositionOfLastBarStart(std::floor(transportTime * tempo / 240) * 4);
+  info.setIsPlaying(playing || exporting);
+  info.setIsRecording(recording);
+  info.setIsLooping(cycle);
+  info.setLoopPoints(AudioPlayHead::LoopPoints{loopStart * tempo / 60, loopEnd * tempo / 60});
   t.scratch.clear();
   midi.clear();
   if (t.panic) {
@@ -80,7 +94,10 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
       for (int ch = 0; ch < 2; ++ch) {
         int source = jmin(ch, c->audio->getNumChannels() - 1);
         float v = c->audio->getSample(source, a) * (1 - f) + c->audio->getSample(source, b) * f;
-        t.scratch.addSample(ch, i, v);
+        const double relative = time - c->start;
+        const double fadeIn = c->fadeIn > 0 ? jlimit(0.0, 1.0, relative / c->fadeIn) : 1;
+        const double fadeOut = c->fadeOut > 0 ? jlimit(0.0, 1.0, (c->duration() - relative) / c->fadeOut) : 1;
+        t.scratch.addSample(ch, i, v * c->gain * (float)jmin(fadeIn, fadeOut));
       }
     }
   }

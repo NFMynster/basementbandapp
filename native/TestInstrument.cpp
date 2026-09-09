@@ -2,6 +2,8 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 class TestInstrument final : public juce::AudioProcessor {
   bool notes[16][128]{};
+  double hostBpm = -1, hostPpq = -1;
+  bool hostPlaying = false, hostLooping = false;
 
 public:
   TestInstrument()
@@ -16,6 +18,11 @@ public:
            l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
   }
   void processBlock(juce::AudioBuffer<float> &b, juce::MidiBuffer &midi) override {
+    if (auto *head = getPlayHead()) if (auto position = head->getPosition()) {
+      hostBpm = position->getBpm().orFallback(-1);
+      hostPpq = position->getPpqPosition().orFallback(-1);
+      hostPlaying = position->getIsPlaying(); hostLooping = position->getIsLooping();
+    }
     b.clear();
     for (int i = 0; i < b.getNumSamples(); ++i) {
       for (const auto event : midi)
@@ -36,7 +43,7 @@ public:
         for (bool note : channel)
           count += note ? 1 : 0;
       for (int ch = 0; ch < b.getNumChannels(); ++ch)
-        b.setSample(ch, i, juce::jmin(0.9f, count * 0.25f));
+        b.setSample(ch, i, notes[0][127] ? (float)(ch == 0 ? (hostPlaying ? hostBpm / 1000 : -0.5) : (hostLooping ? hostPpq / 100 : -0.5)) : juce::jmin(0.9f, count * 0.25f));
     }
   }
   bool acceptsMidi() const override { return true; }

@@ -12,6 +12,8 @@ struct Clip {
   int eventCursor = 0;
   double eventPosition = -1;
   String id = Uuid().toString(), name, path;
+  float gain = 1;
+  double fadeIn = 0, fadeOut = 0;
   double start = 0, sampleRate = 48000, offset = 0, length = -1;
   double sourceStart = 0, sourceEnd = -1;
   double trimEnd() const { return sourceEnd < 0 ? sourceDuration() : sourceEnd; }
@@ -29,7 +31,7 @@ struct Clip {
   var json(bool full) const {
     const auto key = id + name + path + takeGroup + String(take) + String(start, 15) +
                      String(offset, 15) + String(length, 15) + String((int)active) +
-                     String((int)full);
+                     String((int)full) + String(gain, 8) + String(fadeIn, 12) + String(fadeOut, 12);
     if (key == cachedKey && !cachedJson.isVoid())
       return cachedJson;
     Array<var> preview;
@@ -44,7 +46,7 @@ struct Clip {
                      {"name", name},
                      {"start", start},
                      {"duration", duration()},
-                     {"peaks", preview},
+                     {"peaks", preview}, {"gain", gain}, {"fadeIn", fadeIn}, {"fadeOut", fadeOut},
                      {"offset", offset},
                      {"sourceStart", sourceStart},
                      {"sourceEnd", trimEnd()},
@@ -63,6 +65,7 @@ struct Clip {
         if (event->message.isNoteOn() && end > offset && begin < offset + duration())
           notes.add(object({{"event", i}, {"start", jmax(0.0, begin - offset)},
                             {"note", event->message.getNoteNumber()},
+                            {"velocity", (int)event->message.getVelocity()}, {"channel", event->message.getChannel()},
                             {"duration", jmin(end, offset + duration()) - jmax(begin, offset)}}));
       }
       v.getDynamicObject()->setProperty("notes", notes);
@@ -75,11 +78,17 @@ struct Clip {
   }
 };
 struct Effect {
+  int uid = 0;
   String id = Uuid().toString(), path, name;
   bool bypass = false;
   std::unique_ptr<AudioPluginInstance> plugin;
 };
+struct TrackPlayHead final : AudioPlayHead {
+  PositionInfo info;
+  Optional<PositionInfo> getPosition() const override { return info; }
+};
 struct Track {
+  TrackPlayHead playHead;
   bool isMidi = false;
   String midiDevice;
   int midiChannel = 0;
@@ -123,6 +132,7 @@ struct Track {
   double recordStart = 0;
   std::unique_ptr<AudioPluginInstance> plugin;
   String pluginPath, pluginName;
+  int pluginUid = 0;
   std::vector<Effect> effects;
   int pluginLatency() const {
     int total = plugin && !bypass ? jmax(0, plugin->getLatencySamples()) : 0;

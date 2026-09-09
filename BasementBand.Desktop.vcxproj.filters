@@ -17,6 +17,9 @@
     <None Include="scripts\sound-editors-visual.cjs"><Filter>Build and development</Filter></None>
     <None Include="ui\components\PanelResize.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\hooks\usePanelLayout.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\components\ClipSound.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\SoundBrowser.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="desktop\plugin-library.cjs"><Filter>Electron\Assets</Filter></None>
   </ItemGroup>
   <ItemGroup>
     <None Include="desktop\assets\icon.svg"><Filter>Electron\Assets</Filter></None>

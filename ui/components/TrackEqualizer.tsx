@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Power, RotateCcw } from "lucide-react";
 import type { Track, TrackPatch } from "../models";
 
@@ -20,6 +21,7 @@ export function TrackEqualizer({
   track: Track;
   update: (track: Track, patch: TrackPatch) => unknown;
 }) {
+  const gesture = useRef<string | undefined>(undefined);
   const enabled = track.eqEnabled !== false;
   const preset = presets.find((p) =>
     bands.every((b, i) => (track[b.key] ?? 0) === p.values[i]),
@@ -85,7 +87,21 @@ export function TrackEqualizer({
             step={0.5}
             value={track[b.key] ?? 0}
             disabled={!enabled}
-            onChange={(e) => update(track, { [b.key]: +e.target.value })}
+            onPointerDown={() => {
+              gesture.current = crypto.randomUUID();
+            }}
+            onPointerUp={() => {
+              gesture.current = undefined;
+            }}
+            onBlur={() => {
+              gesture.current = undefined;
+            }}
+            onChange={(e) =>
+              update(track, {
+                [b.key]: +e.target.value,
+                historyGroup: gesture.current,
+              })
+            }
             onDoubleClick={() => update(track, { [b.key]: 0 })}
           />
           <div className="eq-scale">

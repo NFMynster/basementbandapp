@@ -7,6 +7,7 @@ function bridge(): DesktopApi {
   return window.basement;
 }
 export const desktop: DesktopApi = {
+  soundLibrary: (command) => bridge().soundLibrary(command),
   openLicenses: () => bridge().openLicenses(),
   openLogs: () => bridge().openLogs(),
   restart: () => bridge().restart(),

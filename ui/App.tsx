@@ -10,6 +10,7 @@ import { Notices } from "./components/Notices";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { CreateTrackDialog } from "./components/CreateTrackDialog";
+import { SoundBrowser } from "./components/SoundBrowser";
 import { Modal } from "./components/Modal";
 import { WelcomeDialog } from "./components/WelcomeDialog";
 export function App() {
@@ -63,6 +64,12 @@ export function App() {
         <CreateTrackDialog controller={controller} />
       )}
       {controller.welcome && <WelcomeDialog controller={controller} />}
+      {controller.soundBrowser && (
+        <SoundBrowser
+          key={`${controller.soundBrowser.track}:${controller.soundBrowser.append}:${controller.soundBrowser.presets}`}
+          controller={controller}
+        />
+      )}
       {controller.confirmation && (
         <Modal
           title="Confirm action"
