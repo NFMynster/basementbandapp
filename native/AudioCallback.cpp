@@ -152,7 +152,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
         }
       }
     }
-    if ((!playing && !t->monitor) || n > t->scratch.getNumSamples())
+    if ((!playing && !t->monitor && t->auditionSamples == 0 && t->auditionTail == 0 && t->auditionMidi.isEmpty()) || n > t->scratch.getNumSamples())
       continue;
     const float *liveInput =
         !t->isMidi && t->monitor && t->input >= 0 && t->input < ni ? inputs[t->input] : nullptr;

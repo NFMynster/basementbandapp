@@ -33,6 +33,7 @@ const COMMANDS = new Set([
   "master",
   "limiter",
   "clearDiagnostics",
+  "audition",
 ]);
 const AUDIO_EXTENSIONS = /\.(wav|aif|aiff|flac|mp3)$/i;
 const MIDI_EXTENSIONS = /\.(mid|midi)$/i;

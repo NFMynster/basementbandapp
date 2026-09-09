@@ -97,3 +97,5 @@ For the reported Mac stall before “Opening audio device”, rebuild the native
 If a running Windows app locks `artifacts/native/BasementAudio.exe`, close it before rebuilding/F5. For isolated regression tests, `BASEMENT_NATIVE_TEST` can point to a newly compiled engine; desktop smoke tests honor that override only with their test-device mode enabled. Normal app launches ignore it.
 
 For public signed Mac releases, packaging includes microphone/JIT/third-party-library entitlements for the app and helper. Third-party VST3 code is trusted executable code, not sandboxed. Supply Developer ID credentials and notarize before distribution. See [licensing release checklist](LICENSING.md).
+
+Windows builds apply `native/PatchWasapi.cmake` to the pinned JUCE source. It fixes legacy IEEE float sample decoding and exposes validated shared-mode sample-rate conversion without repeating channel probes at every rate. Recheck this patch when upgrading JUCE.

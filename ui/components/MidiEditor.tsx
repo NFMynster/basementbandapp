@@ -162,6 +162,7 @@ export function MidiEditor({
         )
         .flatMap((n) => (n.event === undefined ? [] : [n.event])),
     );
+    return !!result;
   }
   const copy = () => {
     clipboard = selected.map((n) => ({ ...n }));
@@ -188,21 +189,34 @@ export function MidiEditor({
       })),
     );
   }
-  function add(x: number, y: number) {
+  async function add(x: number, y: number) {
     if (!clip || disabled) return;
     const start = Math.max(
       0,
       Math.min(clip.duration - 0.001, quantize((x - 60) / px)),
     );
-    void edit([
-      {
-        start,
-        duration: Math.min(step, clip.duration - start),
-        note: Math.max(low, Math.min(high, high - Math.floor((y - 24) / row))),
-        velocity,
-        channel: w.track.midiChannel || 1,
-      },
-    ]);
+    const note = Math.max(
+      low,
+      Math.min(high, high - Math.floor((y - 24) / row)),
+    );
+    const channel = w.track.midiChannel || 1;
+    if (
+      await edit([
+        {
+          start,
+          duration: Math.min(step, clip.duration - start),
+          note,
+          velocity,
+          channel,
+        },
+      ])
+    ) {
+      if (!w.s.playing)
+        await w.run(
+          { op: "audition", track: w.track.id, note, velocity, channel },
+          false,
+        );
+    }
   }
   async function createRegion() {
     if (disabled) return;

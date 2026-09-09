@@ -9,6 +9,7 @@
   <ItemGroup>
     <ClCompile Include="native\AudioCallback.cpp"><Filter>Engine</Filter></ClCompile>
     <None Include="native\CMakeLists.txt"><Filter>Build configuration</Filter></None>
+    <None Include="native\PatchWasapi.cmake"><Filter>Build configuration</Filter></None>
     <ClCompile Include="native\Commands.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\DeviceCommands.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\Editing.cpp"><Filter>Engine</Filter></ClCompile>

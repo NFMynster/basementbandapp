@@ -94,7 +94,8 @@ struct Track {
   String midiDevice;
   int midiChannel = 0;
   MidiMessageCollector collector;
-  MidiBuffer liveMidi;
+  MidiBuffer liveMidi, auditionMidi;
+  int auditionNote = 60, auditionChannel = 1, auditionSamples = 0, auditionTail = 0;
   struct RecordedEvent {
     double time;
     uint8 data[3];

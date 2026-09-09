@@ -1,0 +1,27 @@
+# JUCE 8.0.12: legacy IEEE_FLOAT must use float conversion, just like extensible float.
+# Shared WASAPI can resample requested rates even when IsFormatSupported returns a nearest mix format.
+set(wasapi "${juce_SOURCE_DIR}/modules/juce_audio_devices/native/juce_WASAPI_windows.cpp")
+file(READ "${wasapi}" source)
+set(old "const bool isFloat = format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && format->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;")
+set(new "const bool isFloat = format->Format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT || (format->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && format->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);")
+string(FIND "${source}" "${old}" found)
+string(FIND "${source}" "${new}" patched)
+if(found EQUAL -1 AND patched EQUAL -1)
+  message(FATAL_ERROR "Recheck the WASAPI float-format fix for this JUCE version")
+endif()
+string(REPLACE "${old}" "${new}" source "${source}")
+# Keep channel-capability probing at the native mix rate; probing every resampled
+# rate multiplies device-enumeration work without finding additional channels.
+string(REPLACE "if (nearestFormat != nullptr && ! supportsSampleRateConversion (deviceMode))" "if (nearestFormat != nullptr)" source "${source}")
+set(old "maxNumChannels = queryMaxNumChannels (tempClient);")
+set(new "maxNumChannels = queryMaxNumChannels (tempClient);\n        // Basement: expose validated shared-mode conversion rates after channel probing.\n        if (supportsSampleRateConversion (deviceMode))\n            for (const auto requested : { 44100.0, 48000.0, 88200.0, 96000.0 })\n                if (! rates.contains (requested) && findSupportedFormat (tempClient, defaultNumChannels, requested).has_value())\n                    rates.addUsingDefaultSort (requested);")
+string(FIND "${source}" "// Basement: expose validated" patched)
+if(patched EQUAL -1)
+  string(FIND "${source}" "${old}" found)
+  if(found EQUAL -1)
+    message(FATAL_ERROR "Recheck the WASAPI sample-rate fix for this JUCE version")
+  endif()
+  string(REPLACE "${old}" "${new}" source "${source}")
+endif()
+string(REPLACE "if (findSupportedFormat (tempClient, defaultNumChannels, requested).has_value())" "if (! rates.contains (requested) && findSupportedFormat (tempClient, defaultNumChannels, requested).has_value())" source "${source}")
+file(WRITE "${wasapi}" "${source}")

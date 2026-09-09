@@ -89,11 +89,13 @@ export function AudioDevicePanel({
               editDevices({ ...devices, sampleRate: +event.target.value })
             }
           >
-            {sortedUnique([44100, 48000, ...devices.rates]).map((rate) => (
-              <option key={rate} value={rate}>
-                {rate / 1000} kHz
-              </option>
-            ))}
+            {sortedUnique([devices.sampleRate, ...devices.rates]).map(
+              (rate) => (
+                <option key={rate} value={rate}>
+                  {rate / 1000} kHz
+                </option>
+              ),
+            )}
           </select>
         </label>
         <label>
@@ -104,7 +106,7 @@ export function AudioDevicePanel({
               editDevices({ ...devices, bufferSize: +event.target.value })
             }
           >
-            {sortedUnique([128, 256, 512, 1024, ...devices.buffers]).map(
+            {sortedUnique([devices.bufferSize, ...devices.buffers]).map(
               (buffer) => (
                 <option key={buffer} value={buffer}>
                   {buffer} samples

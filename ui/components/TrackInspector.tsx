@@ -12,7 +12,7 @@ import {
   Piano,
   ChevronDown,
   Mic2,
-  Headphones,
+  AudioWaveform,
   Plus,
   Power,
   SlidersHorizontal,
@@ -236,7 +236,7 @@ export function TrackInspector({
                     disabled={busy}
                     onClick={() => update(track, { monitor: !track.monitor })}
                   >
-                    <Headphones size={13} /> Monitor
+                    <AudioWaveform size={13} /> Monitor
                     <span>{track.monitor ? "On" : "Off"}</span>
                   </button>
                 </div>

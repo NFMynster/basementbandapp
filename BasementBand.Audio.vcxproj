@@ -19,6 +19,7 @@
   <ItemGroup>
     <ClCompile Include="native\AudioCallback.cpp" />
     <None Include="native\CMakeLists.txt" />
+    <None Include="native\PatchWasapi.cmake" />
     <ClCompile Include="native\Commands.cpp" />
     <ClCompile Include="native\DeviceCommands.cpp" />
     <ClCompile Include="native\Editing.cpp" />

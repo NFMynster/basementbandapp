@@ -271,6 +271,35 @@ app
     console.log(
       "Effects, gate, diagnostics and MIDI export verified at desktop and small widths",
     );
+    await w.webContents.executeJavaScript(
+      `window.basement.command({op:'testAddTrack'})`,
+    );
+    await new Promise((r) => setTimeout(r, 90));
+    if (
+      !(await w.webContents.executeJavaScript(
+        `document.querySelector('[data-track-header="animated"]').getAnimations().length > 0`,
+      ))
+    )
+      throw new Error("Track insertion is not animated");
+    await new Promise((r) => setTimeout(r, 220));
+    await w.webContents.executeJavaScript(
+      `window.basement.command({op:'testRemoveTrack'})`,
+    );
+    await new Promise((r) => setTimeout(r, 90));
+    if (
+      !(await w.webContents.executeJavaScript(
+        `document.querySelector('[data-track-header="b"]').getAnimations().length > 0 && document.querySelector('[data-lane="b"]').getAnimations().length > 0`,
+      ))
+    )
+      throw new Error("Track removal did not animate both columns");
+    await new Promise((r) => setTimeout(r, 220));
+    if (
+      await w.webContents.executeJavaScript(
+        `!!document.querySelector('.track-header[aria-hidden="true"]')`,
+      )
+    )
+      throw new Error("Deleted track ghost was not removed");
+    console.log("Track insertion and removal transitions verified");
     await w.loadFile(path.join(__dirname, "../dist/index.html"), {
       query: { startup: "slow" },
     });
@@ -285,7 +314,7 @@ app
       "artifacts/screenshots/startup-overlay.png",
       (await w.webContents.capturePage()).toPNG(),
     );
-    await new Promise((r) => setTimeout(r, 1300));
+    await new Promise((r) => setTimeout(r, 1800));
     if (
       await w.webContents.executeJavaScript(
         `!!document.querySelector('[data-startup]') || document.querySelector('.app').inert`,

@@ -210,6 +210,13 @@ export type SessionCommand =
       effect?: string;
     }
   | { op: "removeClip"; track: string; clip: string }
+  | {
+      op: "audition";
+      track: string;
+      note: number;
+      velocity: number;
+      channel: number;
+    }
   | { op: "seek"; position: number }
   | { op: "loop"; start: number; end: number; enabled: boolean }
   | { op: "tempo"; value: number; match?: "none" | "midi" | "all" }

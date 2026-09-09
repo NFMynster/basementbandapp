@@ -467,7 +467,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .plugin-toolbar button {
   background: #ffffff06;
@@ -489,8 +489,8 @@ footer {
   border: 1px solid #ffffff10;
   border-radius: 12px;
   background: #ffffff03;
-  padding: 14px 18px;
-  gap: 14px;
+  padding: 10px 14px;
+  gap: 8px 12px;
 }
 .plugins-panel .plugin-slot > div {
   order: 1;
@@ -547,4 +547,9 @@ footer .audio-cpu {
   .recording-controls .track-file-actions button {
     font-size: 9px;
   }
+}
+
+.inspector-content.inspector-plugins {
+  padding-top: 12px;
+  padding-bottom: 10px;
 }

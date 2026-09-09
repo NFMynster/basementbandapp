@@ -62,6 +62,15 @@ export function SettingsDialog({
       }
       setDevices(result);
       setDeviceDirty(false);
+      if (
+        result.sampleRate !== devices.sampleRate ||
+        result.bufferSize !== devices.bufferSize
+      ) {
+        setApplyError(
+          `The driver selected ${result.sampleRate / 1000} kHz and ${result.bufferSize} samples. These are the active settings.`,
+        );
+        return false;
+      }
       setNotice("Audio settings applied.");
       if (close) setSetup(false);
       return true;

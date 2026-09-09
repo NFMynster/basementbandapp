@@ -17,11 +17,33 @@ import { WelcomeDialog } from "./components/WelcomeDialog";
 export function App() {
   const controller = useWorkspace();
   const [startupVisible, setStartupVisible] = useState(true);
+  const [startupEntered, setStartupEntered] = useState(false);
+  const [startupLeaving, setStartupLeaving] = useState(false);
   useEffect(() => {
-    if (controller.starting) return;
-    const timer = setTimeout(() => setStartupVisible(false), 240);
-    return () => clearTimeout(timer);
-  }, [controller.starting]);
+    let second = 0;
+    // Hidden/minimized windows may not deliver animation frames.
+    const fallback = setTimeout(() => setStartupEntered(true), 80);
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setStartupEntered(true));
+    });
+    return () => {
+      clearTimeout(fallback);
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
+  useEffect(() => {
+    if (controller.starting || !startupEntered) return;
+    let finish: ReturnType<typeof setTimeout>;
+    const timer = setTimeout(() => {
+      setStartupLeaving(true);
+      finish = setTimeout(() => setStartupVisible(false), 260);
+    }, 260);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(finish);
+    };
+  }, [controller.starting, startupEntered]);
   return (
     <>
       <div
@@ -153,27 +175,31 @@ export function App() {
       </div>
       {startupVisible && (
         <div
-          className={`count-in-overlay export-wait startup-overlay ${!controller.starting ? "leaving" : ""}`}
+          className={`count-in-overlay export-wait startup-overlay ${startupEntered ? "entered" : ""} ${startupLeaving ? "leaving" : ""}`}
           data-startup
           role="status"
           aria-live="polite"
         >
-          <span>BASEMENT BAND</span>
-          {controller.error ? (
-            <>
-              <p>Could not start the audio engine.</p>
-              <pre role="alert">{controller.error}</pre>
-              <div>
-                <button onClick={() => void api.restart()}>Restart app</button>
-                <button onClick={() => void api.openLogs()}>Open logs</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="startup-spinner" aria-hidden="true" />
-              <p>Getting your session ready...</p>
-            </>
-          )}
+          <div className="startup-content">
+            <span>BASEMENT BAND</span>
+            {controller.error ? (
+              <>
+                <p>Could not start the audio engine.</p>
+                <pre role="alert">{controller.error}</pre>
+                <div>
+                  <button onClick={() => void api.restart()}>
+                    Restart app
+                  </button>
+                  <button onClick={() => void api.openLogs()}>Open logs</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="startup-spinner" aria-hidden="true" />
+                <p>Getting your session ready...</p>
+              </>
+            )}
+          </div>
         </div>
       )}
     </>

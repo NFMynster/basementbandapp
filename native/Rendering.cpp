@@ -106,6 +106,15 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
       t.scratch.addFrom(ch, 0, liveInput, n);
   if (!t.isMidi) t.sound.processGate(t.scratch, n);
   if (t.plugin && !t.bypass) {
+    midi.addEvents(t.auditionMidi, 0, n, 0);
+    t.auditionMidi.clear();
+    if (t.auditionSamples > 0) {
+      if (t.auditionSamples <= n) {
+        midi.addEvent(MidiMessage::noteOff(t.auditionChannel, t.auditionNote), t.auditionSamples - 1);
+        t.auditionTail = (int)(rate * 0.3);
+      }
+      t.auditionSamples = jmax(0, t.auditionSamples - n);
+    } else t.auditionTail = jmax(0, t.auditionTail - n);
     if (t.isMidi && t.monitor)
       midi.addEvents(t.liveMidi, 0, n, 0);
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);

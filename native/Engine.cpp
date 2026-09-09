@@ -80,6 +80,7 @@ void Engine::initializeAudio(bool inputAllowed) {
   std::cerr << "Opening audio device (inputs " << (inputAllowed ? 2 : 0) << ")" << std::endl;
   AudioDeviceManager::AudioDeviceSetup preferred;
   preferred.bufferSize = 256;
+  preferred.sampleRate = 48000;
   // Pin the OS defaults explicitly. Otherwise JUCE may substitute another
   // input/output pair while searching for a shared sample rate.
 #if JUCE_WINDOWS

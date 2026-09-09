@@ -8,6 +8,8 @@ void Engine::sendPanic(Track &t) {
   t.previousMidiTime = -1;
   t.previousClip = nullptr;
   t.liveMidi.clear();
+  t.auditionMidi.clear();
+  t.auditionSamples = t.auditionTail = 0;
   if (t.plugin)
     t.plugin->reset();
   for (auto &effect : t.effects) effect.plugin->reset();

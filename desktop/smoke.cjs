@@ -5,7 +5,15 @@ function verifyDesktop(win, request) {
     try {
       const state = await request({ op: "state" });
       if (state.tracks.length !== 2) throw new Error("Default tracks missing");
-      await new Promise((r) => setTimeout(r, 500));
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+        if (
+          !(await win.webContents.executeJavaScript(
+            `!!document.querySelector('[data-startup]')`,
+          ))
+        )
+          break;
+      }
       const rendered = await win.webContents.executeJavaScript(
         `({tracks:document.querySelectorAll('.track-header').length,welcome:!!document.querySelector('.welcome-dialog'),starting:!!document.querySelector('[data-startup]')})`,
       );

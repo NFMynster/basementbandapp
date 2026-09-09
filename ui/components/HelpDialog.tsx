@@ -49,7 +49,7 @@ export function HelpDialog({
           <p>
             Audio takes are WAV files; MIDI takes are saved as MIDI files when
             you stop. Save your session to keep them together. MIDI tracks need
-            a VST3 instrument for sound. Enable its headphone button to monitor
+            a VST3 instrument for sound. Enable its monitor button to monitor
             live input or audition plug-in pads, even while stopped. No MIDI
             hardware is required for preview. To record MIDI notes, use a MIDI
             input device; plug-in editor clicks are preview only.

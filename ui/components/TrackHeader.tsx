@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Headphones } from "lucide-react";
+import { AudioWaveform } from "lucide-react";
 import type { Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { LevelSlider } from "./LevelSlider";
@@ -87,7 +87,7 @@ export function TrackHeader({
             className={track.monitor ? "solo" : ""}
             onClick={() => update(track, { monitor: !track.monitor })}
           >
-            <Headphones size={12} />
+            <AudioWaveform size={12} />
           </button>
           <span className="input-label">
             {track.kind === "midi"

@@ -40,6 +40,81 @@ export function Arrangement({
     pxPerSecond,
     task,
   } = controller;
+  const previousRows = useRef(
+    new Map<
+      string,
+      { node: HTMLElement; parent: HTMLElement; index: number }
+    >(),
+  );
+  useLayoutEffect(() => {
+    const next = new Map<
+      string,
+      { node: HTMLElement; parent: HTMLElement; index: number }
+    >();
+    const animations: Animation[] = [];
+    const ghosts: HTMLElement[] = [];
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const [selector, attribute] of [
+      ["[data-track-header]", "data-track-header"],
+      ["[data-lane]", "data-lane"],
+    ]) {
+      const rows = document.querySelectorAll<HTMLElement>(selector);
+      rows.forEach((node, index) => {
+        const key = attribute + node.getAttribute(attribute);
+        const old = previousRows.current.get(key);
+        next.set(key, { node, parent: node.parentElement!, index });
+        if (reduced) return;
+        const distance = old ? (old.index - index) * node.offsetHeight : 8;
+        if (!old || distance)
+          animations.push(
+            node.animate(
+              [
+                {
+                  transform: `translateY(${distance}px)`,
+                  opacity: old ? 1 : 0,
+                },
+                { transform: "translateY(0)", opacity: 1 },
+              ],
+              { duration: 200, easing: "cubic-bezier(.2,.7,.2,1)" },
+            ),
+          );
+      });
+    }
+    if (!reduced)
+      for (const [key, old] of previousRows.current) {
+        if (next.has(key) || !old.parent.isConnected) continue;
+        const ghost = old.node.cloneNode(true) as HTMLElement;
+        ghost.removeAttribute("data-track-header");
+        ghost.removeAttribute("data-lane");
+        ghost.querySelectorAll("[id], [data-clip]").forEach((n) => {
+          n.removeAttribute("id");
+          n.removeAttribute("data-clip");
+        });
+        ghost.inert = true;
+        ghost.setAttribute("aria-hidden", "true");
+        Object.assign(ghost.style, {
+          position: "absolute",
+          top: `${old.index * 112 + (key.startsWith("data-track-header") ? 43 : 0)}px`,
+          left: "0",
+          width: "100%",
+          pointerEvents: "none",
+          zIndex: "3",
+        });
+        old.parent.appendChild(ghost);
+        ghosts.push(ghost);
+        const animation = ghost.animate(
+          [{ opacity: 1 }, { opacity: 0, transform: "translateY(-6px)" }],
+          { duration: 160, fill: "forwards" },
+        );
+        animation.onfinish = () => ghost.remove();
+        animations.push(animation);
+      }
+    previousRows.current = next;
+    return () => {
+      animations.forEach((a) => a.cancel());
+      ghosts.forEach((g) => g.remove());
+    };
+  }, [s.tracks.map((t) => t.id).join(",")]);
   const zoomScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (zoomScroll.current !== null && timelineScroll.current) {

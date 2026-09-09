@@ -123,6 +123,13 @@ contextBridge.exposeInMainWorld("basement", {
       startupDelayed = true;
       await new Promise((r) => setTimeout(r, 1000));
     }
+    if (c.op === "testAddTrack")
+      state.tracks.push({
+        ...track("animated", "New track", "#b0c4a7", 0),
+        clips: [],
+      });
+    if (c.op === "testRemoveTrack")
+      state.tracks = state.tracks.filter((t) => t.id !== "g");
     if (c.op === "devices") return devices;
     if (c.op === "testAudioLoad") {
       state.audioCpu = c.value;

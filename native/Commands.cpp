@@ -4,6 +4,21 @@
 namespace basement {
 var Engine::command(const var &c) {
   auto op = str(c, "op");
+  if (op == "audition") {
+    const ScopedLock lock(guard);
+    auto &t = track(c);
+    if (playing || recording || !t.isMidi || !t.plugin || t.bypass) return state();
+    const int note = (int)number(c, "note", 60), channel = (int)number(c, "channel", 1);
+    const int velocity = (int)number(c, "velocity", 100);
+    require(note >= 0 && note <= 127 && channel >= 1 && channel <= 16 && velocity >= 1 && velocity <= 127, "Invalid preview note");
+    if (t.auditionSamples > 0) t.auditionMidi.addEvent(MidiMessage::noteOff(t.auditionChannel, t.auditionNote), 0);
+    t.auditionNote = note;
+    t.auditionChannel = channel;
+    t.auditionSamples = (int)(rate * 0.2);
+    t.auditionTail = 0;
+    t.auditionMidi.addEvent(MidiMessage::noteOn(channel, note, (uint8)velocity), 0);
+    return state();
+  }
   if (op == "limiter") {
     require(c["value"].isBool(), "Invalid output protection switch");
     { const ScopedLock lock(guard); limiterEnabled = flag(c, "value"); outputProtection.reset(); outputClipped = false; }
