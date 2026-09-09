@@ -25,7 +25,7 @@ const empty: Session = {
   tempo: 120,
   sampleRate: 48000,
   bufferSize: 256,
-  device: "Connecting to audio engine…",
+  device: "Initializing audio engine…",
   deviceError: "",
   diskOverrun: false,
 };

@@ -36,7 +36,7 @@ export function App() {
           </>
         ) : (
           <>
-            <p>Connecting to your audio engine…</p>
+              <p>Initializing audio engine…</p>
             <span className="startup-spinner" aria-hidden="true" />
           </>
         )}
