@@ -71,6 +71,7 @@ private:
   void sendPanic(Track &track);
   void splitRecordedTakes(Track &track, size_t first);
   void editClip(const var &command);
+  void changeTempo(const var &command);
   void click(float *const *outputs, int channels, int samples, double time);
 };
 } // namespace basement

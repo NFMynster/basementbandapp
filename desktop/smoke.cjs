@@ -347,6 +347,10 @@ function verifyDesktop(win, request) {
         `document.querySelector('[aria-label="drums icon"]').click()`,
       );
       await new Promise((r) => setTimeout(r, 100));
+      for (let attempt = 0; attempt < 20; attempt++) {
+        if ((await request({ op: "state" })).tracks[0].icon === "drums") break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
       if ((await request({ op: "state" })).tracks[0].icon !== "drums")
         throw new Error("Icon popover did not update native track");
       await win.webContents.executeJavaScript(
@@ -691,6 +695,40 @@ function verifyDesktop(win, request) {
           )
         )
           throw new Error("Cancelled export did not dismiss waiting UI");
+        await win.webContents.executeJavaScript(
+          `document.querySelector('[aria-label="Audio timing settings"]').click()`,
+        );
+        await new Promise((r) => setTimeout(r, 100));
+        await win.webContents.executeJavaScript(
+          `[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent.includes('Export')).click()`,
+        );
+        await new Promise((r) => setTimeout(r, 60));
+        await win.webContents.executeJavaScript(
+          `document.querySelector('.export-settings button').click();document.activeElement.blur()`,
+        );
+        await new Promise((r) => setTimeout(r, 100));
+        cancelExport();
+        await new Promise((r) => setTimeout(r, 150));
+        if (
+          !(await win.webContents.executeJavaScript(
+            `!!document.activeElement.closest('.modal')`,
+          ))
+        )
+          throw new Error(
+            "Export settings did not regain keyboard focus: " +
+              (await win.webContents.executeJavaScript(
+                `JSON.stringify({active:document.activeElement.tagName, waiting:!!document.querySelector(".export-wait"),disabled:document.querySelector(".export-settings button")?.disabled})`,
+              )),
+          );
+        win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+        win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
+        await new Promise((r) => setTimeout(r, 100));
+        if (
+          await win.webContents.executeJavaScript(
+            `!!document.querySelector('.modal')`,
+          )
+        )
+          throw new Error("Escape did not close export settings after export");
       } finally {
         dialog.showOpenDialog = originalPicker;
         cancelExport?.();
@@ -877,6 +915,130 @@ function verifyDesktop(win, request) {
         "MIDI draw, multiple selection, copy/paste, delete and plug-in browser passed.",
       );
 
+      await win.webContents.executeJavaScript(
+        `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='Notes').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      const midiWidth = await win.webContents.executeJavaScript(
+        `document.querySelector('.piano-grid').getBoundingClientRect().width`,
+      );
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('.piano-grid').clientWidth >= document.querySelector('.piano-scroll').clientWidth`,
+        ))
+      )
+        throw new Error("MIDI region does not fill editor width");
+      await win.webContents.executeJavaScript(
+        `(() => { const e=document.querySelector('.piano-scroll'),r=e.getBoundingClientRect();e.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:-100,clientX:r.left+200,bubbles:true,cancelable:true})); })()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        (await win.webContents.executeJavaScript(
+          `document.querySelector('.piano-grid').getBoundingClientRect().width`,
+        )) <= midiWidth
+      )
+        throw new Error("MIDI pinch/Ctrl-wheel zoom did not work");
+
+      await win.webContents.executeJavaScript(
+        `(() => { const slider=document.querySelector('[aria-label="Timeline zoom"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(slider,'60'); slider.dispatchEvent(new Event('input',{bubbles:true})); })()`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.clip.chosen').scrollIntoView({block:'center',inline:'center'})`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      await win.webContents.capturePage();
+      const loopRegion = await win.webContents.executeJavaScript(
+        `(() => {const r=document.querySelector('.clip.chosen').getBoundingClientRect();return {x:Math.round(r.right-2), y:Math.round(r.top+10), width:r.width,hit:document.elementFromPoint(Math.round(r.right-2),Math.round(r.top+10))?.outerHTML.slice(0,180)};})()`,
+      );
+      win.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: loopRegion.x,
+        y: loopRegion.y,
+      });
+      await win.webContents.capturePage();
+      win.webContents.sendInputEvent({
+        type: "mouseDown",
+        x: loopRegion.x,
+        y: loopRegion.y,
+        button: "left",
+        clickCount: 1,
+      });
+      win.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: Math.round(loopRegion.x + loopRegion.width * 1.5),
+        y: loopRegion.y,
+        modifiers: ["leftButtonDown"],
+      });
+      await new Promise((r) => setTimeout(r, 80));
+      win.webContents.sendInputEvent({
+        type: "mouseUp",
+        x: Math.round(loopRegion.x + loopRegion.width * 1.5),
+        y: loopRegion.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 180));
+      const looped = (await request({ op: "state" })).tracks.at(-1).clips;
+      if (looped.length < 2)
+        throw new Error(
+          "Upper right region drag did not create loops: " +
+            JSON.stringify(loopRegion),
+        );
+      for (let i = 1; i < looped.length; i++)
+        if (
+          Math.abs(
+            looped[i].start - looped[i - 1].start - looped[i - 1].duration,
+          ) > 0.001
+        )
+          throw new Error("Loop copies overlap or leave gaps");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.track-header input[type="range"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`,
+      );
+      await new Promise((r) => setTimeout(r, 150));
+      if ((await request({ op: "state" })).tracks[0].gain !== 1)
+        throw new Error("Level reset did not restore unity gain");
+      await win.webContents.executeJavaScript(`document.activeElement.blur()`);
+      win.webContents.sendInputEvent({
+        type: "keyDown",
+        keyCode: "N",
+        modifiers: ["shift"],
+      });
+      win.webContents.sendInputEvent({
+        type: "keyUp",
+        keyCode: "N",
+        modifiers: ["shift"],
+      });
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `!!document.querySelector('.create-track-dialog')`,
+        ))
+      )
+        throw new Error("Shift+N did not open New track");
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
+      await new Promise((r) => setTimeout(r, 60));
+      win.webContents.sendInputEvent({
+        type: "keyDown",
+        keyCode: "N",
+        modifiers: ["control"],
+      });
+      win.webContents.sendInputEvent({
+        type: "keyUp",
+        keyCode: "N",
+        modifiers: ["control"],
+      });
+      await new Promise((r) => setTimeout(r, 100));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `!!document.querySelector('.confirmation-dialog')`,
+        ))
+      )
+        throw new Error("Ctrl+N did not request New project");
+      console.log(
+        "Export focus, MIDI gesture zoom, fill width, level reset and creation shortcuts passed.",
+      );
       win.destroy();
       app.quit();
     } catch (e) {

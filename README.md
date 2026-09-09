@@ -55,9 +55,9 @@ npm run package:mac  # on macOS: Apple Silicon DMG
 
 Build on the target OS. Files go to `release/`. Signing/notarization needs your own credentials; Mac hardware and permissions still need platform validation. [Build, debugging and troubleshooting](docs/BUILD.md)
 
-
 ## License
 
 Copyright © 2026 Basement Band contributors. Released under **AGPL-3.0-only**, without warranty. JUCE 8 is used under its **AGPLv3** option. Third-party code retains its own licenses.
 
 You may sell precompiled binaries, but recipients retain source, modification and redistribution rights. Provide the matching complete source and build instructions alongside every download. See [LICENSE](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) and the [release licensing checklist](docs/LICENSING.md) before distributing.
+

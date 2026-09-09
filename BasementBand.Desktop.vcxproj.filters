@@ -17,6 +17,7 @@
     <None Include="scripts\sound-editors-visual.cjs"><Filter>Build and development</Filter></None>
     <None Include="ui\components\PanelResize.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\hooks\usePanelLayout.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useConfirmation.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\components\ClipSound.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\SoundBrowser.tsx"><Filter>React interface\components</Filter></None>
     <None Include="desktop\plugin-library.cjs"><Filter>Electron\Assets</Filter></None>
@@ -33,6 +34,7 @@
     <None Include="desktop\preload.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-service.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-files.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\session-history.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\splash.html"><Filter>Electron</Filter></None>
     <None Include="desktop\startup.cjs"><Filter>Electron</Filter></None>
@@ -93,6 +95,7 @@
     <None Include="ui\models.ts"><Filter>React interface</Filter></None>
     <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
+    <None Include="ui\services\session-updates.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\startup.css"><Filter>React interface</Filter></None>
     <None Include="ui\styles\app-chrome.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\arrangement-states.css"><Filter>React interface\styles</Filter></None>

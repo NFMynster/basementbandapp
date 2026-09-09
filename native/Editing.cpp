@@ -1,7 +1,84 @@
 #include "Engine.h"
 #include <cmath>
+#include <signalsmith-stretch/signalsmith-stretch.h>
 
 namespace basement {
+// Prepare new media before committing so failed stretching never changes the session.
+void Engine::changeTempo(const var &c) {
+  require(!recording, "Stop recording before changing tempo");
+  const double next = number(c, "value", 120);
+  require(std::isfinite(next) && next >= 40 && next <= 240, "Choose a tempo from 40 to 240 BPM");
+  const auto match = str(c, "match", "none");
+  require(match == "none" || match == "midi" || match == "all", "Unknown tempo matching mode");
+  if (next == tempo) return;
+  const double factor = tempo / next;
+  const ScopedLock lock(guard);
+  if (match == "none") { tempo = next; return; }
+  require(!playing, "Stop playback before matching recordings to tempo");
+  std::vector<std::pair<Clip *, std::unique_ptr<Clip>>> prepared;
+  std::map<String, std::shared_ptr<Clip>> stretched;
+  for (auto &t : tracks) for (auto &source : t->clips) {
+    if (!source->isMidi && match != "all") continue;
+    require(source->sourceDuration() * factor <= 1200, "Tempo change would make a recording longer than 20 minutes");
+    auto clip = std::make_unique<Clip>(*source);
+    clip->start *= factor; clip->offset *= factor;
+    clip->length = source->duration() * factor;
+    clip->sourceStart *= factor; clip->sourceEnd = source->trimEnd() * factor;
+    clip->fadeIn *= factor; clip->fadeOut *= factor;
+    if (clip->isMidi) {
+      clip->midiLength *= factor;
+      auto events = std::make_shared<MidiMessageSequence>(*source->events);
+      for (auto *event : *events) event->message.setTimeStamp(event->message.getTimeStamp() * factor);
+      persistMidi(*clip, events);
+    } else {
+      if (!stretched.contains(source->path)) {
+        signalsmith::stretch::SignalsmithStretch<float> stretch;
+        const auto &input = *source->audio;
+        const int channels = input.getNumChannels(), samples = input.getNumSamples();
+        stretch.presetDefault(channels, source->sampleRate);
+        const int count = jmax(1, (int)std::llround(samples * factor));
+        struct Input {
+          const AudioBuffer<float> &buffer;
+          int offset;
+          struct Channel {
+            const float *data; int count, offset;
+            float operator[](int i) const { i += offset; return i >= 0 && i < count ? data[i] : 0.0f; }
+          };
+          Channel operator[](int ch) const { return {buffer.getReadPointer(ch), buffer.getNumSamples(), offset}; }
+        };
+        stretch.seek(Input{input, 0}, stretch.inputLatency(), 1 / factor);
+        const auto file = File(folder).getChildFile(Uuid().toString() + ".wav");
+        WavAudioFormat format;
+        std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(new FileOutputStream(file), source->sampleRate, (unsigned int)channels, 24, {}, 0));
+        require(writer != nullptr, "Could not create tempo-matched recording");
+        AudioBuffer<float> output(channels, jmax(4096, stretch.outputLatency()));
+        int consumed = 0, produced = 0;
+        while (produced < count) {
+          const int n = jmin(4096, count - produced);
+          const int end = (int)std::llround((produced + n) * (double)samples / count);
+          stretch.process(Input{input, stretch.inputLatency() + consumed}, end - consumed, output.getArrayOfWritePointers(), n);
+          const int skip = jlimit(0, n, stretch.outputLatency() - produced);
+          if (skip < n) require(writer->writeFromAudioSampleBuffer(output, skip, n - skip), "Could not write tempo-matched recording");
+          consumed = end; produced += n;
+        }
+        stretch.flush(output.getArrayOfWritePointers(), stretch.outputLatency());
+        const int skip = jmax(0, stretch.outputLatency() - count);
+        require(writer->writeFromAudioSampleBuffer(output, skip, stretch.outputLatency() - skip), "Could not finish tempo-matched recording");
+        writer.reset();
+        stretched[source->path] = std::shared_ptr<Clip>(readClip(file.getFullPathName(), {}, 0));
+      }
+      const auto &media = *stretched[source->path];
+      clip->path = media.path; clip->audio = media.audio; clip->peaks = media.peaks;
+    }
+    clip->cachedKey.clear();
+    prepared.emplace_back(source.get(), std::move(clip));
+  }
+  for (auto &entry : prepared) *entry.first = std::move(*entry.second);
+  tempo = next;
+  loopStart *= factor; loopEnd *= factor; position = position.load() * factor;
+  preparePlayback(position, looping);
+}
+
 // Regions share immutable audio. Splitting/copying/takes never duplicate PCM in memory.
 void Engine::splitRecordedTakes(Track &t, size_t first) {
   const double span = recordingLoopEnd - recordingLoopStart;
@@ -127,6 +204,20 @@ void Engine::editClip(const var &c) {
     for (auto &other : t.clips)
       if (other->takeGroup == clip.takeGroup)
         other->active = other->id == clip.id;
+  } else if (action == "repeat") {
+    const double length = number(c, "length"), span = clip.duration();
+    require(std::isfinite(length) && length >= span && length <= 1200 &&
+                span > 0 && std::ceil(length / span) <= 2048, "Invalid loop length");
+    const Clip source(clip);
+    for (double at = span; at < length - 1 / rate; at += span) {
+      auto copy = std::make_unique<Clip>(source);
+      copy->id = Uuid().toString();
+      copy->start = source.start + at;
+      copy->length = jmin(span, length - at);
+      copy->takeGroup.clear(); copy->take = 0; copy->active = true;
+      copy->cachedKey.clear();
+      t.clips.push_back(std::move(copy));
+    }
   } else if (action == "trim") {
     const double start = number(c, "position"), length = number(c, "length");
     const double delta = start - clip.start;
@@ -171,7 +262,7 @@ void Engine::editClip(const var &c) {
     for (auto &part : t.clips)
       if (part.get() == &clip || (group.isNotEmpty() && part->takeGroup == group)) {
         part->length = jmin(length, part->trimEnd() - part->offset - delta);
-        part->offset += delta;
+        part->offset = jmax(part->sourceStart, part->offset + delta);
         part->start = start;
         part->fadeIn = jmin(part->fadeIn, part->length);
         part->fadeOut = jmin(part->fadeOut, part->length);

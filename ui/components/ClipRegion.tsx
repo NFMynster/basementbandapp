@@ -5,7 +5,7 @@ import { FadeHandles } from "./ClipSound";
 import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
-import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Repeat2 } from "lucide-react";
 export function ClipRegion({
   clip: c,
   track: t,
@@ -28,7 +28,7 @@ export function ClipRegion({
     scrollX: number;
     scrollY: number;
     moved: boolean;
-    mode: "move" | "left" | "right";
+    mode: "move" | "left" | "right" | "repeat";
   } | null>(null);
   const select = () => {
     w.setSelected(t.id);
@@ -58,6 +58,13 @@ export function ClipRegion({
         (w.timelineScroll.current?.scrollLeft ?? 0) -
         drag.current!.scrollX) /
       w.pxPerSecond;
+    if (drag.current!.mode === "repeat")
+      return {
+        position: c.start,
+        duration: Math.max(c.duration, Math.min(1200, c.duration + delta)),
+        y: 0,
+      };
+    const minimum = Math.min(c.duration, 12 / w.pxPerSecond);
     const shortest = Math.min(
       c.duration,
       ...takes.map((take) => take.duration),
@@ -76,7 +83,7 @@ export function ClipRegion({
               ),
               delta,
             ),
-            Math.max(0, shortest - 2 / w.s.sampleRate),
+            Math.max(0, shortest - Math.min(shortest, minimum)),
           )
         : Math.max(
             Math.min(
@@ -85,7 +92,7 @@ export function ClipRegion({
                 : c.sourceEnd - c.offset - c.duration,
               delta,
             ),
-            -c.duration + 2 / w.s.sampleRate,
+            -c.duration + minimum,
           );
     return drag.current!.mode === "left"
       ? { position: c.start + cut, duration: c.duration - cut, y: 0 }
@@ -97,34 +104,66 @@ export function ClipRegion({
   const displayedClip =
     preview?.duration === undefined
       ? c
-      : {
-          ...c,
-          duration: preview.duration,
-          peaks: c.peaks.slice(
-            Math.max(0, Math.floor((cutStart / c.duration) * c.peaks.length)),
-            Math.max(
-              1,
-              Math.ceil(
-                ((cutStart + previewDuration) / c.duration) * c.peaks.length,
+      : drag.current?.mode === "repeat"
+        ? {
+            ...c,
+            duration: previewDuration,
+            peaks: Array.from(
+              { length: 400 },
+              (_, i) =>
+                c.peaks[
+                  Math.min(
+                    c.peaks.length - 1,
+                    Math.floor(
+                      ((((i / 400) * previewDuration) % c.duration) /
+                        c.duration) *
+                        c.peaks.length,
+                    ),
+                  )
+                ] ?? 0,
+            ),
+            notes: Array.from(
+              {
+                length: Math.min(2048, Math.ceil(previewDuration / c.duration)),
+              },
+              (_, i) =>
+                (c.notes ?? []).map((n) => ({
+                  ...n,
+                  start: n.start + i * c.duration,
+                })),
+            )
+              .flat()
+              .filter((n) => n.start < previewDuration)
+              .slice(0, 2048),
+          }
+        : {
+            ...c,
+            duration: preview.duration,
+            peaks: c.peaks.slice(
+              Math.max(0, Math.floor((cutStart / c.duration) * c.peaks.length)),
+              Math.max(
+                1,
+                Math.ceil(
+                  ((cutStart + previewDuration) / c.duration) * c.peaks.length,
+                ),
               ),
             ),
-          ),
-          notes: c.notes
-            ?.filter(
-              (note) =>
-                note.start + note.duration > cutStart &&
-                note.start < cutStart + previewDuration,
-            )
-            .map((note) => ({
-              ...note,
-              start: Math.max(0, note.start - cutStart),
-              duration:
-                Math.min(
-                  note.start + note.duration,
-                  cutStart + previewDuration,
-                ) - Math.max(note.start, cutStart),
-            })),
-        };
+            notes: c.notes
+              ?.filter(
+                (note) =>
+                  note.start + note.duration > cutStart &&
+                  note.start < cutStart + previewDuration,
+              )
+              .map((note) => ({
+                ...note,
+                start: Math.max(0, note.start - cutStart),
+                duration:
+                  Math.min(
+                    note.start + note.duration,
+                    cutStart + previewDuration,
+                  ) - Math.max(note.start, cutStart),
+              })),
+          };
   return (
     <>
       <div
@@ -146,7 +185,7 @@ export function ClipRegion({
             left: (preview?.position ?? c.start) * w.pxPerSecond,
             transform: preview ? `translateY(${preview.y}px)` : undefined,
             width: Math.max(
-              12,
+              1,
               (preview?.duration ?? c.duration) * w.pxPerSecond,
             ),
             "--clip-color": t.color,
@@ -191,7 +230,7 @@ export function ClipRegion({
           e.stopPropagation();
           select();
           const bounds = e.currentTarget.getBoundingClientRect();
-          const edge = Math.min(10, bounds.width / 3);
+          const edge = Math.min(18, bounds.width / 3);
           drag.current = {
             x: e.clientX,
             y: e.clientY,
@@ -202,7 +241,9 @@ export function ClipRegion({
               e.clientX - bounds.left <= edge
                 ? "left"
                 : bounds.right - e.clientX <= edge
-                  ? "right"
+                  ? e.clientY < bounds.top + bounds.height / 2
+                    ? "repeat"
+                    : "right"
                   : "move",
           };
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -220,9 +261,17 @@ export function ClipRegion({
               "--trim-right",
               String(w.s.recording ? 0 : Math.max(0, 1 - right / 36)),
             );
+            e.currentTarget.title =
+              right <= 18
+                ? e.clientY < bounds.top + bounds.height / 2
+                  ? "Drag to loop this region"
+                  : "Drag to trim the end"
+                : left <= 18
+                  ? "Drag to trim the start"
+                  : "";
             e.currentTarget.style.cursor =
               !w.s.recording &&
-              Math.min(left, right) <= Math.min(10, bounds.width / 3)
+              Math.min(left, right) <= Math.min(18, bounds.width / 3)
                 ? "ew-resize"
                 : "";
             return;
@@ -250,6 +299,7 @@ export function ClipRegion({
           if (!drag.current) return;
           if (drag.current.mode !== "move") {
             const trim = trimAt(e.clientX),
+              action = drag.current.mode === "repeat" ? "repeat" : "trim",
               moved = drag.current.moved;
             drag.current = null;
             if (e.currentTarget.hasPointerCapture(e.pointerId))
@@ -259,7 +309,7 @@ export function ClipRegion({
               void w
                 .run({
                   op: "editClip",
-                  action: "trim",
+                  action,
                   track: t.id,
                   clip: c.id,
                   position: trim.position,
@@ -318,6 +368,9 @@ export function ClipRegion({
       >
         <span className="trim-handle left" aria-hidden="true">
           <ArrowRightToLine size={14} />
+        </span>
+        <span className="trim-handle right repeat" aria-hidden="true">
+          <Repeat2 size={14} />
         </span>
         <span className="trim-handle right" aria-hidden="true">
           <ArrowLeftToLine size={14} />

@@ -13,7 +13,7 @@
     <NMakeReBuildCommandLine>$(NMakeBuildCommandLine)</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>node &quot;$(ProjectDir)scripts/vs-build.mjs&quot; $(Configuration) clean-native</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)artifacts\native\BasementAudio.exe</NMakeOutput>
-    <NMakeIncludeSearchPath>$(ProjectDir)native;$(ProjectDir)build\native\_deps\juce-src\modules</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(ProjectDir)native;$(ProjectDir)build\native\_deps\juce-src\modules;$(ProjectDir)build\native\_deps\signalsmith-stretch-src\include;$(ProjectDir)build\native\_deps\signalsmith-linear-src\include</NMakeIncludeSearchPath>
     <OutDir>$(ProjectDir)artifacts\vs\audio\$(Configuration)\</OutDir><IntDir>$(ProjectDir)build\vs\audio\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemGroup>

@@ -245,3 +245,102 @@ test("MIDI composition, fades, tempo host, mixer history and track presets", asy
     await rpc.close();
   }
 });
+
+test("region looping and pitch-preserving tempo matching survive history and saving", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const folder = mkdtempSync(resolve("artifacts/test-sessions/tempo-"));
+  const rpc = startSession(folder);
+  const send = async (c) => {
+    const r = await rpc.send(c);
+    assert.equal(r.error, undefined, r.error);
+    return r.result;
+  };
+  try {
+    let s = await send({ op: "state" });
+    const track = s.tracks[0].id;
+    const file = resolve(folder, "tone.wav");
+    writeMonoWav(
+      file,
+      48000,
+      (i) => 0.3 * Math.sin((i * 2 * Math.PI * 220) / 48000),
+    );
+    s = await send({ op: "import", track, path: file, position: 1 });
+    const clip = s.tracks[0].clips[0].id;
+    s = await send({
+      op: "editClip",
+      track,
+      clip,
+      action: "repeat",
+      length: 2.5,
+    });
+    assert.deepEqual(
+      s.tracks[0].clips.map((c) => [c.start, c.duration]),
+      [
+        [1, 1],
+        [2, 1],
+        [3, 0.5],
+      ],
+    );
+    s = await send({ op: "undo" });
+    assert.equal(s.tracks[0].clips.length, 1);
+    s = await send({ op: "redo" });
+    assert.equal(s.tracks[0].clips.length, 3);
+    s = await send({ op: "addTrack", kind: "midi" });
+    const midi = s.tracks.at(-1).id;
+    s = await send({ op: "createMidi", track: midi, position: 1, length: 2 });
+    const midiClip = s.tracks.at(-1).clips[0].id;
+    await send({
+      op: "editClip",
+      track: midi,
+      clip: midiClip,
+      action: "notes",
+      edits: [
+        { start: 0.5, duration: 0.5, note: 60, velocity: 90, channel: 1 },
+      ],
+    });
+    await send({ op: "loop", start: 1, end: 3, enabled: false });
+    s = await send({ op: "tempo", value: 180, match: "all" });
+    assert.ok(Math.abs(s.tracks[0].clips[0].duration - 2 / 3) < 0.001);
+    assert.ok(Math.abs(s.tracks[0].clips[1].start - 4 / 3) < 0.001);
+    assert.ok(
+      Math.abs(s.tracks.at(-1).clips[0].notes[0].start - 1 / 3) < 0.001,
+    );
+    assert.ok(Math.abs(s.loopEnd - 2) < 0.001);
+    assert.ok(Number.isFinite(s.audioCpu));
+    await send({ op: "track", track, gain: 1 });
+    await send({ op: "seek", position: 2 / 3 + 0.2 });
+    await send({ op: "play" });
+    const sound = await send({ op: "pump", frames: 8192 });
+    const samples = sound.left.slice(512);
+    const crossings = samples.reduce(
+      (n, v, i) => n + (i > 0 && samples[i - 1] <= 0 && v > 0 ? 1 : 0),
+      0,
+    );
+    const frequency = crossings / (samples.length / 48000);
+    assert.ok(
+      Math.abs(frequency - 220) < 8,
+      `Pitch stayed at 220 Hz: ${frequency}`,
+    );
+    assert.ok(samples.some((v) => Math.abs(v) > 0.05));
+    await send({ op: "stop" });
+    await send({ op: "undo" }); // gain
+    s = await send({ op: "undo" }); // tempo and recordings together
+    assert.equal(s.tempo, 120);
+    assert.equal(s.loopEnd, 3);
+    assert.equal(s.tracks[0].clips[0].duration, 1);
+    s = await send({ op: "redo" });
+    const saved = resolve(folder, "Tempo.basement");
+    await send({ op: "save", path: saved });
+    await send({ op: "new" });
+    s = await send({ op: "open", path: saved });
+    assert.equal(s.tempo, 180);
+    assert.equal(s.tracks[0].clips.length, 3);
+    assert.ok(Math.abs(s.tracks[0].clips[0].duration - 2 / 3) < 0.001);
+    const audioStart = s.tracks[0].clips[0].start;
+    s = await send({ op: "tempo", value: 120, match: "midi" });
+    assert.equal(s.tracks[0].clips[0].start, audioStart);
+    assert.ok(Math.abs(s.tracks.at(-1).clips[0].notes[0].start - 0.5) < 0.001);
+  } finally {
+    await rpc.close();
+  }
+});

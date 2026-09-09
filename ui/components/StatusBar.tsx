@@ -19,6 +19,14 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           <span className="footer-sep">/</span>
           {s.bufferSize} samples
         </button>
+        {s.audioCpu !== undefined && (
+          <span
+            className="audio-cpu"
+            title="Audio processing load: percentage of the audio callback time budget"
+          >
+            Audio {s.audioCpu.toFixed(1)}%
+          </span>
+        )}
         <div className="footer-right">
           {s.recording ? (
             <>

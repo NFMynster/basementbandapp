@@ -37,3 +37,7 @@ AGPL license is not an exception to third-party terms.
 
 JUCE, VST, ASIO, Electron and other product names belong to their respective
 owners. This project is not endorsed by Apple or the named vendors.
+
+## Signalsmith audio processing
+
+Pitch-preserving tempo matching uses [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch) and [Signalsmith Linear](https://github.com/Signalsmith-Audio/linear), under the MIT license. The pinned source revisions are in `native/CMakeLists.txt`; upstream license notices are included by `scripts/licenses.mjs`.

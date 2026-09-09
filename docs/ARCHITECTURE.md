@@ -2,14 +2,15 @@
 
 The desktop is React/Electron plus a separate C++/JUCE audio process. C# has been removed.
 
-| Area             | Owns                                                  | Entry points                                   |
-| ---------------- | ----------------------------------------------------- | ---------------------------------------------- |
-| Renderer         | Presentation, selection, interaction, preferences     | ui/App.tsx, ui/hooks/, ui/components/          |
-| Contract         | Typed commands and limited preload API                | ui/models.ts, desktop/preload.cjs              |
-| Desktop shell    | Windows, dialogs, sender validation, file drops       | desktop/main.cjs, desktop/ipc.cjs              |
-| Session service  | Validation, portable saves, working folders           | desktop/session-service.cjs                    |
-| Native transport | Serialized pipe requests, framing, failure quarantine | desktop/native-client.cjs, desktop/backend.cjs |
-| JUCE engine      | Devices, MIDI/audio capture, processing and rendering | native/Engine.h and focused .cpp files         |
+| Area             | Owns                                                           | Entry points                                           |
+| ---------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| Renderer         | Presentation, selection, interaction, preferences              | ui/App.tsx, ui/hooks/, ui/components/                  |
+| Contract         | Typed commands and limited preload API                         | ui/models.ts, desktop/preload.cjs                      |
+| Desktop shell    | Windows, dialogs, sender validation, file drops                | desktop/main.cjs, desktop/ipc.cjs                      |
+| Session service  | Serialized commands, recovery, portable saves, working folders | desktop/session-service.cjs, desktop/session-files.cjs |
+| Session history  | Undo policy and immutable application of history entries       | desktop/session-history.cjs                            |
+| Native transport | Serialized pipe requests, framing, failure quarantine          | desktop/native-client.cjs, desktop/backend.cjs         |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering          | native/Engine.h and focused .cpp files                 |
 
 ## Extending behavior
 
@@ -18,6 +19,10 @@ The desktop is React/Electron plus a separate C++/JUCE audio process. C# has bee
 3. Put filesystem/session behavior in the Electron session service; put audio behavior in a focused native file.
 4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
 5. Add deterministic integration tests and UI checks.
+
+## Renderer coordination
+
+`useWorkspace` coordinates selection, commands, polling and workspace actions. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
 
 ## Protocol and lifecycle
 
@@ -39,7 +44,7 @@ The engine uses short control locks. Its callback attempts the lock without bloc
 
 Session files use version 4, which adds ordered effect chains. Version 3 sessions still open and are upgraded on save. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
 
-Undo/redo stores before/after region edits and applies their differences to the current session. Surviving tracks retain their loaded processors and mix/routing settings; restoring a deleted track loads its saved processors. Volume and transport controls do not enter undo history. Recovery saving remains independent of undo.
+Undo/redo stores before/after snapshots and applies only the region and setting differences owned by an entry to the current session. `session-history.cjs` owns undo eligibility, descriptions, fingerprints and the pure history transformation; `SessionService` owns the stacks, command grouping, engine restore and recovery writes. Track settings, volume, tempo and plug-in changes participate in history. Surviving tracks retain their processors unless the entry requires a plug-in reload; restoring a deleted track loads its saved processors. Recovery saving remains independent of undo.
 
 Shared sources are copied once per save, not once per take. New asset copies have unique names so a failed save does not overwrite the previous document’s media. Metadata is written to a temporary file and renamed. Multi-file copying is not fully transactional: a failed save may leave unused media, which is deliberately not deleted automatically.
 

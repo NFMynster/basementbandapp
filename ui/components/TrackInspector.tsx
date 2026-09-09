@@ -196,6 +196,8 @@ export function TrackInspector({
                     <span>L</span>
                     <input
                       aria-label="Track pan"
+                      title="Pan - double-click to center"
+                      onDoubleClick={() => update(track, { pan: 0 })}
                       type="range"
                       min="-1"
                       max="1"
@@ -217,7 +219,11 @@ export function TrackInspector({
                       onBlur={() => {
                         panGesture.current = undefined;
                       }}
-                      onKeyDown={() => {
+                      onKeyDown={(e) => {
+                        if (e.key === "0") {
+                          e.preventDefault();
+                          update(track, { pan: 0 });
+                        }
                         if (panGesture.current?.released)
                           panGesture.current = undefined;
                       }}

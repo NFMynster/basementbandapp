@@ -54,8 +54,12 @@ export function MidiEditor({
   );
   const high = Math.min(127, Math.max(84, ...notes.map((n) => n.note + 4)));
   const low = Math.max(0, Math.min(36, ...notes.map((n) => n.note - 4)));
+  const [viewportWidth, setViewportWidth] = useState(600);
   const step = 240 / w.s.tempo / division,
-    px = zoom / (60 / w.s.tempo),
+    px = Math.max(
+      (viewportWidth - 60) / Math.max(0.001, clip?.duration ?? 1),
+      zoom / (60 / w.s.tempo),
+    ),
     row = 20;
   const unavailable = w.s.recording || w.busy;
   const disabled = pending || unavailable;
@@ -67,6 +71,37 @@ export function MidiEditor({
         (high - (notes[0]?.note ?? 60)) * row - 70,
       );
   }, [clip?.id]);
+  useEffect(() => {
+    const node = scroll.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() =>
+      setViewportWidth(node.clientWidth),
+    );
+    setViewportWidth(node.clientWidth);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [clip?.id]);
+  useEffect(() => {
+    const node = scroll.current;
+    if (!node) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const x = event.clientX - node.getBoundingClientRect().left;
+      const time = (node.scrollLeft + x - 60) / px;
+      const nextPx = Math.max(
+        (viewportWidth - 60) / Math.max(0.001, clip?.duration ?? 1),
+        Math.min(640 / (60 / w.s.tempo), px * Math.exp(-event.deltaY * 0.008)),
+      );
+      setZoom(Math.max(30, Math.min(640, nextPx * (60 / w.s.tempo))));
+      requestAnimationFrame(() => {
+        node.scrollLeft = time * nextPx + 60 - x;
+      });
+    };
+    node.addEventListener("wheel", wheel, { passive: false });
+    return () => node.removeEventListener("wheel", wheel);
+  }, [px, viewportWidth, clip?.duration, w.s.tempo]);
   async function edit(edits: Edit[]) {
     if (!clip || disabled || !edits.length) return;
     setPending(true);
@@ -312,7 +347,7 @@ export function MidiEditor({
             aria-label="Note editor zoom"
             type="range"
             min={30}
-            max={160}
+            max={640}
             value={zoom}
             onChange={(e) => setZoom(+e.target.value)}
           />
@@ -329,7 +364,7 @@ export function MidiEditor({
             tabIndex={0}
             aria-label="MIDI note grid"
             style={{
-              width: Math.max(600, clip.duration * px + 60),
+              width: Math.max(viewportWidth, clip.duration * px + 60),
               height: (high - low + 1) * row + 24,
             }}
             onDoubleClick={(e) => {

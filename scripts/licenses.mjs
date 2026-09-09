@@ -56,3 +56,10 @@ for (const name of ["LICENSE", "LICENSES.chromium.html"])
   if (existsSync(join(electronDist, name)))
     copy(join(electronDist, name), join(destination, "Electron", name));
 console.log("License notices collected in", destination);
+
+for (const name of ["signalsmith-stretch", "signalsmith-linear"]) {
+  copy(
+    resolve(build, "_deps", name + "-src", "LICENSE.txt"),
+    join(destination, name, "LICENSE.txt"),
+  );
+}

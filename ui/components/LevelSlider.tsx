@@ -31,7 +31,11 @@ export function LevelSlider({
       </div>
       <input
         aria-label={label}
-        title={label}
+        title={`${label} - double-click to reset to 0 dB`}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onChange(1);
+        }}
         type="range"
         min="0"
         max={max}
@@ -51,7 +55,11 @@ export function LevelSlider({
         onBlur={() => {
           gesture.current = undefined;
         }}
-        onKeyDown={() => {
+        onKeyDown={(e) => {
+          if (e.key === "0") {
+            e.preventDefault();
+            onChange(1);
+          }
           // A keyboard adjustment after a pointer drag starts a new gesture.
           if (gesture.current?.released) gesture.current = undefined;
         }}

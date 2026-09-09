@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 export const defaultBindings = {
+  newProject: "Mod+KeyN",
+  newTrack: "Shift+KeyN",
   play: "Space",
   record: "KeyR",
   loop: "KeyL",
@@ -16,6 +18,8 @@ export const defaultBindings = {
 };
 export type Shortcut = keyof typeof defaultBindings;
 export const shortcutNames: Record<Shortcut, string> = {
+  newProject: "New project",
+  newTrack: "New track",
   play: "Play / stop",
   record: "Record / stop",
   loop: "Toggle loop",

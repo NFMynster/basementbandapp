@@ -9,6 +9,7 @@
     <None Include="scripts\sound-editors-visual.cjs" />
     <None Include="ui\components\PanelResize.tsx" />
     <None Include="ui\hooks\usePanelLayout.ts" />
+    <None Include="ui\hooks\useConfirmation.ts" />
     <None Include="ui\components\ClipSound.tsx" />
     <None Include="ui\components\SoundBrowser.tsx" />
     <None Include="desktop\plugin-library.cjs" />
@@ -40,6 +41,7 @@
     <None Include="desktop\preload.cjs" />
     <None Include="desktop\session-service.cjs" />
     <None Include="desktop\session-files.cjs" />
+    <None Include="desktop\session-history.cjs" />
     <None Include="desktop\smoke.cjs" />
     <None Include="desktop\splash.html" />
     <None Include="desktop\startup.cjs" />
@@ -100,6 +102,7 @@
     <None Include="ui\models.ts" />
     <None Include="ui\services\desktop.ts" />
     <None Include="ui\services\errors.ts" />
+    <None Include="ui\services\session-updates.ts" />
     <None Include="ui\startup.css" />
     <None Include="ui\styles\app-chrome.css" />
     <None Include="ui\styles\arrangement-states.css" />

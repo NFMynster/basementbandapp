@@ -1,7 +1,9 @@
+import { optimisticSession } from "../services/session-updates";
+import { useConfirmation } from "./useConfirmation";
 import { usePanelLayout } from "./usePanelLayout";
 import { useShortcuts } from "./useShortcuts";
 import { errorMessage } from "../services/errors";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   Clip,
   Session,
@@ -96,30 +98,23 @@ export function useWorkspace() {
     inside: boolean;
   } | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [confirmation, setConfirmation] = useState<{
-    message: string;
-    acceptLabel: string;
-  } | null>(null);
-  const confirmResolver = useRef<((accepted: boolean) => void) | null>(null);
-  function confirmAction(message: string, acceptLabel = "Continue") {
-    confirmResolver.current?.(false);
-    return new Promise<boolean>((resolve) => {
-      confirmResolver.current = resolve;
-      setConfirmation({ message, acceptLabel });
-    });
-  }
-  function finishConfirmation(accepted: boolean) {
-    const resolve = confirmResolver.current;
-    confirmResolver.current = null;
-    setConfirmation(null);
-    resolve?.(accepted);
-  }
-  useEffect(
-    () => () => {
-      confirmResolver.current?.(false);
-    },
-    [],
-  );
+  const exportReturnFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (exporting || !exportReturnFocus.current) return;
+    const previous = exportReturnFocus.current;
+    exportReturnFocus.current = null;
+    const modal = document.querySelector<HTMLElement>('.modal[role="dialog"]');
+    if (!modal) return;
+    const target =
+      previous.isConnected &&
+      modal.contains(previous) &&
+      !previous.matches(":disabled")
+        ? previous
+        : modal.querySelector<HTMLElement>("button:not(:disabled)");
+    target?.focus({ preventScroll: true });
+  }, [exporting]);
+  const [pendingTempo, setPendingTempo] = useState<number | null>(null);
+  const { confirmation, confirmAction, finishConfirmation } = useConfirmation();
   const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
     localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
   );
@@ -200,77 +195,6 @@ export function useWorkspace() {
     setNoticeTone(tone);
     setNoticeVersion((v) => v + 1);
   }
-  function optimisticSession(command: Command): Session | null {
-    switch (command.op) {
-      case "loop": {
-        const start = Math.max(0, command.start),
-          end = Math.max(start + 0.05, command.end);
-        return {
-          ...s,
-          loopStart: start,
-          loopEnd: end,
-          looping: command.enabled,
-        };
-      }
-      case "metronome":
-        return { ...s, metronome: command.value };
-      case "countIn":
-        return { ...s, countIn: command.value };
-      case "tempo":
-        return { ...s, tempo: Math.max(40, Math.min(240, command.value)) };
-      case "master":
-        return {
-          ...s,
-          masterGain: Math.max(0, Math.min(2, command.value)),
-        };
-      case "seek":
-        return { ...s, position: Math.max(0, command.position) };
-      case "rename":
-        return { ...s, title: command.title.slice(0, 100) };
-      case "bypass":
-        if (command.effect) return null;
-        return {
-          ...s,
-          tracks: s.tracks.map((track) =>
-            track.id === command.track
-              ? { ...track, bypass: command.value }
-              : track,
-          ),
-        };
-      case "editClip": {
-        if (command.action !== "sound") return null;
-        const patch = Object.fromEntries(
-          ["gain", "fadeIn", "fadeOut"]
-            .filter((key) => command[key as "gain"] !== undefined)
-            .map((key) => [key, command[key as "gain"]]),
-        );
-        return {
-          ...s,
-          tracks: s.tracks.map((t) =>
-            t.id !== command.track
-              ? t
-              : {
-                  ...t,
-                  clips: t.clips.map((c) =>
-                    c.id !== command.clip ? c : { ...c, ...patch },
-                  ),
-                },
-          ),
-        };
-      }
-      case "track": {
-        const { op: ignored, track: trackId, historyGroup, ...patch } = command;
-        return {
-          ...s,
-          tracks: s.tracks.map((track) =>
-            track.id === trackId ? { ...track, ...patch } : track,
-          ),
-        };
-      }
-      default:
-        return null;
-    }
-  }
   const recoverySeen = useRef(false);
   useEffect(() => {
     if (s.recovered && !recoverySeen.current) {
@@ -300,7 +224,7 @@ export function useWorkspace() {
     change = true,
   ): Promise<CommandResult<C> | undefined> {
     const previous = s,
-      optimistic = optimisticSession(c),
+      optimistic = optimisticSession(s, c),
       revision = optimistic ? ++optimisticRevision.current : 0;
     if (optimistic) setS(optimistic);
     activeCommands.current += 1;
@@ -476,7 +400,42 @@ export function useWorkspace() {
         target: track?.id,
       });
   };
+  async function requestTempo(value: number) {
+    if (busy || s.recording || value === s.tempo) return;
+    if (s.tracks.some((t) => t.clips.length)) setPendingTempo(value);
+    else await run({ op: "tempo", value });
+  }
+  async function applyTempo(match: "none" | "midi" | "all") {
+    if (pendingTempo === null || busy) return;
+    await withBusy(async () => {
+      if (s.playing && match !== "none") await run({ op: "stop" }, false);
+      await run({ op: "tempo", value: pendingTempo, match });
+    });
+    setPendingTempo(null);
+  }
+  async function newProject() {
+    if (busy || s.recording) return;
+    if (
+      dirty &&
+      !(await confirmAction(
+        "Start a new session? Unsaved edits will be lost.",
+        "New session",
+      ))
+    )
+      return;
+    const result = await run({ op: "new" }, false);
+    if (result) {
+      setDirty(false);
+      setClipId("");
+      setSelected("");
+      setPanel("input");
+    }
+  }
   const shortcuts = useShortcuts({
+    newProject,
+    newTrack: () => {
+      if (!busy && !s.recording) setCreatingTrack(true);
+    },
     play: () => run({ op: s.playing ? "stop" : "play" }, false),
     record: () => run({ op: s.recording ? "stop" : "record" }),
     loop: () =>
@@ -571,6 +530,7 @@ export function useWorkspace() {
     }
   }
   async function exportAudio(target?: string) {
+    exportReturnFocus.current = document.activeElement as HTMLElement | null;
     setExporting(true);
     try {
       const result = await withBusy(() =>
@@ -678,6 +638,11 @@ export function useWorkspace() {
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
     ...shortcuts,
+    requestTempo,
+    pendingTempo,
+    setPendingTempo,
+    applyTempo,
+    newProject,
     ...layout,
     soundBrowser,
     setSoundBrowser,

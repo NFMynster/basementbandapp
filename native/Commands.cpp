@@ -213,9 +213,7 @@ var Engine::command(const var &c) {
     looping = flag(c, "enabled");
     preparePlayback(position, looping);
   } else if (op == "tempo") {
-    require(!recording, "Stop recording before changing tempo");
-    const ScopedLock l(guard);
-    tempo = jlimit(40.0, 240.0, number(c, "value", 120));
+    changeTempo(c);
   } else if (op == "rename") {
     title = str(c, "title").substring(0, 100);
   } else if (op == "addTrack") {

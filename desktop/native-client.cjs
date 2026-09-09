@@ -56,7 +56,10 @@ class NativeClient {
                 `The audio engine timed out during ${command.op}. Open logs for startup/device details, then restart the app.`,
               ),
             ),
-          command.op === "export" ? 1800000 : this.timeout,
+          command.op === "export" ||
+            (command.op === "tempo" && command.match === "all")
+            ? 1800000
+            : this.timeout,
         );
         this.pending = { resolve, reject, timer };
         this.child.stdin.write(JSON.stringify(command) + "\n");

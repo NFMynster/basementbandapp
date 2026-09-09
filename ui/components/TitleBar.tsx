@@ -11,8 +11,7 @@ import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 import { keyLabel } from "../hooks/useShortcuts";
 export function TitleBar({ controller }: { controller: WorkspaceController }) {
-  const { s, run, busy, dirty, setDirty, setClipId, setSelected, task } =
-    controller;
+  const { s, run, busy, dirty, task } = controller;
   return (
     <>
       <header className="titlebar">
@@ -43,23 +42,7 @@ export function TitleBar({ controller }: { controller: WorkspaceController }) {
           <button
             disabled={busy || s.recording}
             title="New session"
-            onClick={async () => {
-              if (
-                !dirty ||
-                (await controller.confirmAction(
-                  "Start a new session? Unsaved edits will be lost.",
-                  "New session",
-                ))
-              ) {
-                const result = await run({ op: "new" }, false);
-                if (result) {
-                  setDirty(false);
-                  setClipId("");
-                  setSelected("");
-                  controller.setPanel("input");
-                }
-              }
-            }}
+            onClick={() => void controller.newProject()}
           >
             <Plus size={16} />
             New

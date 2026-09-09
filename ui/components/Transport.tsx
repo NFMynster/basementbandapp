@@ -24,10 +24,8 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
       value >= 40 &&
       value <= 240
     )
-      void run({ op: "tempo", value }).finally(() =>
-        setTempoDraft((current) => (current === tempoDraft ? null : current)),
-      );
-    else setTempoDraft(null);
+      void controller.requestTempo(value);
+    setTempoDraft(null);
   };
   return (
     <>

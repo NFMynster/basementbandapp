@@ -198,6 +198,7 @@ var Engine::state(bool full, bool pluginState) {
        {"masterGain", masterGain},
        {"audioInputActive", audioInputActive},
        {"masterPeak", masterPeak.load()},
+       {"audioCpu", devices.getCpuUsage() * 100.0},
        {"metronome", metronome},
        {"countIn", countIn},
        {"countdown", countdown},

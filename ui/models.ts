@@ -75,6 +75,7 @@ export type Session = {
   inputLatencySamples?: number;
   masterGain?: number;
   masterPeak?: number;
+  audioCpu?: number;
   metronome?: boolean;
   countIn?: boolean;
   countdown?: number;
@@ -158,6 +159,7 @@ export type SessionCommand =
         | "copy"
         | "split"
         | "take"
+        | "repeat"
         | "trim"
         | "note"
         | "quantize"
@@ -192,7 +194,7 @@ export type SessionCommand =
   | { op: "removeClip"; track: string; clip: string }
   | { op: "seek"; position: number }
   | { op: "loop"; start: number; end: number; enabled: boolean }
-  | { op: "tempo"; value: number }
+  | { op: "tempo"; value: number; match?: "none" | "midi" | "all" }
   | { op: "rename"; title: string }
   | { op: "bypass"; track: string; value: boolean; effect?: string };
 export type DeviceCommand =

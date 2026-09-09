@@ -36,7 +36,7 @@ export function App() {
           </>
         ) : (
           <>
-              <p>Initializing audio engine…</p>
+            <p>Initializing audio engine…</p>
             <span className="startup-spinner" aria-hidden="true" />
           </>
         )}
@@ -69,6 +69,41 @@ export function App() {
           key={`${controller.soundBrowser.track}:${controller.soundBrowser.append}:${controller.soundBrowser.presets}`}
           controller={controller}
         />
+      )}
+      {controller.pendingTempo !== null && (
+        <Modal
+          title="Match recordings with new tempo?"
+          onClose={() => {
+            if (!controller.busy) controller.setPendingTempo(null);
+          }}
+        >
+          <h2>Match recordings with new tempo?</h2>
+          <p>
+            Change to {controller.pendingTempo} BPM. Matching keeps regions on
+            their beats and preserves pitch.
+          </p>
+          {controller.busy ? (
+            <p role="status">Matching recordings. This may take a moment...</p>
+          ) : (
+            <div className="modal-bottom">
+              <button onClick={() => controller.setPendingTempo(null)}>
+                Cancel
+              </button>
+              <button onClick={() => void controller.applyTempo("none")}>
+                Keep timing
+              </button>
+              <button onClick={() => void controller.applyTempo("midi")}>
+                Match MIDI only
+              </button>
+              <button
+                className="primary"
+                onClick={() => void controller.applyTempo("all")}
+              >
+                Match all recordings
+              </button>
+            </div>
+          )}
+        </Modal>
       )}
       {controller.confirmation && (
         <Modal

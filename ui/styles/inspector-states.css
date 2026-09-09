@@ -361,3 +361,16 @@ footer {
   color: #858892;
   margin: 16px 0 20px;
 }
+
+.trim-handle.right {
+  top: 50%;
+}
+.trim-handle.right.repeat {
+  top: 6px;
+  bottom: 52%;
+}
+.audio-cpu {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  margin-left: 16px;
+}
