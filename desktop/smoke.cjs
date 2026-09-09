@@ -846,7 +846,7 @@ function verifyDesktop(win, request) {
         "Dropdowns work after New and MIDI creation; name fields and properties tabs verified.",
       );
       await win.webContents.executeJavaScript(
-        `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='Notes').click()`,
+        `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='MIDI').click()`,
       );
       await new Promise((r) => setTimeout(r, 60));
       await win.webContents.executeJavaScript(
@@ -916,9 +916,58 @@ function verifyDesktop(win, request) {
       );
 
       await win.webContents.executeJavaScript(
-        `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='Notes').click()`,
+        `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='MIDI').click()`,
       );
       await new Promise((r) => setTimeout(r, 80));
+      const editorHeight = await win.webContents.executeJavaScript(
+        `document.querySelector('.piano-scroll').clientHeight`,
+      );
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Maximize MIDI editor"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      if (
+        (await win.webContents.executeJavaScript(
+          `document.querySelector('.piano-scroll').clientHeight`,
+        )) <= editorHeight
+      )
+        throw new Error("MIDI maximize did not expand piano roll");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Restore MIDI editor"]').click()`,
+      );
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Play region"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 70));
+      if (!(await request({ op: "state" })).playing)
+        throw new Error("Play region did not start transport");
+      await win.webContents.capturePage();
+      const midiHeadBefore = await win.webContents.executeJavaScript(
+        `parseFloat(document.querySelector('.midi-playhead').style.left)`,
+      );
+      await new Promise((r) => setTimeout(r, 25));
+      await win.webContents.capturePage();
+      if (
+        (await win.webContents.executeJavaScript(
+          `parseFloat(document.querySelector('.midi-playhead').style.left)`,
+        )) <= midiHeadBefore
+      )
+        throw new Error("MIDI playhead is not moving");
+      await win.webContents.executeJavaScript(
+        `document.querySelector('[aria-label="Stop playback"]').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.note-ruler').dispatchEvent(new KeyboardEvent('keydown', {key:'Home',bubbles:true}))`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      const midiOrigin = (await request({ op: "state" })).position;
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.note-ruler').dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight',bubbles:true}))`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      if ((await request({ op: "state" })).position <= midiOrigin)
+        throw new Error("MIDI ruler did not seek");
       const midiWidth = await win.webContents.executeJavaScript(
         `document.querySelector('.piano-grid').getBoundingClientRect().width`,
       );
@@ -1067,12 +1116,12 @@ function verifyDesktop(win, request) {
         ))
       )
         throw new Error("Diagnostics missing");
-      await win.webContents.executeJavaScript(
-        `document.querySelector('.audio-diagnostics input[type="checkbox"]').click()`,
-      );
-      await new Promise((r) => setTimeout(r, 120));
-      if ((await request({ op: "state" })).limiterEnabled)
-        throw new Error("Output protection switch did not reach engine");
+      if (
+        await win.webContents.executeJavaScript(
+          `!!document.querySelector('.audio-diagnostics input[type="checkbox"]')`,
+        )
+      )
+        throw new Error("Diagnostics should not contain export settings");
       console.log(
         "Built-in effects and audio diagnostics verified through UI-to-engine commands.",
       );

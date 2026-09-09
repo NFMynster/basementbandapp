@@ -12,7 +12,6 @@ const path = require("node:path");
 const { mkdirSync } = require("node:fs");
 const { startBackend } = require("./backend.cjs");
 const { assertSender, registerIpc } = require("./ipc.cjs");
-const { createSplash } = require("./startup.cjs");
 const { initializeLogging } = require("./logging.cjs");
 const { microphoneAccess } = require("./permissions.cjs");
 const smoke = process.env.BASEMENT_SMOKE === "1";
@@ -36,7 +35,6 @@ app.whenReady().then(() => {
       : path.join(app.getPath("userData"), "logs"),
   );
   initializeLogging(app.getPath("logs"));
-  const splash = createSplash(smoke);
   backendReady = (async () => {
     try {
       const inputAllowed = await microphoneAccess();
@@ -93,14 +91,8 @@ app.whenReady().then(() => {
       });
     }
   }
-  let handedOff = false;
-  splash.on("closed", () => {
-    if (!handedOff) app.quit();
-  });
   win.once("ready-to-show", () => {
-    handedOff = true;
     if (!smoke) win.show();
-    if (!splash.isDestroyed()) splash.destroy();
   });
   win.webContents.on("did-fail-load", (_event, code, description) => {
     if (code === -3) return;

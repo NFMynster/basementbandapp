@@ -702,3 +702,40 @@ footer .audio-cpu.needs-attention {
 .eq-actions select {
   padding-right: 30px;
 }
+
+.inspector.midi-expanded {
+  position: fixed;
+  inset: 144px 0 34px;
+  height: auto !important;
+  z-index: 9;
+  box-shadow: 0 -12px 36px #0003;
+}
+.inspector.midi-expanded > .panel-resize {
+  display: none;
+}
+.midi-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #f2e5bd;
+  pointer-events: none;
+  z-index: 4;
+}
+.midi-playhead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  background: #f2e5bd;
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+}
+.note-ruler {
+  cursor: pointer;
+}
+.note-ruler:focus-visible {
+  outline: 1px solid #a9cbea;
+  outline-offset: -1px;
+}

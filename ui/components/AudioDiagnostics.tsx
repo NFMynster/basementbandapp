@@ -66,24 +66,6 @@ export function AudioDiagnostics({
           </dd>
         </div>
       </dl>
-      <label className="simple-switch">
-        <span>
-          <strong>Protect output peaks</strong>
-          <small>Gentle peak limiting for playback and audio exports.</small>
-        </span>
-        <input
-          type="checkbox"
-          checked={!!s.limiterEnabled}
-          onChange={(e) =>
-            void c.run({ op: "limiter", value: e.target.checked })
-          }
-        />
-      </label>
-      <p>
-        For less delay, try a smaller buffer. If audio breaks up, use a larger
-        one. Direct monitoring on your interface avoids software monitoring
-        delay.
-      </p>
       <div className="modal-bottom">
         <button onClick={() => void c.run({ op: "clearDiagnostics" }, false)}>
           Reset readings

@@ -40,8 +40,6 @@
     <None Include="desktop\session-files.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-history.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke.cjs"><Filter>Electron</Filter></None>
-    <None Include="desktop\splash.html"><Filter>Electron</Filter></None>
-    <None Include="desktop\startup.cjs"><Filter>Electron</Filter></None>
     <None Include="docs\ARCHITECTURE.md"><Filter>Documentation</Filter></None>
     <None Include="docs\BUILD.md"><Filter>Documentation</Filter></None>
     <None Include="docs\LICENSING.md"><Filter>Documentation</Filter></None>

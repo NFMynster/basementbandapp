@@ -15,7 +15,7 @@ npm run build:all
 npm start
 ```
 
-The first native build downloads JUCE. Subsequent builds are incremental. `npm run dev` starts Vite and Electron using the already-built native engine; rebuild native changes and restart the app. The splash appears once Electron starts, not during compilation.
+The first native build downloads JUCE. Subsequent builds are incremental. `npm run dev` starts Vite and Electron using the already-built native engine; rebuild native changes and restart the app. The main window shows a startup overlay while the audio engine connects, then fades into the session. It appears after compilation when Electron starts.
 
 ## Visual Studio F5 (Windows)
 

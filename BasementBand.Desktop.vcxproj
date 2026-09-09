@@ -47,8 +47,6 @@
     <None Include="desktop\session-files.cjs" />
     <None Include="desktop\session-history.cjs" />
     <None Include="desktop\smoke.cjs" />
-    <None Include="desktop\splash.html" />
-    <None Include="desktop\startup.cjs" />
     <None Include="docs\ARCHITECTURE.md" />
     <None Include="docs\BUILD.md" />
     <None Include="docs\LICENSING.md" />

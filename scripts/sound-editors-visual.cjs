@@ -77,13 +77,24 @@ app
       "artifacts/screenshots/notes.png",
       (await w.webContents.capturePage()).toPNG(),
     );
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[aria-label="Maximize MIDI editor"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    writeFileSync(
+      "artifacts/screenshots/midi-maximized.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[aria-label="Restore MIDI editor"]').click()`,
+    );
     const count = await w.webContents.executeJavaScript(
       `document.querySelectorAll('.piano-note').length`,
     );
     if (count !== 32) throw new Error("Missing editor notes: " + count);
     const layout = await w.webContents.executeJavaScript(`(() => {
       const tabs = [...document.querySelectorAll('.tab')];
-      if (!tabs.filter(t => ['EQ & Effects', 'Notes'].includes(t.textContent.trim())).every(t => t.querySelector('svg'))) throw new Error('Missing tab icon');
+      if (!tabs.filter(t => ['EQ & Effects', 'MIDI'].includes(t.textContent.trim())).every(t => t.querySelector('svg'))) throw new Error('Missing tab icon');
       if (!document.querySelector('.align-notes').title.includes('Quantize:')) throw new Error('Missing beat alignment');
       return { width: document.querySelector('.track-sidebar').getBoundingClientRect().width, height: document.querySelector('.inspector').getBoundingClientRect().height };
     })()`);
@@ -260,6 +271,28 @@ app
     console.log(
       "Effects, gate, diagnostics and MIDI export verified at desktop and small widths",
     );
+    await w.loadFile(path.join(__dirname, "../dist/index.html"), {
+      query: { startup: "slow" },
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    if (
+      !(await w.webContents.executeJavaScript(
+        `!!document.querySelector('[data-startup]') && document.querySelector('.app').inert`,
+      ))
+    )
+      throw new Error("Missing blocking startup overlay");
+    writeFileSync(
+      "artifacts/screenshots/startup-overlay.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
+    await new Promise((r) => setTimeout(r, 1300));
+    if (
+      await w.webContents.executeJavaScript(
+        `!!document.querySelector('[data-startup]') || document.querySelector('.app').inert`,
+      )
+    )
+      throw new Error("Startup overlay did not release the app");
+    console.log("Startup overlay and transition verified");
     app.quit();
   })
   .catch((e) => {

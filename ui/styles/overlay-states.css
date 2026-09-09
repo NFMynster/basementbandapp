@@ -138,3 +138,23 @@
 .ruler > span {
   pointer-events: none;
 }
+
+.startup-overlay {
+  gap: 20px;
+  text-align: center;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+.startup-overlay.leaving {
+  opacity: 0;
+}
+.startup-overlay pre {
+  max-width: min(640px, 90vw);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-overlay {
+    transition: none;
+  }
+}

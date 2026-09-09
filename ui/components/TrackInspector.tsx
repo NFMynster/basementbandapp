@@ -1,8 +1,10 @@
 import { LevelSlider } from "./LevelSlider";
 import { TrackEffect } from "./TrackEffects";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
+  Maximize2,
+  Minimize2,
   ArrowLeft,
   ArrowRight,
   AudioLines,
@@ -36,6 +38,10 @@ export function TrackInspector({
   }, [controller.propertiesPing]);
   const { track, panel, setPanel, s, update, run, openSetup, busy, task } =
     controller;
+  const [midiExpanded, setMidiExpanded] = useState(false);
+  useEffect(() => {
+    if (panel !== "notes") setMidiExpanded(false);
+  }, [panel]);
   const panGesture = useRef<{ id: string; released: boolean } | undefined>(
     undefined,
   );
@@ -55,7 +61,13 @@ export function TrackInspector({
             );
           }
         }}
-        className={`inspector ${panel === "notes" ? "with-notes" : ""}`}
+        className={`inspector ${panel === "notes" ? "with-notes" : ""} ${panel === "notes" && midiExpanded ? "midi-expanded" : ""}`}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && midiExpanded) {
+            e.stopPropagation();
+            setMidiExpanded(false);
+          }
+        }}
         tabIndex={-1}
         aria-label={`${track?.name || "Track"} properties`}
       >
@@ -119,7 +131,25 @@ export function TrackInspector({
                 onClick={() => setPanel("notes")}
               >
                 <Piano size={14} />
-                Notes
+                MIDI
+              </button>
+            )}
+            {panel === "notes" && (
+              <button
+                aria-label={
+                  midiExpanded ? "Restore MIDI editor" : "Maximize MIDI editor"
+                }
+                title={
+                  midiExpanded ? "Restore editor (Esc)" : "Maximize editor"
+                }
+                aria-pressed={midiExpanded}
+                onClick={() => setMidiExpanded((v) => !v)}
+              >
+                {midiExpanded ? (
+                  <Minimize2 size={14} />
+                ) : (
+                  <Maximize2 size={14} />
+                )}
               </button>
             )}
           </div>

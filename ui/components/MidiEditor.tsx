@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Magnet,
+  Play,
+  Square,
   Copy,
   Plus,
   Trash2,
@@ -8,6 +10,7 @@ import {
   MousePointer2,
   ClipboardPaste,
 } from "lucide-react";
+import { useAnimatedPlayhead } from "../hooks/useAnimatedPlayhead";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import type { Clip, SessionCommand } from "../models";
 type Note = NonNullable<Clip["notes"]>[number];
@@ -76,6 +79,14 @@ export function MidiEditor({
       zoom / (60 / w.s.tempo),
     ),
     row = 20;
+  const playhead = useAnimatedPlayhead(
+    w.s,
+    px,
+    null,
+    clip?.start ?? 0,
+    clip?.duration ?? 0,
+    60,
+  );
   const unavailable = w.s.recording || w.busy;
   const disabled = pending || unavailable;
   const quantize = (v: number) => (snap ? Math.round(v / step) * step : v);
@@ -244,6 +255,25 @@ export function MidiEditor({
     >
       {clip && (
         <div className="midi-tools" role="group" aria-label="MIDI editor tools">
+          <button
+            aria-label={w.s.playing ? "Stop playback" : "Play region"}
+            title={
+              w.s.playing
+                ? "Stop playback"
+                : "Play from the start of this region"
+            }
+            disabled={unavailable}
+            onClick={async () => {
+              if (w.s.playing) {
+                await w.run({ op: "stop" }, false);
+                return;
+              }
+              if (await w.run({ op: "seek", position: clip.start }, false))
+                await w.run({ op: "play" }, false);
+            }}
+          >
+            {w.s.playing ? <Square size={14} /> : <Play size={14} />}
+          </button>
           <div
             className="midi-tool-group midi-mode"
             role="group"
@@ -490,7 +520,62 @@ export function MidiEditor({
               setMarquee(null);
             }}
           >
-            <div className="note-ruler">
+            <div
+              className="note-ruler"
+              role="slider"
+              tabIndex={0}
+              aria-label="MIDI playhead"
+              aria-valuemin={0}
+              aria-valuemax={clip.duration}
+              aria-valuenow={Math.max(
+                0,
+                Math.min(clip.duration, w.s.position - clip.start),
+              )}
+              aria-disabled={unavailable}
+              title="Click to move the playhead"
+              onDoubleClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                if (e.button !== 0 || unavailable) return;
+                e.currentTarget.focus();
+                const time = Math.max(
+                  0,
+                  Math.min(
+                    clip.duration,
+                    quantize(
+                      (e.clientX -
+                        e.currentTarget.getBoundingClientRect().left -
+                        60) /
+                        px,
+                    ),
+                  ),
+                );
+                void w.run({ op: "seek", position: clip.start + time }, false);
+              }}
+              onKeyDown={(e) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
+                  return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (unavailable) return;
+                const time =
+                  e.key === "Home"
+                    ? 0
+                    : e.key === "End"
+                      ? clip.duration
+                      : w.s.position -
+                        clip.start +
+                        (e.key === "ArrowLeft" ? -step : step);
+                void w.run(
+                  {
+                    op: "seek",
+                    position:
+                      clip.start + Math.max(0, Math.min(clip.duration, time)),
+                  },
+                  false,
+                );
+              }}
+            >
               {Array.from(
                 { length: Math.ceil(clip.duration / (60 / w.s.tempo)) },
                 (_, i) =>
@@ -517,6 +602,7 @@ export function MidiEditor({
                 <span>{name(high - i)}</span>
               </div>
             ))}
+            <div ref={playhead} className="midi-playhead" aria-hidden="true" />
             {notes.map((n) => {
               const current = preview?.find((p) => p.event === n.event) ?? n;
               return (

@@ -105,6 +105,7 @@ const devices = {
   sampleRate: 48000,
   bufferSize: 256,
 };
+let startupDelayed = false;
 contextBridge.exposeInMainWorld("basement", {
   soundLibrary: async () => ({
     plugins: [],
@@ -114,6 +115,14 @@ contextBridge.exposeInMainWorld("basement", {
     errors: [],
   }),
   command: async (c) => {
+    if (
+      c.op === "state" &&
+      location.search.includes("startup=slow") &&
+      !startupDelayed
+    ) {
+      startupDelayed = true;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     if (c.op === "devices") return devices;
     if (c.op === "testAudioLoad") {
       state.audioCpu = c.value;
