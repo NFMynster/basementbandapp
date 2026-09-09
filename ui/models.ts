@@ -139,7 +139,8 @@ export type SessionCommand =
       op: "editClip";
       track: string;
       clip: string;
-      action: "move" | "copy" | "split" | "take" | "trim" | "note";
+      action: "move" | "copy" | "split" | "take" | "trim" | "note" | "quantize";
+      division?: number;
       event?: number;
       pitch?: number;
       length?: number;

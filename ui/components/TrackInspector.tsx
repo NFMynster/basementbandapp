@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
+  ChartNoAxesColumn,
+  Piano,
   ChevronDown,
   Headphones,
   Mic2,
@@ -11,6 +13,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
+import { PanelResize } from "./PanelResize";
 import { TrackEqualizer } from "./TrackEqualizer";
 import { MidiEditor } from "./MidiEditor";
 import { TrackAppearance } from "./TrackAppearance";
@@ -34,6 +37,7 @@ export function TrackInspector({
     <>
       <section
         ref={inspector}
+        style={{ height: controller.inspectorHeight }}
         onDragOver={(e) => {
           if (panel === "plugins") e.preventDefault();
         }}
@@ -49,6 +53,15 @@ export function TrackInspector({
         tabIndex={-1}
         aria-label={`${track?.name || "Track"} properties`}
       >
+        <PanelResize
+          axis="vertical"
+          label="Properties panel height"
+          value={controller.inspectorHeight}
+          min={200}
+          max={controller.inspectorMax}
+          reset={300}
+          onChange={controller.setInspectorHeight}
+        />
         {controller.propertiesPing > 0 && (
           <span
             key={controller.propertiesPing}
@@ -66,6 +79,7 @@ export function TrackInspector({
               className={panel === "export" ? "tab active" : "tab"}
               onClick={() => setPanel("export")}
             >
+              <ArrowDownToLine size={14} />
               Export
             </button>
             <button
@@ -86,6 +100,7 @@ export function TrackInspector({
               className={panel === "eq" ? "tab active" : "tab"}
               onClick={() => setPanel("eq")}
             >
+              <ChartNoAxesColumn size={14} />
               EQ
             </button>
             {track?.kind === "midi" && (
@@ -93,6 +108,7 @@ export function TrackInspector({
                 className={panel === "notes" ? "tab active" : "tab"}
                 onClick={() => setPanel("notes")}
               >
+                <Piano size={14} />
                 Notes
               </button>
             )}

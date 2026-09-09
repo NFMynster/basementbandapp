@@ -13,6 +13,7 @@ export function MidiEditor({
   const clip = w.track?.clips.find(
     (c) => c.id === w.clipId && c.kind === "midi" && c.active,
   );
+  const [division, setDivision] = useState(16);
   const [snap, setSnap] = useState(true),
     [zoom, setZoom] = useState(100),
     [selected, setSelected] = useState<number>();
@@ -28,7 +29,7 @@ export function MidiEditor({
   const notes = clip?.notes ?? [];
   const high = Math.min(127, Math.max(72, ...notes.map((n) => n.note + 4)));
   const low = Math.max(0, Math.min(48, ...notes.map((n) => n.note - 4)));
-  const step = 60 / w.s.tempo / 4,
+  const step = 240 / w.s.tempo / division,
     px = zoom / (60 / w.s.tempo),
     row = 20;
   useEffect(() => {
@@ -53,6 +54,24 @@ export function MidiEditor({
     setPreview(null);
     setSelected(undefined);
   }
+  async function alignNotes() {
+    if (!clip || disabled) return;
+    setPending(true);
+    const result = await w.run({
+      op: "editClip",
+      action: "quantize",
+      track: w.track.id,
+      clip: clip.id,
+      division,
+    });
+    setPending(false);
+    setPreview(null);
+    setSelected(undefined);
+    if (result)
+      w.setNotice(
+        `Aligned notes to the 1/${division} beat grid. Undo is available when playback is stopped.`,
+      );
+  }
   return (
     <div
       className="midi-editor"
@@ -60,6 +79,36 @@ export function MidiEditor({
         if (["Delete", "Backspace"].includes(e.key)) e.stopPropagation();
       }}
     >
+      <div className="midi-align-tools">
+        <button
+          className="align-notes"
+          disabled={disabled || !notes.length}
+          onClick={() => void alignNotes()}
+          title="Move note starts in this region to the nearest beat grid. Keeps note lengths; notes crossing trimmed edges stay in place."
+        >
+          Align to beat <span>(quantization)</span>
+        </button>
+        <select
+          aria-label="Beat alignment grid"
+          value={division}
+          disabled={disabled}
+          onChange={(e) => setDivision(+e.target.value)}
+        >
+          {[4, 8, 16, 32].map((value) => (
+            <option key={value} value={value}>
+              1/{value}
+              {value === 4
+                ? " - Quarter notes"
+                : value === 8
+                  ? " - Eighth notes"
+                  : value === 16
+                    ? " - Sixteenth notes"
+                    : " - Thirty-second notes"}
+            </option>
+          ))}
+        </select>
+        <span>Selected region; keeps note lengths</span>
+      </div>
       <div className="midi-tools">
         <strong>{clip?.name ?? "Note editor"}</strong>
         <span>
@@ -71,7 +120,7 @@ export function MidiEditor({
             checked={snap}
             onChange={(e) => setSnap(e.target.checked)}
           />{" "}
-          Snap 1/16
+          Snap 1/{division}
         </label>
         <label>
           Zoom

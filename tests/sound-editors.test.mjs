@@ -87,6 +87,58 @@ test("EQ processes audio and MIDI edits survive undo, copies and save/open", asy
     assert.equal(note.note, 64);
     assert.ok(Math.abs(note.start - 0.05) < 0.001);
     assert.ok(Math.abs(note.duration - 0.08) < 0.001);
+    await send({
+      op: "editClip",
+      action: "move",
+      track: midi,
+      clip: clip.id,
+      position: 0.03,
+    });
+    s = await send({
+      op: "editClip",
+      action: "quantize",
+      track: midi,
+      clip: clip.id,
+      division: 16,
+    });
+    let aligned = s.tracks.at(-1).clips.find((c) => c.id === clip.id);
+    assert.ok(
+      Math.abs(aligned.start + aligned.notes[0].start - 0.125) < 1e-6,
+      "Uses the session beat grid even for off-grid regions",
+    );
+    assert.ok(
+      Math.abs(aligned.notes[0].duration - 0.08) < 1e-6,
+      "Preserves note duration",
+    );
+    assert.equal(
+      s.tracks.at(-1).clips.find((c) => c.id !== clip.id).notes[0].note,
+      60,
+      "Copies stay independent",
+    );
+    const invalid = await rpc.send({
+      op: "editClip",
+      action: "quantize",
+      track: midi,
+      clip: clip.id,
+      division: 0,
+    });
+    assert.match(invalid.error, /supported beat grid/);
+    s = await send({ op: "undo" });
+    assert.ok(
+      Math.abs(
+        s.tracks.at(-1).clips.find((c) => c.id === clip.id).notes[0].start -
+          0.05,
+      ) < 0.001,
+    );
+    s = await send({ op: "redo" });
+    await send({ op: "save", path });
+    await send({ op: "new" });
+    s = await send({ op: "open", path });
+    aligned = s.tracks.at(-1).clips.find((c) => c.id === clip.id);
+    assert.ok(
+      Math.abs(aligned.start + aligned.notes[0].start - 0.125) < 0.001,
+      "Alignment survives save/open",
+    );
   } finally {
     await rpc.close();
   }

@@ -36,8 +36,32 @@ void Engine::editClip(const var &c) {
   require(found != t.clips.end(), "Region no longer exists");
   auto &clip = **found;
   const auto action = str(c, "action");
-  if (action == "note") {
+  if (action == "note" || action == "quantize") {
     require(clip.isMidi && clip.active, "Select an active MIDI region");
+    auto sequence = std::make_shared<MidiMessageSequence>(*clip.events);
+    sequence->updateMatchedPairs();
+    if (action == "quantize") {
+      const double division = number(c, "division", 16);
+      require(division == 4 || division == 8 || division == 16 || division == 32,
+              "Choose a supported beat grid");
+      const double step = 240.0 / tempo / division;
+      for (auto *event : *sequence) {
+        if (!event->message.isNoteOn() || !event->noteOffObject) continue;
+        const double begin = event->message.getTimeStamp();
+        const double end = event->noteOffObject->message.getTimeStamp();
+        // Preserve notes crossing a trimmed boundary and events outside this region.
+        if (begin < clip.offset || end > clip.offset + clip.duration() + 1e-8) continue;
+        const double duration = end - begin;
+        if (duration <= 0) continue;
+        const double first = std::ceil((clip.start - 1e-9) / step);
+        const double last = std::floor((clip.start + clip.duration() - duration + 1e-9) / step);
+        if (first > last) continue;
+        const double beat = jlimit(first, last, std::round((clip.start + begin - clip.offset) / step));
+        const double aligned = clip.offset + jmax(0.0, beat * step - clip.start);
+        event->message.setTimeStamp(aligned);
+        event->noteOffObject->message.setTimeStamp(aligned + duration);
+      }
+    } else {
     const int index = (int)number(c, "event", -1);
     const double begin = number(c, "position"), duration = number(c, "length");
     const double pitch = number(c, "pitch", -1);
@@ -47,13 +71,12 @@ void Engine::editClip(const var &c) {
     require(std::isfinite(begin) && std::isfinite(duration) && std::isfinite(pitch) &&
             begin >= 0 && duration > 0 && begin + duration <= clip.duration() + 1e-8 &&
             pitch >= 0 && pitch <= 127 && pitch == std::floor(pitch), "Invalid note position");
-    auto sequence = std::make_shared<MidiMessageSequence>(*clip.events);
-    sequence->updateMatchedPairs();
     auto *event = sequence->getEventPointer(index);
     event->message.setNoteNumber((int)pitch);
     event->noteOffObject->message.setNoteNumber((int)pitch);
     event->message.setTimeStamp(clip.offset + begin);
     event->noteOffObject->message.setTimeStamp(clip.offset + begin + duration);
+    }
     sequence->sort();
     sequence->updateMatchedPairs();
     MidiMessageSequence disk(*sequence);

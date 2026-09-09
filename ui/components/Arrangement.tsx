@@ -2,6 +2,7 @@ import { useAnimatedPlayhead } from "../hooks/useAnimatedPlayhead";
 import type React from "react";
 import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { ContextMenu } from "./ContextMenu";
+import { PanelResize } from "./PanelResize";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
 import { Plus, ZoomIn, ZoomOut } from "lucide-react";
@@ -226,6 +227,15 @@ export function Arrangement({
             </div>
           </aside>
         </div>
+        <PanelResize
+          axis="horizontal"
+          label="Track sidebar width"
+          value={controller.sidebarWidth}
+          min={240}
+          max={controller.sidebarMax}
+          reset={280}
+          onChange={controller.setSidebarWidth}
+        />
         <div className="timeline-scroll" ref={timelineScroll}>
           <div className="timeline" style={{ width, minHeight: "100%" }}>
             <div

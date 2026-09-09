@@ -35,6 +35,7 @@ const UNDOABLE_CLIP_ACTIONS = new Set([
   "split",
   "copy",
   "note",
+  "quantize",
 ]);
 const UNDOABLE_TRACK_SETTINGS = [
   "name",

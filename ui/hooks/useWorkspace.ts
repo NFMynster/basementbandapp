@@ -1,3 +1,4 @@
+import { usePanelLayout } from "./usePanelLayout";
 import { useShortcuts } from "./useShortcuts";
 import { errorMessage } from "../services/errors";
 import React, { useEffect, useRef, useState } from "react";
@@ -69,6 +70,7 @@ function rulerPosition(
 }
 
 export function useWorkspace() {
+  const layout = usePanelLayout();
   const [creatingTrack, setCreatingTrack] = useState(false);
   const [welcome, setWelcome] = useState(
     () => localStorage.getItem("basement.hideWelcome") !== "1",
@@ -621,6 +623,7 @@ export function useWorkspace() {
     beat = (Math.floor(s.position / (60 / s.tempo)) % 4) + 1;
   return {
     ...shortcuts,
+    ...layout,
     dropAudio,
     creatingTrack,
     setCreatingTrack,

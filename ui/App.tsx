@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { desktop as api } from "./services/desktop";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { TitleBar } from "./components/TitleBar";
@@ -43,6 +44,9 @@ export function App() {
   return (
     <div
       className="app"
+      style={
+        { "--sidebar-width": `${controller.sidebarWidth}px` } as CSSProperties
+      }
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => e.preventDefault()}
     >
