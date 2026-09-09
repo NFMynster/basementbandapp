@@ -112,6 +112,10 @@ contextBridge.exposeInMainWorld("basement", {
   }),
   command: async (c) => {
     if (c.op === "devices") return devices;
+    if (c.op === "testAudioLoad") {
+      state.audioCpu = c.value;
+      state.processingDropouts = 2;
+    }
     if (c.op === "configure") {
       if (c.output === "Unavailable")
         throw new Error("Test output unavailable");

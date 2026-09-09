@@ -13,6 +13,7 @@
     <None Include="ui\components\PanelResize.tsx" />
     <None Include="ui\hooks\usePanelLayout.ts" />
     <None Include="ui\hooks\useConfirmation.ts" />
+    <None Include="ui\hooks\useAudioLoad.ts" />
     <None Include="ui\components\ClipSound.tsx" />
     <None Include="ui\components\SoundBrowser.tsx" />
     <None Include="desktop\plugin-library.cjs" />

@@ -17,8 +17,12 @@ export function AudioDiagnostics({
     `${((samples * 1000) / s.sampleRate).toFixed(1)} ms`;
   return (
     <Modal title="Audio status" className="audio-diagnostics" onClose={onClose}>
-      <span className="eyebrow">AUDIO STATUS</span>
-      <h2>How your session is running</h2>
+      <span className="eyebrow">STATS FOR NERDS</span>
+      <h2>Audio status</h2>
+      <p>
+        Optional details for troubleshooting. If everything sounds good, you can
+        leave these alone.
+      </p>
       <div className="diagnostic-summary">
         <div>
           <strong>{ms(device + plugin)}</strong>

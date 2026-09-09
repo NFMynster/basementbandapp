@@ -191,7 +191,7 @@ export function MidiEditor({
   }
   return (
     <div
-      className="midi-editor complete-midi"
+      className="midi-editor"
       onKeyDown={(e) => {
         const mod = e.ctrlKey || e.metaKey;
         if (
@@ -222,12 +222,17 @@ export function MidiEditor({
         }
       }}
     >
-      <div
-        className="midi-tools midi-align-tools"
-        role="group"
-        aria-label="MIDI editor tools"
-      >
-        <strong title={clip?.name}>{clip?.name ?? "Note editor"}</strong>
+      <div className="midi-header">
+        <div className="midi-region-title">
+          <strong title={clip?.name}>{clip?.name ?? "Note editor"}</strong>
+          {clip && (
+            <span>
+              {selected.length
+                ? `${selected.length} selected`
+                : `${notes.length} notes`}
+            </span>
+          )}
+        </div>
         <button
           className="new-midi-region"
           disabled={unavailable || w.track.kind !== "midi"}
@@ -236,126 +241,151 @@ export function MidiEditor({
           <Plus size={14} />
           New region
         </button>
-        <button
-          disabled={unavailable || !notes.length}
-          className="align-notes"
-          title="Align the selected region to the beat grid; keeps note lengths"
-          onClick={async () => {
-            if (!clip || disabled) return;
-            setPending(true);
-            const r = await w.run({
-              op: "editClip",
-              action: "quantize",
-              track: w.track.id,
-              clip: clip.id,
-              division,
-            });
-            setPending(false);
-            setSelection([]);
-            if (r) w.setNotice("Aligned MIDI notes to the beat grid.");
-          }}
-        >
-          Align to beat <span>(quantization)</span>
-        </button>
-        <select
-          aria-label="Beat alignment grid"
-          value={division}
-          disabled={unavailable}
-          onChange={(e) => setDivision(+e.target.value)}
-        >
-          {[4, 8, 16, 32].map((v) => (
-            <option key={v} value={v}>
-              1/{v} notes
-            </option>
-          ))}
-        </select>
-        <button
-          className="midi-tool-start"
-          title="Select notes; drag a box or Shift-click for multiple notes"
-          aria-label="Select notes"
-          aria-pressed={!draw}
-          onClick={() => setDraw(false)}
-        >
-          <MousePointer2 size={14} />
-        </button>
-        <button
-          title="Draw notes by clicking the grid"
-          aria-label="Draw notes"
-          aria-pressed={draw}
-          onClick={() => setDraw(true)}
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          title="Copy selected notes (Ctrl/Cmd+C)"
-          aria-label="Copy notes"
-          disabled={!selected.length}
-          onClick={copy}
-        >
-          <Copy size={14} />
-        </button>
-        <button
-          title="Paste at the last clicked grid position (Ctrl/Cmd+V)"
-          aria-label="Paste notes"
-          disabled={unavailable || !clip}
-          onClick={paste}
-        >
-          <ClipboardPaste size={14} />
-        </button>
-        <button
-          title="Delete selected notes"
-          aria-label="Delete notes"
-          disabled={unavailable || !selected.length}
-          onClick={() =>
-            void edit(selected.map((n) => ({ event: n.event, delete: true })))
-          }
-        >
-          <Trash2 size={14} />
-        </button>
-        <label>
-          Velocity
-          <input
-            aria-label="Note velocity"
-            type="range"
-            min={1}
-            max={127}
-            value={velocity}
-            disabled={unavailable}
-            onChange={(e) => setVelocity(+e.target.value)}
-            onPointerUp={() => {
-              if (selected.length)
-                void edit(selected.map((n) => ({ ...n, velocity })));
-            }}
-            onKeyUp={(e) => {
-              if (e.key.startsWith("Arrow") && selected.length)
-                void edit(selected.map((n) => ({ ...n, velocity })));
-            }}
-          />
-          <output>{velocity}</output>
-        </label>
-        <button
-          title={snap ? "Snap to grid: on" : "Snap to grid: off"}
-          aria-label="Snap to grid"
-          aria-pressed={snap}
-          onClick={() => setSnap((value) => !value)}
-        >
-          <Magnet size={14} />
-        </button>
-        <label>
-          Zoom
-          <input
-            aria-label="Note editor zoom"
-            type="range"
-            min={30}
-            max={640}
-            value={zoom}
-            onChange={(e) => setZoom(+e.target.value)}
-          />
-        </label>
       </div>
+      {clip && (
+        <div className="midi-tools" role="group" aria-label="MIDI editor tools">
+          <div
+            className="midi-tool-group midi-mode"
+            role="group"
+            aria-label="Editing mode"
+          >
+            <button
+              title="Select notes; drag a box or Shift-click for multiple notes"
+              aria-label="Select notes"
+              aria-pressed={!draw}
+              onClick={() => setDraw(false)}
+            >
+              <MousePointer2 size={14} /> Select
+            </button>
+            <button
+              title="Draw notes by clicking the grid"
+              aria-label="Draw notes"
+              aria-pressed={draw}
+              onClick={() => setDraw(true)}
+            >
+              <Pencil size={14} /> Draw
+            </button>
+          </div>
+          <div className="midi-tool-group" role="group" aria-label="Beat grid">
+            <button
+              title={snap ? "Snap to grid: on" : "Snap to grid: off"}
+              aria-label="Snap to grid"
+              aria-pressed={snap}
+              onClick={() => setSnap((value) => !value)}
+            >
+              <Magnet size={14} /> Snap
+            </button>
+            <select
+              aria-label="Beat alignment grid"
+              value={division}
+              disabled={unavailable}
+              onChange={(e) => setDivision(+e.target.value)}
+            >
+              {[4, 8, 16, 32].map((v) => (
+                <option key={v} value={v}>
+                  1/{v}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={unavailable || !notes.length}
+              className="align-notes"
+              title="Quantize: align all notes in this region to the beat grid; keeps note lengths"
+              onClick={async () => {
+                if (!clip || disabled) return;
+                setPending(true);
+                const r = await w.run({
+                  op: "editClip",
+                  action: "quantize",
+                  track: w.track.id,
+                  clip: clip.id,
+                  division,
+                });
+                setPending(false);
+                setSelection([]);
+                if (r) w.setNotice("Aligned MIDI notes to the beat grid.");
+              }}
+            >
+              Align to beat
+            </button>
+          </div>
+          <div
+            className="midi-tool-group"
+            role="group"
+            aria-label="Note actions"
+          >
+            <button
+              title="Copy selected notes (Ctrl/Cmd+C)"
+              aria-label="Copy notes"
+              disabled={!selected.length}
+              onClick={copy}
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              title="Paste at the last clicked grid position (Ctrl/Cmd+V)"
+              aria-label="Paste notes"
+              disabled={unavailable || !clip}
+              onClick={paste}
+            >
+              <ClipboardPaste size={14} />
+            </button>
+            <button
+              title="Delete selected notes"
+              aria-label="Delete notes"
+              disabled={unavailable || !selected.length}
+              onClick={() =>
+                void edit(
+                  selected.map((n) => ({ event: n.event, delete: true })),
+                )
+              }
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <div className="midi-tool-group midi-expression">
+            <label>
+              Velocity
+              <input
+                aria-label="Note velocity"
+                type="range"
+                min={1}
+                max={127}
+                value={velocity}
+                disabled={unavailable}
+                onChange={(e) => setVelocity(+e.target.value)}
+                onPointerUp={() => {
+                  if (selected.length)
+                    void edit(selected.map((n) => ({ ...n, velocity })));
+                }}
+                onKeyUp={(e) => {
+                  if (e.key.startsWith("Arrow") && selected.length)
+                    void edit(selected.map((n) => ({ ...n, velocity })));
+                }}
+              />
+              <output>{velocity}</output>
+            </label>
+            <label>
+              Zoom
+              <input
+                aria-label="Note editor zoom"
+                type="range"
+                min={30}
+                max={640}
+                value={zoom}
+                onChange={(e) => setZoom(+e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      )}
       {!clip ? (
         <div className="notes-empty">
-          Select a MIDI region, or create one at the playhead.
+          <Pencil size={22} aria-hidden="true" />
+          <strong>A place for your notes</strong>
+          <span>
+            Select a MIDI region, or use New region to start at the playhead.
+          </span>
         </div>
       ) : (
         <div className="piano-scroll" ref={scroll}>

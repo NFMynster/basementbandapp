@@ -84,9 +84,28 @@ app
     const layout = await w.webContents.executeJavaScript(`(() => {
       const tabs = [...document.querySelectorAll('.tab')];
       if (!tabs.filter(t => ['EQ & Effects', 'Notes'].includes(t.textContent.trim())).every(t => t.querySelector('svg'))) throw new Error('Missing tab icon');
-      if (!document.querySelector('.align-notes').textContent.includes('(quantization)')) throw new Error('Missing beat alignment');
+      if (!document.querySelector('.align-notes').title.includes('Quantize:')) throw new Error('Missing beat alignment');
       return { width: document.querySelector('.track-sidebar').getBoundingClientRect().width, height: document.querySelector('.inspector').getBoundingClientRect().height };
     })()`);
+    for (const width of [1100, 900]) {
+      w.setSize(width, 800);
+      await new Promise((r) => setTimeout(r, 200));
+      await w.webContents.executeJavaScript(`(() => {
+        const toolbar = document.querySelector('.midi-tools');
+        if (toolbar.scrollWidth > toolbar.clientWidth) throw new Error('MIDI toolbar overflows');
+        const bounds = toolbar.getBoundingClientRect();
+        for (const control of toolbar.querySelectorAll('button, select, input')) {
+          const r = control.getBoundingClientRect();
+          if (r.right > bounds.right || r.bottom > bounds.bottom) throw new Error('MIDI control clipped');
+        }
+        if (document.querySelector('.piano-scroll').clientHeight < 100) throw new Error('Piano roll too short');
+      })()`);
+      writeFileSync(
+        `artifacts/screenshots/notes-${width}.png`,
+        (await w.webContents.capturePage()).toPNG(),
+      );
+    }
+    w.setSize(1200, 800);
     w.webContents.reload();
     await new Promise((r) => setTimeout(r, 800));
     const restored = await w.webContents.executeJavaScript(
@@ -137,6 +156,37 @@ app
         (await w.webContents.capturePage()).toPNG(),
       );
     }
+
+    const load = await w.webContents.executeJavaScript(`(async () => {
+      const output = document.querySelector('.audio-cpu output');
+      let changes = 0;
+      const observer = new MutationObserver(() => changes++);
+      observer.observe(output, {childList:true,characterData:true,subtree:true});
+      let high = false;
+      const timer = setInterval(() => window.basement.command({op:'testAudioLoad',value:(high = !high) ? 1.2 : 1.8}), 50);
+      await new Promise(r => setTimeout(r, 3200));
+      clearInterval(timer);
+      observer.disconnect();
+      return {changes, value:parseFloat(output.textContent), warning:document.querySelector('.audio-cpu').classList.contains('needs-attention'), tagline:!!document.querySelector('.inspector-hint')};
+    })()`);
+    if (
+      load.changes > 4 ||
+      load.value < 1.2 ||
+      load.value > 1.9 ||
+      load.warning ||
+      load.tagline
+    )
+      throw new Error(
+        "Audio averaging or footer state is incorrect: " + JSON.stringify(load),
+      );
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[data-track-header="m"]').click(); [...document.querySelectorAll('.tab')].find(b=>b.textContent.trim()==='Plug-ins').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    writeFileSync(
+      "artifacts/screenshots/plugins-redesign.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
     await w.webContents.executeJavaScript(
       `document.querySelector('[aria-label="Audio status"]').click()`,
     );

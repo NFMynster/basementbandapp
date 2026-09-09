@@ -215,14 +215,6 @@ button svg {
     gap: 17px;
     padding: 11px 15px;
   }
-  .record-tip {
-    min-width: 200px;
-    padding-left: 17px;
-    gap: 10px;
-  }
-  .record-tip p {
-    max-width: 180px;
-  }
   .inspector-content {
     gap: 22px;
   }

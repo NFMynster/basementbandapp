@@ -1,3 +1,4 @@
+import { useAudioLoad } from "../hooks/useAudioLoad";
 import { useState } from "react";
 import { AudioDiagnostics } from "./AudioDiagnostics";
 import { ChevronDown } from "lucide-react";
@@ -6,10 +7,7 @@ import { keyLabel } from "../hooks/useShortcuts";
 export function StatusBar({ controller }: { controller: WorkspaceController }) {
   const { s, armed } = controller;
   const [diagnostics, setDiagnostics] = useState(false);
-  const dropouts =
-    (s.processingDropouts ?? 0) +
-    (s.recordingDropouts ?? 0) +
-    Math.max(0, s.deviceDropouts ?? 0);
+  const audioLoad = useAudioLoad(s.audioCpu);
   const openSetup = () => {
     void controller.openSetup("audio");
   };
@@ -28,18 +26,15 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
         </button>
         {s.audioCpu !== undefined && (
           <button
-            className={`audio-cpu ${dropouts || s.outputClipped ? "needs-attention" : ""}`}
+            className={`audio-cpu ${audioLoad >= 80 ? "needs-attention" : ""}`}
             aria-label="Audio status"
-            title="Audio load, monitoring delay and output protection"
+            title="Optional technical details: averaged audio load, monitoring delay and recorded interruptions"
             onClick={() => setDiagnostics(true)}
           >
-            Audio {s.audioCpu.toFixed(1)}%
-            {!!dropouts && (
-              <span aria-label="Audio interruptions detected"> ? !</span>
-            )}
-            {s.outputClipped && (
-              <span>{s.limiterEnabled ? " ? Protected" : " ? Clipped"}</span>
-            )}
+            <span className="stats-label">Stats for nerds</span>
+            <span>
+              Audio <output>{audioLoad.toFixed(1)}%</output>
+            </span>
           </button>
         )}
         <div className="footer-right">

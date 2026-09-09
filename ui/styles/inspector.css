@@ -50,11 +50,6 @@
   color: #ececf0;
   box-shadow: 0 1px 2px #0006;
 }
-.inspector-hint {
-  margin-left: auto;
-  font-size: 10px;
-  color: #6f717b;
-}
 .inspector-content {
   display: flex;
   align-items: flex-start;
@@ -130,39 +125,6 @@
   white-space: nowrap;
   font-family: Consolas, monospace;
 }
-.record-tip {
-  border-left: 1px solid #41424b;
-  display: flex;
-  gap: 14px;
-  padding: 7px 0 7px 27px;
-  margin-left: auto;
-  min-width: 280px;
-}
-.tip-icon {
-  color: #8f9d8b;
-  padding-top: 4px;
-}
-.record-tip strong {
-  font-size: 11px;
-  font-weight: 500;
-  color: #bcbec5;
-}
-.record-tip p {
-  font-size: 10px;
-  line-height: 1.9;
-  color: #858892;
-  margin-bottom: 0;
-}
-.plugin-intro {
-  min-width: 290px;
-}
-.plugin-intro h3 {
-  font-weight: 500;
-  font-size: 18px;
-  margin: 8px 0;
-  letter-spacing: -0.4px;
-}
-.plugin-intro p,
 .plugin-note {
   font-size: 11px;
   color: #8b8d98;

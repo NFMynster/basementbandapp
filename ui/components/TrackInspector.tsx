@@ -1,15 +1,16 @@
+import { LevelSlider } from "./LevelSlider";
 import { TrackEffect } from "./TrackEffects";
 import { useEffect, useRef } from "react";
 import {
   ArrowDownToLine,
-  ArrowLeft,
-  ArrowRight,
+  ArrowUp,
+  ArrowDown,
   AudioLines,
   ChartNoAxesColumn,
   Piano,
   ChevronDown,
-  Headphones,
   Mic2,
+  Headphones,
   Plus,
   Power,
   SlidersHorizontal,
@@ -122,10 +123,9 @@ export function TrackInspector({
               </button>
             )}
           </div>
-          <span className="inspector-hint">Your sound. Your session.</span>
         </div>
         {track && (
-          <div className="inspector-content">
+          <div className={`inspector-content inspector-${panel}`}>
             {panel === "region" ? (
               <ClipSound controller={controller} />
             ) : panel === "eq" ? (
@@ -152,9 +152,9 @@ export function TrackInspector({
                 controller={controller}
               />
             ) : panel === "input" ? (
-              <>
+              <div className="recording-controls">
                 <div className="input-block">
-                  <label>TRACK NAME</label>
+                  <h3>Track</h3>
                   <div className="track-identity">
                     <TrackAppearance track={track} update={update} />
                     <input
@@ -191,9 +191,7 @@ export function TrackInspector({
                   </div>
                 </div>
                 <div className="input-block">
-                  <label>
-                    {track.kind === "midi" ? "MIDI INPUT" : "AUDIO INPUT"}
-                  </label>
+                  <h3>Input</h3>
                   <button className="input-selector" onClick={openSetup}>
                     <Mic2 size={15} />
                     {track.kind === "midi"
@@ -201,14 +199,39 @@ export function TrackInspector({
                       : `Input ${track.input + 1}`}
                     <ChevronDown size={14} />
                   </button>
-                  <span className="subtle">
-                    {track.kind === "midi"
-                      ? "Enable monitoring to hear your instrument"
-                      : "Mono · one instrument per track"}
-                  </span>
+                  <button
+                    className="monitor-control"
+                    aria-label="Monitor track"
+                    aria-pressed={track.monitor}
+                    disabled={busy}
+                    onClick={() => update(track, { monitor: !track.monitor })}
+                  >
+                    <Headphones size={13} /> Monitor
+                    <span>{track.monitor ? "On" : "Off"}</span>
+                  </button>
                 </div>
                 <div className="input-block level-block">
-                  <label>LEVEL & PAN</label>
+                  <h3>Level & pan</h3>
+                  <div className="recording-volume">
+                    <span>
+                      Volume{" "}
+                      <output>
+                        {track.gain === 0
+                          ? "??"
+                          : (20 * Math.log10(track.gain)).toFixed(1)}{" "}
+                        dB
+                      </output>
+                    </span>
+                    <LevelSlider
+                      label="Track volume"
+                      value={track.gain}
+                      max={1.5}
+                      peak={track.peak}
+                      onChange={(gain, historyGroup) =>
+                        update(track, { gain, historyGroup })
+                      }
+                    />
+                  </div>
                   <div className="pan-row">
                     <span>L</span>
                     <input
@@ -254,12 +277,6 @@ export function TrackInspector({
                       }}
                     />
                     <span>R</span>
-                    <span className="gain-value">
-                      {track.gain === 0
-                        ? "−∞"
-                        : (20 * Math.log10(track.gain)).toFixed(1)}{" "}
-                      dB
-                    </span>
                   </div>
                 </div>
                 {track.kind === "audio" && (
@@ -270,31 +287,11 @@ export function TrackInspector({
                     update={update}
                   />
                 )}
-                <div className="record-tip">
-                  <span className="tip-icon">
-                    <Headphones size={21} />
-                  </span>
-                  <div>
-                    <strong>
-                      {track.kind === "midi"
-                        ? "Your pads. Your instrument."
-                        : "Hear yourself without the delay."}
-                    </strong>
-                    <p>
-                      {track.kind === "midi"
-                        ? "Load a VST3 instrument. MIDI hardware is optional."
-                        : "Use direct monitoring on your audio interface."}
-                      <br />
-                      {track.kind === "midi"
-                        ? "Monitor to audition; mark to record incoming MIDI."
-                        : "Audio recording uses device-latency correction."}
-                    </p>
-                  </div>
-                </div>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="plugin-intro">
+              <div className="plugins-panel">
+                <div className="plugin-toolbar">
+                  <h3>Plug-ins</h3>
                   <button
                     disabled={s.playing || busy}
                     onClick={() =>
@@ -306,16 +303,6 @@ export function TrackInspector({
                   >
                     Track presets
                   </button>
-                  <h3>
-                    {track.kind === "midi"
-                      ? "Your drum kit. Your keys."
-                      : "Your favorite amp. Right here."}
-                  </h3>
-                  <p>
-                    {track.kind === "midi"
-                      ? "Load an installed VST3 instrument to turn MIDI into sound."
-                      : "Load an installed VST3 effect for this track’s playback."}
-                  </p>
                 </div>
                 <div className="plugin-details">
                   <div
@@ -377,7 +364,7 @@ export function TrackInspector({
                                   })
                                 }
                               >
-                                <ArrowRight size={14} />
+                                <ArrowDown size={14} />
                               </button>
                             )}
                           <button
@@ -399,8 +386,8 @@ export function TrackInspector({
                               {track.bypass
                                 ? "Bypassed"
                                 : track.kind === "midi"
-                                  ? "MIDI instrument · live & playback"
-                                  : "Stereo effect · playback"}
+                                  ? "Instrument"
+                                  : "Effect"}
                             </small>
                           </div>
                           <button
@@ -441,7 +428,9 @@ export function TrackInspector({
                             {track.kind === "midi"
                               ? "Add VST3 instrument"
                               : "Add VST3 plug-in"}
-                            <small>Choose or drop a .vst3 file or bundle</small>
+                            <small>
+                              Choose from your library or drop a VST3 here
+                            </small>
                           </span>
                         </button>
                       )}
@@ -494,7 +483,7 @@ export function TrackInspector({
                             })
                           }
                         >
-                          <ArrowLeft size={14} />
+                          <ArrowUp size={14} />
                         </button>
                         <button
                           aria-label={`Move ${effect.name} later`}
@@ -512,7 +501,7 @@ export function TrackInspector({
                             })
                           }
                         >
-                          <ArrowRight size={14} />
+                          <ArrowDown size={14} />
                         </button>
                         <button
                           title={`Bypass ${effect.name}`}
@@ -534,9 +523,7 @@ export function TrackInspector({
                           <strong>
                             {index + 1}. {effect.name}
                           </strong>
-                          <small>
-                            {effect.bypass ? "Bypassed" : "Stereo effect"}
-                          </small>
+                          <small>{effect.bypass ? "Bypassed" : "Effect"}</small>
                         </div>
                         <button
                           onClick={() =>
@@ -585,14 +572,8 @@ export function TrackInspector({
                       </button>
                     )}
                   </div>
-                  <p className="plugin-note">
-                    {track.kind === "midi"
-                      ? "Instrument first, then effects from left to right."
-                      : "Effects process from left to right."}{" "}
-                    Stop playback before loading a plug-in.
-                  </p>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}

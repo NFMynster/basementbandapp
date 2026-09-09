@@ -30,16 +30,7 @@ export function TrackEqualizer({
     <div className="track-eq">
       <div className="eq-summary">
         <strong>Equalizer</strong>
-        <span>Shape your sound</span>
         <div className="eq-actions">
-          <button
-            aria-label="Enable equalizer"
-            aria-pressed={enabled}
-            className={enabled ? "enabled" : ""}
-            onClick={() => update(track, { eqEnabled: !enabled })}
-          >
-            <Power size={15} />
-          </button>
           <select
             aria-label="Equalizer preset"
             value={preset?.name ?? "Custom"}
@@ -67,6 +58,14 @@ export function TrackEqualizer({
             <RotateCcw size={14} />
           </button>
         </div>
+        <button
+          aria-label="Enable equalizer"
+          aria-pressed={enabled}
+          className={enabled ? "enabled" : ""}
+          onClick={() => update(track, { eqEnabled: !enabled })}
+        >
+          <Power size={15} />
+        </button>
       </div>
       {bands.map((b) => (
         <label className={`eq-band ${enabled ? "" : "bypassed"}`} key={b.key}>
