@@ -29,9 +29,9 @@ test("loop takes, native count-in, metronome, non-destructive edits and portable
     await send({ op: "countIn", value: true });
     s = await send({ op: "record" });
     assert.equal(s.position, 0.1);
-    assert.equal(s.countdown, 3);
+    assert.equal(s.countdown, 4);
     let click = 0;
-    for (let remaining = 36000; remaining > 0;) {
+    for (let remaining = 48000; remaining > 0;) {
       const frames = Math.min(8192, remaining);
       remaining -= frames;
       const r = await send({ op: "pump", frames, left: 0.9 });

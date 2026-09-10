@@ -62,7 +62,15 @@ export function ClipRegion({
     if (drag.current!.mode === "repeat")
       return {
         position: c.start,
-        duration: Math.max(c.duration, Math.min(1200, c.duration + delta)),
+        duration: Math.max(
+          c.duration,
+          Math.min(
+            1200,
+            Math.round((c.start + c.duration + delta) / (60 / w.s.tempo)) *
+              (60 / w.s.tempo) -
+              c.start,
+          ),
+        ),
         y: 0,
       };
     const minimum = Math.min(c.duration, 12 / w.pxPerSecond);
@@ -174,7 +182,7 @@ export function ClipRegion({
           ((preview?.duration ?? c.duration) * w.pxPerSecond < 72
             ? "compact "
             : "") +
-          (w.clipId === c.id ? "chosen " : "") +
+          (w.regionIds.includes(c.id) ? "chosen " : "") +
           (preview !== null
             ? preview.duration === undefined
               ? "moving"
@@ -183,7 +191,10 @@ export function ClipRegion({
         }
         style={
           {
-            left: (preview?.position ?? c.start) * w.pxPerSecond,
+            left:
+              (w.regionMove !== null && w.regionIds.includes(c.id)
+                ? c.start + w.regionMove
+                : (preview?.position ?? c.start)) * w.pxPerSecond,
             transform: preview ? `translateY(${preview.y}px)` : undefined,
             width: Math.max(
               1,
@@ -194,12 +205,14 @@ export function ClipRegion({
         }
         tabIndex={0}
         role="button"
+        aria-pressed={w.regionIds.includes(c.id)}
         aria-label={`${c.name}, ${c.duration.toFixed(1)} seconds. Drag to move. Right click for edits.`}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
         onClick={(e) => {
           e.stopPropagation();
-          select();
+          if (e.detail === 0)
+            w.selectRegion(c.id, e.shiftKey || e.ctrlKey || e.metaKey);
         }}
         onDoubleClick={() => {
           select();
@@ -208,10 +221,15 @@ export function ClipRegion({
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          select();
+          if (!w.regionIds.includes(c.id)) select();
           setMenu({ x: e.clientX, y: e.clientY });
         }}
         onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            w.selectRegion(c.id, e.shiftKey || e.ctrlKey || e.metaKey);
+          }
           if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
             e.preventDefault();
             e.stopPropagation();
@@ -224,12 +242,17 @@ export function ClipRegion({
           if (
             e.button !== 0 ||
             w.s.recording ||
+            w.busy ||
             (e.target as HTMLElement).closest("select")
           )
             return;
           e.preventDefault();
           e.stopPropagation();
-          select();
+          if (e.shiftKey || e.metaKey || e.ctrlKey) {
+            w.selectRegion(c.id, true);
+            return;
+          }
+          if (!w.regionIds.includes(c.id)) select();
           const bounds = e.currentTarget.getBoundingClientRect();
           const edge = Math.min(18, bounds.width / 3);
           drag.current = {
@@ -288,21 +311,40 @@ export function ClipRegion({
           )
             drag.current.moved = true;
           if (drag.current.moved)
-            setPreview(
-              drag.current.mode !== "move"
-                ? trimAt(e.clientX)
-                : {
-                    position: position(e.clientX),
-                    y:
-                      e.clientY -
-                      drag.current.y +
-                      (w.timelineScroll.current?.scrollTop ?? 0) -
-                      drag.current.scrollY,
-                  },
-            );
+            if (drag.current.mode === "move" && w.selectedRegions.length > 1) {
+              const delta = Math.max(
+                -Math.min(...w.selectedRegions.map((c) => c.start)),
+                position(e.clientX) - c.start,
+              );
+              w.setRegionMove(delta);
+            } else
+              setPreview(
+                drag.current.mode !== "move"
+                  ? trimAt(e.clientX)
+                  : {
+                      position: position(e.clientX),
+                      y:
+                        e.clientY -
+                        drag.current.y +
+                        (w.timelineScroll.current?.scrollTop ?? 0) -
+                        drag.current.scrollY,
+                    },
+              );
         }}
         onPointerUp={async (e) => {
           if (!drag.current) return;
+          if (drag.current.mode === "move" && w.selectedRegions.length > 1) {
+            const moved = drag.current.moved;
+            const delta = Math.max(
+              -Math.min(...w.selectedRegions.map((c) => c.start)),
+              position(e.clientX) - c.start,
+            );
+            drag.current = null;
+            if (e.currentTarget.hasPointerCapture(e.pointerId))
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            if (moved) void w.moveRegions(delta);
+            return;
+          }
           if (drag.current.mode !== "move") {
             const trim = trimAt(e.clientX),
               action = drag.current.mode === "repeat" ? "repeat" : "trim",
@@ -364,6 +406,7 @@ export function ClipRegion({
             .finally(() => setPreview(null));
         }}
         onPointerCancel={() => {
+          w.setRegionMove(null);
           drag.current = null;
           setPreview(null);
         }}
@@ -387,9 +430,11 @@ export function ClipRegion({
             <select
               aria-label={`Take for ${t.name}`}
               value={c.id}
+              disabled={w.s.recording || w.busy}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
               onChange={(e) => {
+                e.currentTarget.blur();
                 w.setClipId(e.target.value);
                 w.run({
                   op: "editClip",
@@ -420,27 +465,6 @@ export function ClipRegion({
           y={menu.y}
           onClose={closeMenu}
         >
-          {takes.length > 1 &&
-            takes.map((take) => (
-              <button
-                key={take.id}
-                role="menuitemradio"
-                aria-checked={take.id === c.id}
-                disabled={w.s.recording}
-                onClick={() => {
-                  w.setClipId(take.id);
-                  w.run({
-                    op: "editClip",
-                    track: t.id,
-                    clip: take.id,
-                    action: "take",
-                  });
-                  setMenu(null);
-                }}
-              >
-                {take.id === c.id ? "✓ " : ""}Take {take.take}
-              </button>
-            ))}
           <button
             role="menuitem"
             disabled={
@@ -485,11 +509,14 @@ export function ClipRegion({
             role="menuitem"
             disabled={w.s.recording}
             onClick={() => {
-              void w.removeClip(t, c);
+              if (w.selectedRegions.length > 1) void w.deleteRegions();
+              else void w.removeClip(t, c);
               setMenu(null);
             }}
           >
-            Delete region
+            {w.selectedRegions.length > 1
+              ? `Delete ${w.selectedRegions.length} regions`
+              : "Delete region"}
           </button>
         </ContextMenu>
       )}

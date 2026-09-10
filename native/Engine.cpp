@@ -3,17 +3,20 @@
 #include <iostream>
 
 namespace basement {
-var recordingPreview(const Track &track, double now, double rate) {
+var recordingPreview(const Track &track, double now, double rate, double loopSpan) {
   if (!track.writer && !track.midiRecording)
     return {};
-  const auto duration = jmax(0.001, now - track.recordStart - track.captureOffset);
+  const auto elapsed = jmax(0.0, now - track.recordStart - track.captureOffset);
+  const double offset = loopSpan > 0 ? std::floor(elapsed / loopSpan) * loopSpan : 0;
+  const auto duration = jmax(0.001, elapsed - offset);
   auto preview = object({{"kind", track.midiRecording ? "midi" : "audio"},
                          {"start", track.recordStart},
                          {"duration", duration}});
   if (track.writer) {
     Array<var> peaks;
     const auto count = track.recordingPeakCount.load(std::memory_order_acquire);
-    for (int i = 0; i < count; ++i) peaks.add(track.recordingPeaks[(size_t)i]);
+    const int first = (int)std::ceil(offset * rate / track.recordingPeakInterval);
+    for (int i = first; i < count; ++i) peaks.add(track.recordingPeaks[(size_t)i]);
     peaks.add(track.recordingPartialPeak.load());
     preview.getDynamicObject()->setProperty("peakInterval", track.recordingPeakInterval / rate);
     preview.getDynamicObject()->setProperty("peaks", peaks);
@@ -22,15 +25,16 @@ var recordingPreview(const Track &track, double now, double rate) {
     const auto count = track.recordingPreviewNoteCount.load(std::memory_order_acquire);
     for (int i = 0; i < jmin((int)track.recordingPreviewNotes.size(), count); ++i) {
       const auto &note = track.recordingPreviewNotes[(size_t)i];
-      notes.add(object({{"start", note.start}, {"duration", note.duration}, {"note", note.note}}));
+      if (note.start + note.duration > offset)
+        notes.add(object({{"start", jmax(0.0, note.start - offset)}, {"duration", jmin(note.duration, note.start + note.duration - offset)}, {"note", note.note}}));
     }
     for (int channel = 0; channel < 16; ++channel)
       for (int note = 0; note < 128; ++note) {
         const auto start =
             track.recordingNoteStarts[(size_t)(channel * 128 + note)].load(std::memory_order_acquire);
-        if (start >= 0 && start < duration)
-          notes.add(object({{"start", start},
-                            {"duration", duration - start},
+        if (start >= 0 && start < elapsed)
+          notes.add(object({{"start", jmax(0.0, start - offset)},
+                            {"duration", elapsed - jmax(start, offset)},
                             {"note", note}}));
       }
     preview.getDynamicObject()->setProperty("notes", notes);
@@ -149,7 +153,8 @@ var Engine::state(bool full, bool pluginState) {
                      {"pluginName", t->pluginName}, {"pluginUid", t->pluginUid},
                      {"bypass", t->bypass}});
     t->sound.write(v);
-    const auto preview = recordingPreview(*t, position.load(), snapshotRate);
+    const auto preview = recordingPreview(*t, position.load(), snapshotRate,
+        recording && cycleRecording ? recordingLoopEnd - recordingLoopStart : 0);
     Array<var> effects;
     for (auto &effect : t->effects) {
       auto slot = object({{"id", effect.id}, {"name", effect.name}, {"uid", effect.uid}, {"bypass", effect.bypass}});
@@ -203,6 +208,7 @@ var Engine::state(bool full, bool pluginState) {
        {"masterPeak", masterPeak.load()},
        {"audioCpu", devices.getCpuUsage() * 100.0},
        {"metronome", metronome},
+       {"metronomeGain", metronomeGain},
        {"countIn", countIn},
        {"countdown", countdown},
        {"sampleRate", snapshotRate},

@@ -141,7 +141,7 @@ export function useWorkspace() {
   const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
-    [clipId, setClipId] = useState(""),
+    [clipId, setPrimaryClipId] = useState(""),
     [error, setError] = useState(""),
     [notice, setNoticeState] = useState(""),
     [noticeTone, setNoticeTone] = useState<NoticeTone>("notice"),
@@ -156,6 +156,55 @@ export function useWorkspace() {
     [zoom, setZoom] = useState(88),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false);
+  const [regionIds, setRegionIds] = useState<string[]>([]);
+  const [regionMove, setRegionMove] = useState<number | null>(null);
+  function setClipId(id: string) {
+    setPrimaryClipId(id);
+    setRegionIds(id ? [id] : []);
+  }
+  function selectRegions(ids: string[]) {
+    setRegionIds(ids);
+    setPrimaryClipId(ids.at(-1) ?? "");
+    const owner = s.tracks.find((t) =>
+      t.clips.some((c) => c.id === ids.at(-1)),
+    );
+    if (owner) setSelected(owner.id);
+  }
+  function selectRegion(id: string, additive = false) {
+    selectRegions(
+      additive
+        ? regionIds.includes(id)
+          ? regionIds.filter((c) => c !== id)
+          : [...regionIds, id]
+        : [id],
+    );
+  }
+  const selectedRegions = s.tracks.flatMap((t) =>
+    t.clips
+      .filter((c) => c.active && regionIds.includes(c.id))
+      .map((c) => ({ track: t.id, clip: c.id, start: c.start })),
+  );
+  async function deleteRegions() {
+    if (s.recording || busy || !selectedRegions.length) return;
+    const result = await run({
+      op: "editRegions",
+      action: "delete",
+      regions: selectedRegions,
+    });
+    if (result) selectRegions([]);
+  }
+  async function moveRegions(delta: number) {
+    try {
+      await run({
+        op: "editRegions",
+        action: "move",
+        regions: selectedRegions,
+        delta,
+      });
+    } finally {
+      setRegionMove(null);
+    }
+  }
   const [selection, setSelection] = useState<{
     start: number;
     end: number;
@@ -309,7 +358,9 @@ export function useWorkspace() {
           ? {
               ...candidate,
               clips: candidate.clips.filter(
-                (candidate) => candidate.id !== clip.id,
+                (candidate) =>
+                  candidate.id !== clip.id &&
+                  (!clip.takeGroup || candidate.takeGroup !== clip.takeGroup),
               ),
             }
           : candidate,
@@ -486,6 +537,10 @@ export function useWorkspace() {
     },
     delete: () => {
       if (s.recording || busy) return;
+      if (selectedRegions.length > 1) {
+        void deleteRegions();
+        return;
+      }
       const t = trackContainingClip(s.tracks, clipId);
       const clip = t?.clips.find((candidate) => candidate.id === clipId);
       if (t && clip) void removeClip(t, clip);
@@ -735,6 +790,14 @@ export function useWorkspace() {
     run,
     removeTrack,
     removeClip,
+    regionIds,
+    selectRegion,
+    selectRegions,
+    selectedRegions,
+    deleteRegions,
+    regionMove,
+    setRegionMove,
+    moveRegions,
     task,
     update,
     openSetup,

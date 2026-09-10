@@ -29,6 +29,8 @@ void Engine::restoreSession(const var &c) {
   require(!recording, "Stop recording before opening a session");
   stop();
   auto session = c["session"];
+  const auto clickGain = number(session, "metronomeGain", 1);
+  require(std::isfinite(clickGain) && clickGain >= 0 && clickGain <= 4, "Invalid metronome volume");
   const bool preserve = flag(c, "preservePlugins");
   auto replacePlugins = [&](const String &id) {
     if (c["replacePlugins"].isArray()) for (auto &v : *c["replacePlugins"].getArray()) if (v.toString() == id) return true;
@@ -144,6 +146,7 @@ void Engine::restoreSession(const var &c) {
   loopEnd = number(session, "loopEnd");
   looping = flag(session, "looping");
   metronome = flag(session, "metronome");
+  metronomeGain = (float)clickGain;
   countIn = flag(session, "countIn");
   preparePlayback(position, looping);
 }

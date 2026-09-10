@@ -34,8 +34,8 @@ export function ExportSettings({
           value={c.exportMidi}
           onChange={(e) => c.setExportMidi(e.target.value as "audio" | "midi")}
         >
-          <option value="audio">Instrument audio ? the sound you hear</option>
-          <option value="midi">MIDI notes ? editable .mid files</option>
+          <option value="audio">Instrument audio · the sound you hear</option>
+          <option value="midi">MIDI notes · editable .mid files</option>
         </select>
       </label>
       <p>

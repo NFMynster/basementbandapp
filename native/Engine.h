@@ -21,6 +21,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   bool looping = false;
   std::atomic<bool> exporting{false}, monitoringActive{false};
   float masterGain = 1.0f;
+  float metronomeGain = 1.0f;
   std::atomic<float> masterPeak{0};
   bool limiterEnabled = true;
   OutputProtection outputProtection;
@@ -28,6 +29,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::atomic<int> processingDropouts{0}, recordingDropouts{0};
   std::atomic<int> deviceXRunBaseline{0};
   bool metronome = false, countIn = false, cycleRecording = false;
+  bool countInMidiPrepared = false;
   int64 countRemaining = 0, countTotal = 0;
   double recordingLoopStart = 0, recordingLoopEnd = 8;
   std::atomic<bool> diskOverrun{false};

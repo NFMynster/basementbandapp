@@ -77,7 +77,7 @@ export function TrackLane({
             controller={controller}
           />
         ))}
-      {s.recording && track.armed && (
+      {s.recording && !s.countdown && track.armed && (
         <div
           className="recording-region"
           style={{

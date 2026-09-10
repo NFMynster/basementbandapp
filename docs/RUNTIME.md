@@ -26,7 +26,7 @@ During capture, the arrangement shows live audio peaks and MIDI notes from the i
 
 Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping.
 
-Count-in is three beats (3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is currently fixed at 4/4.
+Count-in is four beats (4, 3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is currently fixed at 4/4.
 
 ## Latency compensation
 
@@ -88,3 +88,7 @@ The plug-in library is stored in `sound-library.json` under Electron's user-data
 MIDI composition edits use copy-on-write source files; other regions sharing the original source are preserved. Batch edits preserve unrelated controller messages and MIDI channels. The editor shows up to 2048 notes, matching the existing preview limit; native quantization processes the full region. Quantization keeps note lengths and leaves notes crossing trimmed boundaries in place. Regions are stored in seconds. Tempo changes offer unchanged timing, matching MIDI only, or matching all recordings. Matching scales region positions, notes, fades and loop points; audio uses offline Signalsmith Stretch to preserve pitch. Prepared media is committed together and Undo restores the previous sources.
 
 Audio clip gain and linear fades apply before track plug-ins, in monitoring-independent playback and export. The three-band track EQ follows the plug-in chain. Hosted processors receive per-block tempo, 4/4 time signature, seconds, samples, PPQ, loop bounds and playing/recording flags. Export reports playing with looping disabled.
+
+Loop recording silences existing regions on armed tracks while other tracks keep playing. Its preview wraps inside the cycle. After a completed pass, a final partial take shorter than 20% of the loop duration (capped at one second) is discarded; a short first attempt is retained. Take selection is available in the Region panel and region badge. Deleting a take region removes its entire group, and undo restores it.
+
+Shift/Ctrl-click toggles region selection. Dragging empty timeline space draws a selection box across tracks. Selected regions move horizontally together on the beat grid, and Delete removes the selection as one undoable edit. Region loop-extension handles also snap to beats.

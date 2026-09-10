@@ -130,7 +130,22 @@ contextBridge.exposeInMainWorld("basement", {
       });
     if (c.op === "testRemoveTrack")
       state.tracks = state.tracks.filter((t) => t.id !== "g");
+    if (c.op === "testTakes") {
+      const t = state.tracks.find((t) => t.id === "b");
+      Object.assign(t.clips[0], { takeGroup: "bass-takes", take: 1 });
+      t.clips.push({
+        ...t.clips[0],
+        id: "bass-take-2",
+        take: 2,
+        active: false,
+      });
+    }
+    if (c.op === "editClip" && c.action === "take") {
+      const t = state.tracks.find((t) => t.id === c.track);
+      for (const clip of t.clips) clip.active = clip.id === c.clip;
+    }
     if (c.op === "devices") return devices;
+    if (c.op === "metronomeVolume") state.metronomeGain = c.value;
     if (c.op === "testAudioLoad") {
       state.audioCpu = c.value;
       state.processingDropouts = 2;

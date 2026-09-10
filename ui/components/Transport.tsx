@@ -1,5 +1,5 @@
 import { LevelSlider } from "./LevelSlider";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   HelpCircle,
   Timer,
@@ -15,6 +15,19 @@ import { keyLabel } from "../hooks/useShortcuts";
 export function Transport({ controller }: { controller: WorkspaceController }) {
   const { s, run, busy, bar, beat, openSetup, showHelp, setHelp } = controller;
   const [tempoDraft, setTempoDraft] = useState<string | null>(null);
+  const [clickVolumeOpen, setClickVolumeOpen] = useState(false);
+  const clickVolume = useRef<HTMLDivElement>(null);
+  const volumeGesture = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!clickVolumeOpen) return;
+    clickVolume.current?.querySelector("input")?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!clickVolume.current?.contains(event.target as Node))
+        setClickVolumeOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [clickVolumeOpen]);
   const commitTempo = () => {
     if (tempoDraft === null) return;
     const value = Number(tempoDraft);
@@ -29,7 +42,9 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
   };
   return (
     <>
-      <section className="transport">
+      <section
+        className={`transport ${clickVolumeOpen ? "metronome-open" : ""}`}
+      >
         <div className="transport-left">
           <button
             className="icon-button"
@@ -130,24 +145,73 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           >
             <Loop size={23} />
           </button>
-          <button
-            className={"icon-button " + (s.metronome ? "loop-active" : "")}
-            title={`Metronome · ${keyLabel(controller.bindings.metronome)}`}
-            aria-pressed={!!s.metronome}
-            onClick={() => run({ op: "metronome", value: !s.metronome })}
-          >
-            <Timer size={22} />
-          </button>
+          <div className="metronome-control" ref={clickVolume}>
+            <button
+              className={"icon-button " + (s.metronome ? "loop-active" : "")}
+              title={`Metronome · ${keyLabel(controller.bindings.metronome)} · Right-click for volume`}
+              aria-pressed={!!s.metronome}
+              aria-haspopup="dialog"
+              aria-expanded={clickVolumeOpen}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setClickVolumeOpen((v) => !v);
+              }}
+              onClick={() => run({ op: "metronome", value: !s.metronome })}
+            >
+              <Timer size={22} />
+            </button>
+            {clickVolumeOpen && (
+              <div
+                className="metronome-volume"
+                role="dialog"
+                aria-label="Metronome volume"
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Escape" || e.key === "Tab")
+                    setClickVolumeOpen(false);
+                }}
+              >
+                <Volume2 size={15} aria-hidden="true" />
+                <input
+                  type="range"
+                  aria-label="Metronome volume"
+                  aria-orientation="vertical"
+                  min={0}
+                  max={400}
+                  step={5}
+                  value={Math.round((s.metronomeGain ?? 1) * 100)}
+                  aria-valuetext={`${Math.round((s.metronomeGain ?? 1) * 100)} percent`}
+                  onPointerDown={() => {
+                    volumeGesture.current = crypto.randomUUID();
+                  }}
+                  onPointerUp={() => {
+                    volumeGesture.current = undefined;
+                  }}
+                  onBlur={() => {
+                    volumeGesture.current = undefined;
+                  }}
+                  onChange={(e) =>
+                    void run({
+                      op: "metronomeVolume",
+                      value: +e.target.value / 100,
+                      historyGroup: volumeGesture.current,
+                    })
+                  }
+                />
+                <output>{Math.round((s.metronomeGain ?? 1) * 100)}%</output>
+              </div>
+            )}
+          </div>
           <button
             className={
               "icon-button count-in-button " + (s.countIn ? "loop-active" : "")
             }
-            title="Count-in · 3 beats before recording"
+            title="Count-in · 4 beats before recording"
             aria-pressed={!!s.countIn}
             disabled={s.recording}
             onClick={() => run({ op: "countIn", value: !s.countIn })}
           >
-            123
+            1234
           </button>
           <span className="divider" />
           <Volume2 size={18} />

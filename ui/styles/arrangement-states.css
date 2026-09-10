@@ -108,9 +108,17 @@
   padding: 1px 4px;
   height: 21px;
   font-size: 10px;
-  background: #0003;
-  border: 0;
+  background: #27292e;
+  color: #d9dfd3;
+  border: 1px solid #b4c4a655;
   flex-shrink: 0;
+}
+.clip-title select:focus-visible {
+  outline: 2px solid #b4c4a6;
+}
+.clip-title select option {
+  background: #27292e;
+  color: #d9dfd3;
 }
 .clip-title > span {
   min-width: 0;

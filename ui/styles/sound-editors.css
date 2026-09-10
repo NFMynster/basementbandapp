@@ -750,3 +750,28 @@ footer .audio-cpu.needs-attention {
 .note-ruler {
   touch-action: none;
 }
+
+.track-kind-help {
+  display: grid;
+}
+.track-kind-help > span {
+  grid-area: 1 / 1;
+}
+.region-takes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  border: 1px solid #ffffff10;
+  border-radius: 12px;
+  background: #ffffff03;
+  font-size: 12px;
+}
+.region-takes select {
+  width: 180px;
+}
+.region-takes span {
+  color: #999ca6;
+  font-size: 11px;
+}

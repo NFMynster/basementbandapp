@@ -24,6 +24,16 @@ export function Arrangement({
     position?: number;
   } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  const [marquee, setMarquee] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const marqueeDrag = useRef<{ x: number; y: number; ids: string[] } | null>(
+    null,
+  );
+  const suppressClick = useRef(false);
   const {
     s,
     track,
@@ -385,7 +395,97 @@ export function Arrangement({
             <div
               className="lanes"
               style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
+              onPointerDown={(e) => {
+                if (
+                  e.button !== 0 ||
+                  s.recording ||
+                  controller.busy ||
+                  (e.target as HTMLElement).closest(
+                    "[data-clip], button, select, input",
+                  )
+                )
+                  return;
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const owner = (e.target as HTMLElement).closest<HTMLElement>(
+                  "[data-lane]",
+                );
+                if (owner?.dataset.lane)
+                  controller.setSelected(owner.dataset.lane);
+                marqueeDrag.current = {
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top,
+                  ids:
+                    e.shiftKey || e.ctrlKey || e.metaKey
+                      ? controller.regionIds
+                      : [],
+                };
+                e.currentTarget.setPointerCapture(e.pointerId);
+                suppressClick.current = false;
+              }}
+              onPointerMove={(e) => {
+                const start = marqueeDrag.current;
+                if (!start) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left,
+                  y = e.clientY - rect.top;
+                if (Math.hypot(x - start.x, y - start.y) < 4 && !marquee)
+                  return;
+                const box = {
+                  x: Math.min(start.x, x),
+                  y: Math.min(start.y, y),
+                  width: Math.abs(x - start.x),
+                  height: Math.abs(y - start.y),
+                };
+                setMarquee(box);
+                suppressClick.current = true;
+                const ids = [...start.ids];
+                e.currentTarget
+                  .querySelectorAll<HTMLElement>("[data-clip]")
+                  .forEach((node) => {
+                    const r = node.getBoundingClientRect();
+                    if (
+                      r.right > rect.left + box.x &&
+                      r.left < rect.left + box.x + box.width &&
+                      r.bottom > rect.top + box.y &&
+                      r.top < rect.top + box.y + box.height
+                    )
+                      ids.push(node.dataset.clip!);
+                  });
+                controller.selectRegions([...new Set(ids)]);
+              }}
+              onPointerUp={(e) => {
+                if (!marqueeDrag.current) return;
+                if (!suppressClick.current)
+                  controller.selectRegions(marqueeDrag.current.ids);
+                marqueeDrag.current = null;
+                setMarquee(null);
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              onPointerCancel={() => {
+                marqueeDrag.current = null;
+                setMarquee(null);
+              }}
+              onClickCapture={(e) => {
+                if (suppressClick.current) {
+                  e.stopPropagation();
+                  suppressClick.current = false;
+                }
+              }}
             >
+              {marquee && (
+                <div
+                  className="region-marquee"
+                  aria-hidden="true"
+                  style={{
+                    left: marquee.x,
+                    top: marquee.y,
+                    width: marquee.width,
+                    height: marquee.height,
+                  }}
+                />
+              )}
               {s.tracks.map((t) => (
                 <TrackLane
                   key={t.id}

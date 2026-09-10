@@ -121,7 +121,7 @@ void Engine::beginRecording() {
   if (looping)
     position = loopStart;
   preparePlayback(position, looping);
-  countTotal = countRemaining = countIn ? (int64)std::llround(3 * 60 / tempo * rate) : 0;
+  countTotal = countRemaining = countIn ? (int64)std::llround(4 * 60 / tempo * rate) : 0;
   try {
     for (auto &t : tracks)
       if (t->armed) {

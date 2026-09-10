@@ -41,6 +41,7 @@ const GLOBAL_EDITS = {
   tempo: "tempo",
   rename: "title",
   metronome: "metronome",
+  metronomeVolume: "metronomeGain",
   countIn: "countIn",
 };
 function historyFingerprint(s) {
@@ -59,6 +60,7 @@ function historyFingerprint(s) {
     masterGain: s.masterGain,
     limiterEnabled: s.limiterEnabled,
     metronome: s.metronome,
+    metronomeGain: s.metronomeGain,
     countIn: s.countIn,
     tracks: s.tracks.map((t) => ({
       settings: keys.map((k) => t[k]),
@@ -106,6 +108,8 @@ function editDescription(command) {
   if (command.op === "reorderTrack") return "reorder tracks";
   if (command.op === "removeTrack") return "delete track";
   if (command.op === "removeClip") return "delete region";
+  if (command.op === "editRegions")
+    return command.action === "delete" ? "delete regions" : "move regions";
   return (
     {
       move: "move region",
@@ -132,6 +136,7 @@ function isUndoable(command) {
       "tempo",
       "rename",
       "metronome",
+      "metronomeVolume",
       "countIn",
       "plugin",
       "removePlugin",
@@ -142,6 +147,7 @@ function isUndoable(command) {
     ].includes(command.op) ||
     command.op === "removeTrack" ||
     command.op === "removeClip" ||
+    command.op === "editRegions" ||
     (command.op === "editClip" && UNDOABLE_CLIP_ACTIONS.has(command.action))
   );
 }

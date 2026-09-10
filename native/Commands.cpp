@@ -173,6 +173,13 @@ var Engine::command(const var &c) {
     editClip(c);
     return state();
   }
+  if (op == "metronomeVolume") {
+    const double gain = number(c, "value", 1);
+    require(std::isfinite(gain) && gain >= 0 && gain <= 4, "Invalid metronome volume");
+    const ScopedLock lock(guard);
+    metronomeGain = (float)gain;
+    return state();
+  }
   if (op == "metronome" || op == "countIn") {
     const ScopedLock lock(guard);
     if (op == "metronome")
@@ -293,19 +300,49 @@ var Engine::command(const var &c) {
                     : readClip(dest.getFullPathName(), source.getFileNameWithoutExtension(), at);
     const ScopedLock l(guard);
     t.clips.push_back(std::move(clip));
+  } else if (op == "editRegions") {
+    require(!recording, "Stop recording before editing regions");
+    const auto action = str(c, "action");
+    require(action == "move" || action == "delete", "Invalid region action");
+    require(c["regions"].isArray() && c["regions"].getArray()->size() <= 2048, "Invalid region selection");
+    const double delta = number(c, "delta");
+    require(std::isfinite(delta), "Invalid move distance");
+    const ScopedLock lock(guard);
+    std::vector<std::pair<Track *, Clip *>> selected;
+    for (const auto &item : *c["regions"].getArray()) {
+      auto &t = track(item);
+      auto found = std::find_if(t.clips.begin(), t.clips.end(), [&](auto &clip) { return clip->id == str(item, "clip"); });
+      require(found != t.clips.end() && (*found)->active, "Region no longer exists");
+      if (action == "move") require((*found)->start + delta >= 0, "Regions cannot start before zero");
+      selected.emplace_back(&t, found->get());
+    }
+    // Resolve all take groups before mutating; each take moves/deletes once.
+    for (auto &t : tracks) {
+      auto matches = [&](const auto &clip) {
+        return std::any_of(selected.begin(), selected.end(), [&](const auto &item) {
+          return item.first == t.get() && (item.second == clip.get() ||
+              (item.second->takeGroup.isNotEmpty() && item.second->takeGroup == clip->takeGroup));
+        });
+      };
+      std::vector<String> ids;
+      for (const auto &clip : t->clips) if (matches(clip)) ids.push_back(clip->id);
+      if (action == "delete") std::erase_if(t->clips, [&](const auto &clip) {
+        return std::find(ids.begin(), ids.end(), clip->id) != ids.end();
+      });
+      else for (auto &clip : t->clips)
+        if (std::find(ids.begin(), ids.end(), clip->id) != ids.end()) clip->start += delta;
+    }
+    preparePlayback(position, looping);
   } else if (op == "removeClip") {
     require(!recording, "Stop recording before editing regions");
     auto &t = track(c);
     const ScopedLock l(guard);
-    std::erase_if(t.clips, [&](auto &clip) { return clip->id == str(c, "clip"); });
-    for (auto &clip : t.clips)
-      if (!clip->active && clip->takeGroup.isNotEmpty()) {
-        const bool selected = std::any_of(t.clips.begin(), t.clips.end(), [&](auto &other) {
-          return other->active && other->takeGroup == clip->takeGroup;
-        });
-        if (!selected)
-          clip->active = true;
-      }
+    String group;
+    for (const auto &clip : t.clips)
+      if (clip->id == str(c, "clip")) group = clip->takeGroup;
+    std::erase_if(t.clips, [&](auto &clip) {
+      return clip->id == str(c, "clip") || (group.isNotEmpty() && clip->takeGroup == group);
+    });
     preparePlayback(position, looping);
   } else if (op == "removePlugin") {
     require(!playing, "Stop playback before removing a plugin");

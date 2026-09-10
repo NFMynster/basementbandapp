@@ -26,6 +26,7 @@ const EDITABLE_COMMANDS = new Set([
   "removeTrack",
   "reorderTrack",
   "removeClip",
+  "editRegions",
   "addTrack",
   "import",
   "track",
@@ -36,6 +37,7 @@ const EDITABLE_COMMANDS = new Set([
   "limiter",
   "loop",
   "metronome",
+  "metronomeVolume",
   "countIn",
   "bypass",
   "plugin",
@@ -175,7 +177,7 @@ class SessionService {
   async execute(command) {
     const historyGroup =
       typeof command.historyGroup === "string" &&
-      ["track", "master", "editClip"].includes(command.op)
+      ["track", "master", "editClip", "metronomeVolume"].includes(command.op)
         ? `${command.op}:${command.track || ""}:${command.clip || ""}:${command.historyGroup}`
         : null;
     const continuesHistory =
@@ -395,6 +397,7 @@ class SessionService {
             command.op === "limiter" ||
             command.op === "loop" ||
             command.op === "metronome" ||
+            command.op === "metronomeVolume" ||
             command.op === "countIn" ||
             command.op === "bypass" ||
             (command.op === "track" &&

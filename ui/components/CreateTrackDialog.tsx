@@ -72,10 +72,21 @@ export function CreateTrackDialog({
           </select>
         </label>
       )}
-      <p>
-        {kind === "midi"
-          ? "MIDI devices belong to individual tracks—not the audio driver. Add your instrument in Plug-ins after creating the track."
-          : "Your audio interface is shared by audio tracks. Assign a different channel to each instrument."}
+      <p className="track-kind-help">
+        <span
+          aria-hidden={kind !== "midi"}
+          style={{ visibility: kind === "midi" ? "visible" : "hidden" }}
+        >
+          MIDI devices belong to individual tracks?not the audio driver. Add
+          your instrument in Plug-ins after creating the track.
+        </span>
+        <span
+          aria-hidden={kind !== "audio"}
+          style={{ visibility: kind === "audio" ? "visible" : "hidden" }}
+        >
+          Your audio interface is shared by audio tracks. Assign a different
+          channel to each instrument.
+        </span>
       </p>
       <div className="modal-bottom">
         <button

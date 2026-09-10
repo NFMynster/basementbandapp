@@ -115,7 +115,9 @@ export function TrackInspector({
               EQ & Effects
             </button>
             {track?.clips.some(
-              (c) => c.id === controller.clipId && c.kind === "audio",
+              (c) =>
+                c.id === controller.clipId &&
+                (c.kind === "audio" || !!c.takeGroup),
             ) && (
               <button
                 className={panel === "region" ? "tab active" : "tab"}

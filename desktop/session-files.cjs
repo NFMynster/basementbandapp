@@ -53,6 +53,7 @@ function validate(session) {
   text(session.title, 100);
   number(session.tempo, 40, 240);
   number(session.masterGain, 0, 2);
+  if (session.metronomeGain !== undefined) number(session.metronomeGain, 0, 4);
   if (session.limiterEnabled !== undefined)
     assertValid(
       typeof session.limiterEnabled === "boolean",

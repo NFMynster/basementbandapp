@@ -92,6 +92,7 @@ export type Session = {
   recordingDropouts?: number;
   deviceDropouts?: number;
   metronome?: boolean;
+  metronomeGain?: number;
   countIn?: boolean;
   countdown?: number;
   title: string;
@@ -171,6 +172,7 @@ export type SessionCommand =
   | { op: "preset"; track: string; preset: string }
   | ({ op: "addTrack"; kind?: "audio" | "midi" } & TrackPatch)
   | { op: "metronome" | "countIn" | "limiter"; value: boolean }
+  | { op: "metronomeVolume"; value: number; historyGroup?: string }
   | { op: "master"; value: number; historyGroup?: string }
   | {
       op: "editClip";
@@ -214,6 +216,12 @@ export type SessionCommand =
       effect?: string;
     }
   | { op: "removeClip"; track: string; clip: string }
+  | {
+      op: "editRegions";
+      action: "move" | "delete";
+      regions: { track: string; clip: string }[];
+      delta?: number;
+    }
   | {
       op: "audition";
       track: string;

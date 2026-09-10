@@ -23,6 +23,29 @@ app
     );
     await new Promise((r) => setTimeout(r, 1100));
     // Exercise both dividers with actual Electron pointer input.
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.metronome-control button').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`,
+    );
+    await new Promise((r) => setTimeout(r, 80));
+    await w.webContents.executeJavaScript(
+      `(() => {const slider=document.querySelector('[aria-label="Metronome volume"][type="range"]'); if (!slider || getComputedStyle(slider).writingMode !== 'vertical-lr') throw new Error('Missing vertical click volume'); slider.focus(); })()`,
+    );
+    w.webContents.sendInputEvent({ type: "keyDown", keyCode: "Up" });
+    w.webContents.sendInputEvent({ type: "keyUp", keyCode: "Up" });
+    await new Promise((r) => setTimeout(r, 100));
+    if (
+      (await w.webContents.executeJavaScript(
+        `document.querySelector('.metronome-volume output').textContent`,
+      )) !== "105%"
+    )
+      throw new Error("Click volume did not increase");
+    mkdirSync("artifacts/screenshots", { recursive: true });
+    writeFileSync(
+      "artifacts/screenshots/metronome-volume.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
+    w.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+    w.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
     for (const [label, dx, dy] of [
       ["Track sidebar width", 80, 0],
       ["Properties panel height", 0, -60],
@@ -293,6 +316,101 @@ app
     );
     await w.webContents.executeJavaScript(
       `document.querySelector('.help-modal .modal-close').click()`,
+    );
+
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.timeline-scroll').scrollLeft=0; document.querySelector('.timeline-scroll').scrollTop=0`,
+    );
+    await new Promise((r) => setTimeout(r, 80));
+    const box = await w.webContents.executeJavaScript(
+      `(() => { const a=document.querySelector('[data-lane="g"]').getBoundingClientRect(), b=document.querySelector('[data-lane="b"]').getBoundingClientRect(); return {x:Math.round(a.left+10),y:Math.round(a.top+2),endX:Math.round(a.left+180),endY:Math.round(b.top+85)}; })()`,
+    );
+    w.webContents.sendInputEvent({
+      type: "mouseDown",
+      x: box.x,
+      y: box.y,
+      button: "left",
+      clickCount: 1,
+    });
+    await new Promise((r) => setTimeout(r, 40));
+    w.webContents.sendInputEvent({
+      type: "mouseMove",
+      x: box.endX,
+      y: box.endY,
+      modifiers: ["leftButtonDown"],
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    await w.webContents.capturePage();
+    if (
+      !(await w.webContents.executeJavaScript(
+        `document.querySelectorAll('.clip.chosen').length === 2 && !!document.querySelector('.region-marquee')`,
+      ))
+    )
+      throw new Error("Drag box did not select two regions");
+    w.webContents.sendInputEvent({
+      type: "mouseUp",
+      x: box.endX,
+      y: box.endY,
+      button: "left",
+      clickCount: 1,
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[data-clip="clipg"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}))`,
+    );
+    if (
+      (await w.webContents.executeJavaScript(
+        `document.querySelectorAll('.clip.chosen').length`,
+      )) !== 1
+    )
+      throw new Error("Shift click did not toggle region selection");
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.add-track').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 180));
+    const dialogHeight = await w.webContents.executeJavaScript(
+      `document.querySelector('.create-track-dialog').getBoundingClientRect().height`,
+    );
+    await w.webContents.executeJavaScript(
+      `document.querySelectorAll('.track-types button')[1].click()`,
+    );
+    if (
+      (await w.webContents.executeJavaScript(
+        `document.querySelector('.create-track-dialog').getBoundingClientRect().height`,
+      )) !== dialogHeight
+    )
+      throw new Error("New track dialog changes height");
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.create-track-dialog .modal-close').click(); window.basement.command({op:'testTakes'})`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[data-clip="clipb"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    if (
+      (await w.webContents.executeJavaScript(
+        `document.querySelectorAll('#region-take option').length`,
+      )) !== 2
+    )
+      throw new Error("Region panel is missing takes");
+    writeFileSync(
+      "artifacts/screenshots/region-takes.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
+    await w.webContents.executeJavaScript(
+      `document.querySelector('[data-clip="clipb"]').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:500,clientY:300}))`,
+    );
+    if (
+      await w.webContents.executeJavaScript(
+        `!!document.querySelector('[role="menuitemradio"]')`,
+      )
+    )
+      throw new Error("Old take context menu remains");
+    w.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+    w.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
+    console.log(
+      "Region box selection, Shift selection, stable creation dialog and take panel verified",
     );
     await w.webContents.executeJavaScript(
       `window.basement.command({op:'testAddTrack'})`,

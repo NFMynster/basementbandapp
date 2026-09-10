@@ -87,7 +87,11 @@ void Engine::splitRecordedTakes(Track &t, size_t first) {
   auto source = std::move(t.clips[first]);
   t.clips.erase(t.clips.begin() + (int)first);
   const auto group = Uuid().toString();
-  const int count = (int)std::ceil((source->duration() - 1e-7) / span);
+  int count = (int)std::ceil((source->duration() - 1e-7) / span);
+  // Keep a short first attempt, but ignore an accidental tail after a full
+  // pass: less than 20% of the loop, never more than one second.
+  if (count > 1 && source->duration() - (count - 1) * span < jmin(1.0, span * 0.20))
+    --count;
   for (int i = 0; i < count; ++i) {
     auto take = std::make_unique<Clip>(*source);
     take->id = Uuid().toString();
