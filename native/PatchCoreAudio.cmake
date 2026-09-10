@@ -1,6 +1,10 @@
 # JUCE 8.0.12: use a private HAL aggregate for different input/output devices.
 # Fail closed on upstream changes, and do not rewrite the source on every build.
 set(coreaudio "${juce_SOURCE_DIR}/modules/juce_audio_devices/native/juce_CoreAudio_mac.cpp")
+# Every JUCE consumer compiles this source, including the VST3 test fixtures.
+# Place the adapter beside it so quoted-include lookup works for every target.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/CoreAudioAggregate.h"
+    "${juce_SOURCE_DIR}/modules/juce_audio_devices/native/CoreAudioAggregate.h" COPYONLY)
 file(READ "${coreaudio}" source)
 function(replace_coreaudio old new)
     string(FIND "${source}" "${new}" patched)

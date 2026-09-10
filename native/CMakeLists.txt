@@ -14,8 +14,6 @@ FetchContent_MakeAvailable(signalsmith-linear signalsmith-stretch)
 juce_add_console_app(BasementAudio PRODUCT_NAME "Basement Audio")
 target_sources(BasementAudio PRIVATE Main.cpp Engine.cpp AudioCallback.cpp Rendering.cpp Midi.cpp Latency.cpp Editing.cpp Export.cpp Recording.cpp PluginHost.cpp DeviceCommands.cpp SessionCommands.cpp Commands.cpp SoundProcessing.cpp MidiExport.cpp)
 target_compile_features(BasementAudio PRIVATE cxx_std_20)
-# JUCE's CoreAudio translation unit includes our aggregate adapter on macOS.
-target_include_directories(BasementAudio PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 if(APPLE)
     enable_language(OBJCXX)
     set_source_files_properties(Main.cpp PROPERTIES LANGUAGE OBJCXX)

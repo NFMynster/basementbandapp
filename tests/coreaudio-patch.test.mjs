@@ -45,6 +45,17 @@ test("CoreAudio patch applies to pinned JUCE, is repeatable and rejects changed 
     );
   const first = apply();
   assert.equal(first.status, 0, first.stdout + first.stderr);
+  // VST3 fixture targets do not inherit BasementAudio's private include paths.
+  // The injected quoted include must resolve beside the shared JUCE source.
+  const adapter = resolve(
+    folder,
+    "modules/juce_audio_devices/native/CoreAudioAggregate.h",
+  );
+  assert.equal(
+    readFileSync(adapter, "utf8"),
+    readFileSync("native/CoreAudioAggregate.h", "utf8"),
+  );
+  const adapterModified = statSync(adapter).mtimeMs;
   const patched = readFileSync(file, "utf8"),
     modified = statSync(file).mtimeMs;
   assert.equal(patched.split('#include "CoreAudioAggregate.h"').length - 1, 1);
@@ -53,6 +64,7 @@ test("CoreAudio patch applies to pinned JUCE, is repeatable and rejects changed 
   assert.match(patched, /if \(in  == nullptr\)  return out.release\(\)/);
   assert.match(patched, /selected.findNextSetBit/);
   assert.equal(apply().status, 0);
+  assert.equal(statSync(adapter).mtimeMs, adapterModified);
   assert.equal(readFileSync(file, "utf8"), patched);
   assert.equal(
     statSync(file).mtimeMs,
