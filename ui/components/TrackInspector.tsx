@@ -42,6 +42,23 @@ export function TrackInspector({
   useEffect(() => {
     if (panel !== "notes") setMidiExpanded(false);
   }, [panel]);
+  useEffect(() => {
+    const content =
+      inspector.current?.querySelector<HTMLElement>(".inspector-content");
+    if (!content || panel === "notes") return;
+    const fit = () => {
+      const needed = Math.min(
+        controller.inspectorMax,
+        content.scrollHeight + 44,
+      );
+      if (needed > controller.inspectorHeight + 2)
+        controller.setInspectorHeight(needed);
+    };
+    const observer = new ResizeObserver(fit);
+    for (const child of content.children) observer.observe(child);
+    fit();
+    return () => observer.disconnect();
+  }, [panel, track?.id, controller.propertiesPing, controller.inspectorMax]);
   const panGesture = useRef<{ id: string; released: boolean } | undefined>(
     undefined,
   );
@@ -77,7 +94,7 @@ export function TrackInspector({
           value={controller.inspectorHeight}
           min={200}
           max={controller.inspectorMax}
-          reset={300}
+          reset={380}
           onChange={controller.setInspectorHeight}
         />
         {controller.propertiesPing > 0 && (

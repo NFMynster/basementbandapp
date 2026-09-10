@@ -13,7 +13,7 @@ void Engine::changeTempo(const var &c) {
   if (next == tempo) return;
   const double factor = tempo / next;
   const ScopedLock lock(guard);
-  if (match == "none") { tempo = next; return; }
+  if (match == "none") { tempo = next; loopStart *= factor; loopEnd *= factor; return; }
   require(!playing, "Stop playback before matching recordings to tempo");
   std::vector<std::pair<Clip *, std::unique_ptr<Clip>>> prepared;
   std::map<String, std::shared_ptr<Clip>> stretched;

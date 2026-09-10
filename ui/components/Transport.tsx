@@ -1,3 +1,4 @@
+import { Tuner } from "./Tuner";
 import { LevelSlider } from "./LevelSlider";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -130,6 +131,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           </div>
         </div>
         <div className="transport-right">
+          <Tuner controller={controller} />
           <button
             className={"icon-button " + (s.looping ? "loop-active" : "")}
             title={`Cycle selection · ${keyLabel(controller.bindings.loop)}`}

@@ -17,7 +17,7 @@ export function usePanelLayout() {
     saved("basement.sidebar-width", 280),
   );
   const [inspector, setInspectorHeight] = useState(() =>
-    saved("basement.inspector-height", 300),
+    saved("basement.inspector-height", 380),
   );
   useEffect(() => {
     const resize = () =>

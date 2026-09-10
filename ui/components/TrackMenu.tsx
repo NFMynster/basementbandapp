@@ -25,6 +25,21 @@ export function TrackMenu({
     <ContextMenu label={`${track.name} actions`} x={x} y={y} onClose={onClose}>
       <button
         role="menuitem"
+        disabled={
+          controller.s.playing ||
+          controller.busy ||
+          controller.s.tracks.length >= 32
+        }
+        onClick={() =>
+          act(() => {
+            void controller.run({ op: "duplicateTrack", track: track.id });
+          })
+        }
+      >
+        Duplicate track
+      </button>
+      <button
+        role="menuitem"
         disabled={controller.s.recording || controller.busy}
         onClick={() =>
           act(() => {

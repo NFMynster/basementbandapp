@@ -27,6 +27,7 @@ void Engine::click(float *const *outputs, int channels, int samples, double time
 }
 void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
   const ScopedLock l(guard);
+  tunerCount = tunerWrite = tunerPhase = 0;
   rate = d->getCurrentSampleRate();
   block = d->getCurrentBufferSizeSamples();
   inputLatency = jmax(0, d->getInputLatencyInSamples());
@@ -58,6 +59,19 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     if (playing.load())
       diskOverrun = true;
     return;
+  }
+  if (tunerTrack.isNotEmpty()) {
+    const int stride = jmax(1, (int)(rate / 12000));
+    const float *input = nullptr;
+    for (const auto &t : tracks) if (t->id == tunerTrack && t->input >= 0 && t->input < ni) input = inputs[t->input];
+    for (int i = 0; i < n; ++i) if (++tunerPhase >= stride) {
+        tunerPhase = 0;
+        tunerSamples[tunerWrite] = input ? input[i] : 0;
+        tunerWrite = (tunerWrite + 1) % (int)tunerSamples.size();
+        tunerCount = jmin(tunerCount + 1, (int)tunerSamples.size());
+      }
+    masterPeak = 0;
+    return; // Dry input analysis only; mute monitoring without changing effects.
   }
   if (countRemaining > 0) {
     const int prefix = (int)jmin((int64)n, countRemaining);
@@ -186,6 +200,13 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     position += n / rate;
     if (looping && !recording && position >= loopEnd && loopEnd > loopStart)
       position = loopStart + std::fmod(position - loopStart, loopEnd - loopStart);
+    if (!looping && !recording) {
+      double end = 32 * 240.0 / tempo;
+      for (const auto &t : tracks) for (const auto &clip : t->clips)
+        end = jmax(end, clip->start + clip->duration() + 8);
+      end = std::ceil(end / (240.0 / tempo)) * (240.0 / tempo);
+      if (position >= end) { position = end; playing = false; for (auto &t : tracks) t->panic = true; }
+    }
   }
   if (outputProtection.process(outputs, no, n, masterGain, limiterEnabled)) outputClipped = true;
   float outputPeak = masterPeak.load() * (float)std::exp(-n / (rate * 0.12));

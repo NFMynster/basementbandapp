@@ -10,6 +10,7 @@ const COMMANDS = new Set([
   "configure",
   "track",
   "addTrack",
+  "duplicateTrack",
   "removeTrack",
   "reorderTrack",
   "play",
@@ -37,6 +38,7 @@ const COMMANDS = new Set([
   "limiter",
   "clearDiagnostics",
   "audition",
+  "tuner",
 ]);
 const AUDIO_EXTENSIONS = /\.(wav|aif|aiff|flac|mp3)$/i;
 const MIDI_EXTENSIONS = /\.(mid|midi)$/i;

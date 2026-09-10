@@ -27,6 +27,7 @@ export function AudioDevicePanel({
       <label>
         Audio driver
         <select
+          disabled={s.playing || applying}
           value={devices.type}
           onChange={(event) => {
             const type = devices.types.find(
@@ -49,6 +50,7 @@ export function AudioDevicePanel({
         <label>
           Input device
           <select
+            disabled={s.playing || applying}
             value={devices.input}
             onChange={(event) =>
               editDevices({ ...devices, input: event.target.value })
@@ -68,6 +70,7 @@ export function AudioDevicePanel({
         <label>
           Output device
           <select
+            disabled={s.playing || applying}
             value={devices.output}
             onChange={(event) =>
               editDevices({ ...devices, output: event.target.value })
@@ -84,6 +87,7 @@ export function AudioDevicePanel({
         <label>
           Sample rate
           <select
+            disabled={s.playing || applying}
             value={devices.sampleRate}
             onChange={(event) =>
               editDevices({ ...devices, sampleRate: +event.target.value })
@@ -101,6 +105,7 @@ export function AudioDevicePanel({
         <label>
           Buffer size
           <select
+            disabled={s.playing || applying}
             value={devices.bufferSize}
             onChange={(event) =>
               editDevices({ ...devices, bufferSize: +event.target.value })
@@ -117,9 +122,21 @@ export function AudioDevicePanel({
         </label>
       </div>
       <p className="buffer-help">
-        Hearing a delay? Choose a smaller buffer. If you hear clicks or
-        dropouts, choose a larger one. Apply or Done confirms the change.
+        A smaller buffer reduces latency but gives your CPU less time to process
+        audio. If you hear clicks or dropouts, increase it. Apply or Done
+        confirms the change.
+        <br />
+        <strong>
+          For much lower latency, use your USB audio interface for BOTH input
+          and output, and plug headphones or speakers directly into the
+          interface.
+        </strong>
+        <br />
+        Built-in speakers can add substantial delay even at the smallest buffer.
       </p>
+      {s.playing && (
+        <p role="status">Stop playback to change audio device settings.</p>
+      )}
       <button
         className="apply-device"
         disabled={s.playing || applying}

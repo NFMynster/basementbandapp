@@ -185,7 +185,15 @@ export function Arrangement({
     view.addEventListener("wheel", wheel, { passive: false });
     return () => view.removeEventListener("wheel", wheel);
   }, [zoom]);
-  const playhead = useAnimatedPlayhead(s, pxPerSecond, controller.dragPosition);
+  const playhead = useAnimatedPlayhead(
+    s,
+    pxPerSecond,
+    controller.dragPosition,
+    0,
+    Infinity,
+    0,
+    timelineScroll,
+  );
   useLayoutEffect(() => {
     const timeline = timelineScroll.current,
       sidebar = trackList.current;

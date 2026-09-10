@@ -36,6 +36,9 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   bool testDevice = false;
   MidiBuffer midi;
   int inputLatency = 0, outputLatency = 0;
+  String tunerTrack;
+  std::array<float, 2048> tunerSamples{};
+  int tunerWrite = 0, tunerCount = 0, tunerPhase = 0;
   String configuredInput;
   StringArray inputChannelNames;
   bool audioInputActive = false;

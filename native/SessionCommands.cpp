@@ -5,6 +5,7 @@
 namespace basement {
 void Engine::resetSession(const var &c) {
   stop();
+  { const ScopedLock lock(guard); tunerTrack.clear(); }
   editor.reset();
   const ScopedLock l(guard);
   tracks.clear();
@@ -28,6 +29,7 @@ void Engine::resetSession(const var &c) {
 void Engine::restoreSession(const var &c) {
   require(!recording, "Stop recording before opening a session");
   stop();
+  { const ScopedLock lock(guard); tunerTrack.clear(); }
   auto session = c["session"];
   const auto clickGain = number(session, "metronomeGain", 1);
   require(std::isfinite(clickGain) && clickGain >= 0 && clickGain <= 4, "Invalid metronome volume");

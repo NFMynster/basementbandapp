@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
+import { desktop as api } from "../services/desktop";
 import type { Devices } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { AudioDevicePanel } from "./AudioDevicePanel";
@@ -33,13 +34,33 @@ export function SettingsDialog({
     if (!setup) setDeviceDirty(false);
   }, [setup]);
 
+  useEffect(() => {
+    if (!setup || deviceDirty || applying || s.playing) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const next = await api.command({ op: "devices" });
+        if (!cancelled) setDevices(next);
+      } catch {
+        /* Keep the current selections when a device is temporarily absent. */
+      }
+      if (!cancelled) timer = setTimeout(refresh, 2000);
+    };
+    timer = setTimeout(refresh, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [setup, deviceDirty, applying, s.playing]);
+
   function editDevices(next: Devices) {
     setDevices(next);
     setDeviceDirty(true);
   }
 
   async function apply(close: boolean) {
-    if (!devices || applying) return false;
+    if (!devices || applying || s.playing) return false;
     setApplying(true);
     setApplyError("");
     try {
@@ -87,7 +108,10 @@ export function SettingsDialog({
         footer={
           <div className="modal-bottom">
             <span>
-              {applyError ||
+              {(s.playing && deviceDirty
+                ? "Stop playback to apply audio settings."
+                : "") ||
+                applyError ||
                 (deviceDirty
                   ? "Changes apply when you press Done."
                   : "Apply audio settings tests changes without closing this window.")}

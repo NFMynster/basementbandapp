@@ -4,6 +4,49 @@
 namespace basement {
 var Engine::command(const var &c) {
   auto op = str(c, "op");
+  if (op == "tuner") {
+    require(!playing, "Stop playback before tuning");
+    const auto id = str(c, "track");
+    if (id.isNotEmpty()) require(!track(c).isMidi, "Select an audio track to tune");
+    { const ScopedLock lock(guard); tunerTrack = id; tunerCount = tunerWrite = tunerPhase = 0; }
+    try { syncAudioInput(); }
+    catch (...) { const ScopedLock lock(guard); tunerTrack.clear(); throw; }
+    return state();
+  }
+  if (op == "duplicateTrack") {
+    require(!playing, "Stop playback before duplicating a track");
+    require(tracks.size() < 32, "This version supports up to 32 tracks");
+    auto &source = track(c);
+    var settings;
+    auto snapshot = state(true);
+    for (auto &v : *snapshot["tracks"].getArray())
+      if (str(v, "id") == source.id) settings = v.clone();
+    auto *props = settings.getDynamicObject();
+    props->setProperty("op", "addTrack");
+    props->setProperty("name", source.name + " copy");
+    props->setProperty("armed", false);
+    props->setProperty("monitor", false);
+    command(settings);
+    auto &copy = *tracks.back();
+    try {
+      command(object({{"op", "preset"}, {"track", copy.id}, {"preset", JSON::toString(settings)}}));
+      if (!flag(c, "empty")) {
+        const ScopedLock lock(guard);
+        std::map<String, String> groups;
+        for (auto &clip : source.clips) {
+          auto cloned = std::make_unique<Clip>(*clip);
+          cloned->id = Uuid().toString();
+          if (cloned->takeGroup.isNotEmpty()) {
+            if (!groups.contains(cloned->takeGroup)) groups[cloned->takeGroup] = Uuid().toString();
+            cloned->takeGroup = groups[cloned->takeGroup];
+          }
+          cloned->cachedKey.clear();
+          copy.clips.push_back(std::move(cloned));
+        }
+      }
+    } catch (...) { const ScopedLock lock(guard); tracks.pop_back(); throw; }
+    return state();
+  }
   if (op == "audition") {
     const ScopedLock lock(guard);
     auto &t = track(c);
@@ -56,7 +99,9 @@ var Engine::command(const var &c) {
     AudioBuffer<float> in(2, n), out(2, n);
     for (int ch = 0; ch < 2; ++ch)
       for (int i = 0; i < n; ++i)
-        in.setSample(ch, i, (float)number(c, ch == 0 ? "left" : "right"));
+        in.setSample(ch, i, (float)(number(c, "frequency") > 0
+            ? 0.25 * std::sin(MathConstants<double>::twoPi * number(c, "frequency") * (i + number(c, "sampleOffset")) / rate)
+            : number(c, ch == 0 ? "left" : "right")));
     // A test pump may span many hardware blocks. Respect the maximum block
     // promised to VST3 instances, including MIDI event offsets across blocks.
     std::vector<MidiBuffer> queued;
@@ -228,12 +273,15 @@ var Engine::command(const var &c) {
   } else if (op == "stop")
     stop();
   else if (op == "play") {
+    require(tunerTrack.isEmpty(), "Close the tuner before playback");
     require(testDevice || devices.getCurrentAudioDevice() != nullptr,
             "Choose an audio device first");
     const ScopedLock l(guard);
+    if (looping) position = loopStart;
     preparePlayback(position, looping);
     playing = true;
   } else if (op == "record") {
+    require(tunerTrack.isEmpty(), "Close the tuner before recording");
     beginRecording();
   } else if (op == "seek") {
     require(!recording, "Cannot move the playhead while recording");
@@ -250,7 +298,7 @@ var Engine::command(const var &c) {
     loopStart = jmax(0.0, number(c, "start"));
     loopEnd = jmax(loopStart + 0.05, number(c, "end", 8));
     looping = flag(c, "enabled");
-    preparePlayback(position, looping);
+    // Rendering already wraps and chases MIDI at cycle boundaries. Keep processor tails alive.
   } else if (op == "tempo") {
     changeTempo(c);
   } else if (op == "rename") {
@@ -269,7 +317,7 @@ var Engine::command(const var &c) {
     }
     auto settings = c.clone();
     settings.getDynamicObject()->setProperty("track", tracks.back()->id);
-    try { updateTrack(settings); } catch (...) { tracks.pop_back(); throw; }
+    try { updateTrack(settings); } catch (...) { const ScopedLock lock(guard); tracks.pop_back(); throw; }
   } else if (op == "track") {
     updateTrack(c);
   } else if (op == "reorderTrack") {

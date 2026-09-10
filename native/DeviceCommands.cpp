@@ -3,9 +3,9 @@
 
 namespace basement {
 bool Engine::needsAudioInput() const {
-  return configuredInput.isNotEmpty() && std::any_of(tracks.begin(), tracks.end(), [](const auto &t) {
+  return configuredInput.isNotEmpty() && (tunerTrack.isNotEmpty() || std::any_of(tracks.begin(), tracks.end(), [](const auto &t) {
     return !t->isMidi && (t->armed || t->monitor);
-  });
+  }));
 }
 
 void Engine::syncAudioInput() {
@@ -51,6 +51,12 @@ var Engine::listDevices() {
     for (auto b : d->getAvailableBufferSizes())
       buffers.add(b);
   }
+  // Query channel capabilities even when the selected input is idle/unarmed.
+  if (!audioInputActive && configuredInput.isNotEmpty())
+    if (auto *type = devices.getCurrentDeviceTypeObject()) {
+      std::unique_ptr<AudioIODevice> probe(type->createDevice({}, configuredInput));
+      if (probe) inputChannelNames = probe->getInputChannelNames();
+    }
   if (configuredInput.isNotEmpty())
     for (auto &s : inputChannelNames) channels.add(s);
   auto setup = devices.getAudioDeviceSetup();

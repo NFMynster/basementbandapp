@@ -84,6 +84,7 @@ function historyFingerprint(s) {
   });
 }
 function editDescription(command) {
+  if (command.op === "duplicateTrack") return "duplicate track";
   if (command.op === "addTrack") return "create track";
   if (command.op === "createMidi") return "create MIDI region";
   if (command.op === "import") return "import region";
@@ -128,6 +129,7 @@ function isUndoable(command) {
   return (
     [
       "addTrack",
+      "duplicateTrack",
       "createMidi",
       "import",
       "track",

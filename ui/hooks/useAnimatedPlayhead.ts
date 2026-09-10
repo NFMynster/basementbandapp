@@ -8,6 +8,7 @@ export function useAnimatedPlayhead(
   origin = 0,
   duration = Infinity,
   gutter = 0,
+  follow?: React.RefObject<HTMLDivElement | null>,
 ) {
   const element = useRef<HTMLDivElement>(null);
   const anchor = useRef({
@@ -61,6 +62,13 @@ export function useAnimatedPlayhead(
           s.loopStart + ((position - s.loopStart) % (s.loopEnd - s.loopStart));
       if (element.current) {
         const relative = (drag ?? position) - origin;
+        const view = follow?.current;
+        if (view && s.playing && drag === null) {
+          const x = gutter + relative * scale;
+          if (x < view.scrollLeft + 24) view.scrollLeft = Math.max(0, x - 24);
+          else if (x > view.scrollLeft + view.clientWidth * 0.75)
+            view.scrollLeft = x - view.clientWidth * 0.75;
+        }
         element.current.style.left = gutter + relative * scale + "px";
         element.current.style.visibility =
           relative < 0 || relative > duration ? "hidden" : "visible";

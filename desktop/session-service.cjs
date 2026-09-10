@@ -28,6 +28,7 @@ const EDITABLE_COMMANDS = new Set([
   "removeClip",
   "editRegions",
   "addTrack",
+  "duplicateTrack",
   "import",
   "track",
   "rename",
@@ -252,6 +253,7 @@ class SessionService {
             "removePlugin",
             "preset",
             "reorderEffect",
+            "duplicateTrack",
           ].includes(command.op) &&
           !state.playing &&
           this.lastSnapshot;
@@ -287,6 +289,7 @@ class SessionService {
           "removePlugin",
           "preset",
           "reorderEffect",
+          "duplicateTrack",
         ].includes(command.op),
       });
       const recoveredAfter = this.recoverySnapshot(after, before);
@@ -298,11 +301,7 @@ class SessionService {
           globalKeys: GLOBAL_EDITS[command.op]
             ? [
                 GLOBAL_EDITS[command.op],
-                ...(command.op === "tempo" &&
-                command.match &&
-                command.match !== "none"
-                  ? ["loopStart", "loopEnd"]
-                  : []),
+                ...(command.op === "tempo" ? ["loopStart", "loopEnd"] : []),
               ]
             : [],
           trackKeys:

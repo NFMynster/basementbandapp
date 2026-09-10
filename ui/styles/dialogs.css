@@ -74,3 +74,17 @@
   width: 16px;
   height: 16px;
 }
+
+.tuner-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+}
+.tuner-reading strong {
+  font-size: 64px;
+}
+.tuner-reading meter {
+  width: 100%;
+}

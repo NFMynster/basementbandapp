@@ -125,6 +125,37 @@ var Engine::state(bool full, bool pluginState) {
     snapshotOutputLatency = outputLatency;
     countdown = countRemaining > 0 ? (int)std::ceil(countRemaining / (rate * 60 / tempo)) : 0;
   }
+  double tunerFrequency = 0;
+  if (tunerTrack.isNotEmpty()) {
+    std::array<float, 2048> samples{};
+    int count;
+    { const ScopedLock lock(guard); for (int i = 0; i < (int)samples.size(); ++i) samples[i] = tunerSamples[(tunerWrite + i) % tunerSamples.size()]; count = tunerCount; }
+    // Analyse a chronological snapshot off the audio thread.
+    if (count == (int)samples.size()) {
+      const double sampleRate = snapshotRate / jmax(1, (int)(snapshotRate / 12000));
+      const int minLag = (int)(sampleRate / 1000), maxLag = (int)(sampleRate / 40);
+      std::array<double, 512> correlations{};
+      double best = 0;
+      int bestLag = 0;
+      for (int lag = minLag; lag <= maxLag && lag < 511; ++lag) {
+        double cross = 0, energyA = 0, energyB = 0;
+        for (int i = 0; i < 1024; ++i) {
+          const double a = samples[i], b = samples[i + lag];
+          cross += a * b; energyA += a * a; energyB += b * b;
+        }
+        correlations[lag] = energyA > 0.0001 && energyB > 0.0001 ? cross / std::sqrt(energyA * energyB) : 0;
+        best = jmax(best, correlations[lag]);
+      }
+      for (int lag = minLag + 1; lag < maxLag && lag < 510; ++lag)
+        if (correlations[lag] > 0.85 && correlations[lag] >= best * 0.98 &&
+            correlations[lag] > correlations[lag - 1] && correlations[lag] >= correlations[lag + 1]) { bestLag = lag; break; }
+      if (bestLag) {
+        const double a = correlations[bestLag - 1], b = correlations[bestLag], c = correlations[bestLag + 1];
+        const double offset = (a - c) / (2 * (a - 2 * b + c));
+        tunerFrequency = sampleRate / (bestLag + offset);
+      }
+    }
+  }
   Array<var> list;
   for (auto &t : tracks) {
     Array<var> clips;
@@ -185,7 +216,7 @@ var Engine::state(bool full, bool pluginState) {
   }
   auto *d = devices.getCurrentAudioDevice();
   return object(
-      {{"title", title},
+      {{"title", title}, {"tunerTrack", tunerTrack}, {"tunerFrequency", tunerFrequency},
        {"tracks", list},
        {"position",
         recording && cycleRecording

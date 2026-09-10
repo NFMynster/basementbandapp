@@ -41,22 +41,6 @@ function trackContainingClip(tracks: Track[], clipId: string) {
   );
 }
 
-function trackClonePatch(source: Track): TrackPatch {
-  return {
-    name: `${source.name} copy`,
-    input: source.input,
-    mute: source.mute,
-    solo: source.solo,
-    gain: source.gain,
-    pan: source.pan,
-    color: source.color,
-    icon: source.icon,
-    monitor: source.monitor,
-    // A duplicated track should not unexpectedly record alongside its source.
-    armed: false,
-  };
-}
-
 function rulerPosition(
   clientX: number,
   rect: DOMRect,
@@ -220,6 +204,7 @@ export function useWorkspace() {
     pxPerSecond = zoom / secondsPerBar;
   const end = Math.max(
       32 * secondsPerBar,
+      s.recording ? s.position + 8 * secondsPerBar : 0,
       ...s.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration + 8)),
     ),
     width = Math.ceil(end / secondsPerBar) * zoom;
@@ -567,16 +552,13 @@ export function useWorkspace() {
   const update = (t: Track, c: TrackPatch) =>
     run({ op: "track", track: t.id, ...c });
   async function createTrackLike(source: Track) {
-    const added = await run({ op: "addTrack", kind: source.kind });
+    const added = await run({
+      op: "duplicateTrack",
+      track: source.id,
+      empty: true,
+    });
     const created = added?.tracks.at(-1);
     if (!created) return;
-
-    const configured = await update(created, trackClonePatch(source));
-    if (!configured) {
-      // Avoid leaving an unconfigured track behind if the second command fails.
-      await run({ op: "removeTrack", track: created.id }, false);
-      return;
-    }
     setSelected(created.id);
     return created;
   }

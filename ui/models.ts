@@ -75,6 +75,8 @@ export type Track = {
   recordingPreview?: RecordingPreview;
 };
 export type Session = {
+  tunerTrack?: string;
+  tunerFrequency?: number;
   historyNotice?: string;
   canUndo?: boolean;
   canRedo?: boolean;
@@ -167,6 +169,8 @@ export type SessionCommand =
         | "undo"
         | "redo";
     }
+  | { op: "tuner"; track?: string }
+  | { op: "duplicateTrack"; track: string; empty?: boolean }
   | { op: "createMidi"; track: string; position: number; length?: number }
   | { op: "reorderEffect"; track: string; effect: string; index: number }
   | { op: "preset"; track: string; preset: string }
