@@ -9,6 +9,8 @@ function bridge(): DesktopApi {
 export const desktop: DesktopApi = {
   soundLibrary: (command) => bridge().soundLibrary(command),
   openLicenses: () => bridge().openLicenses(),
+  openWebsite: () => bridge().openWebsite(),
+  waitUntilVisible: () => bridge().waitUntilVisible?.() ?? Promise.resolve(),
   openLogs: () => bridge().openLogs(),
   restart: () => bridge().restart(),
   dropFiles: (files, track, plugin) => bridge().dropFiles(files, track, plugin),

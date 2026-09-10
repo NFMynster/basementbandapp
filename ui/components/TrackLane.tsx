@@ -82,7 +82,11 @@ export function TrackLane({
           className="recording-region"
           style={{
             left: track.recordStart * pxPerSecond,
-            width: Math.max(10, (s.position - track.recordStart) * pxPerSecond),
+            width: Math.max(
+              10,
+              (track.recordingPreview?.duration ??
+                s.position - track.recordStart) * pxPerSecond,
+            ),
           }}
         >
           <span>Recording…</span>

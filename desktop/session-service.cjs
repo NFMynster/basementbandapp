@@ -24,6 +24,7 @@ const EDITABLE_COMMANDS = new Set([
   "reorderEffect",
   "preset",
   "removeTrack",
+  "reorderTrack",
   "removeClip",
   "addTrack",
   "import",
@@ -73,11 +74,8 @@ class SessionService {
           folder: this.folder,
         });
         this.recovered = true;
-        if (Number.isFinite(session.position) && session.position >= 0)
-          state = await this.engine.request({
-            op: "seek",
-            position: session.position,
-          });
+        // Restore the project, but always begin at the start of its timeline.
+        // Native restore also resets transport for explicitly opened projects.
       } catch (error) {
         this.lastSnapshot = undefined;
         if (recoveryRead || error.code !== "ENOENT") {
@@ -247,6 +245,7 @@ class SessionService {
         const cachedBefore =
           ![
             "removeTrack",
+            "reorderTrack",
             "plugin",
             "removePlugin",
             "preset",
@@ -293,6 +292,7 @@ class SessionService {
         this.undoStack.push({
           description: editDescription(command),
           trackId: command.track,
+          trackOrder: command.op === "reorderTrack",
           globalKeys: GLOBAL_EDITS[command.op]
             ? [
                 GLOBAL_EDITS[command.op],

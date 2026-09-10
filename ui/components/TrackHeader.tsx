@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { AudioWaveform } from "lucide-react";
+import { Volume2, GripVertical } from "lucide-react";
 import type { Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { LevelSlider } from "./LevelSlider";
@@ -22,6 +22,44 @@ export function TrackHeader({
   return (
     <div
       data-track-header={track.id}
+      onDragOver={(e) => {
+        if (
+          e.dataTransfer.types.includes("application/x-basement-track") &&
+          !s.playing
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          e.currentTarget.classList.add("reorder-target");
+          const bounds = e.currentTarget.getBoundingClientRect();
+          e.currentTarget.classList.toggle(
+            "reorder-after",
+            e.clientY > bounds.top + bounds.height / 2,
+          );
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node))
+          e.currentTarget.classList.remove("reorder-target");
+      }}
+      onDrop={(e) => {
+        e.currentTarget.classList.remove("reorder-target");
+        const id = e.dataTransfer.getData("application/x-basement-track");
+        if (!id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const from = s.tracks.findIndex((t) => t.id === id);
+        const bounds = e.currentTarget.getBoundingClientRect();
+        const insertion =
+          index + (e.clientY > bounds.top + bounds.height / 2 ? 1 : 0);
+        const destination = insertion - (from < insertion ? 1 : 0);
+        if (!s.playing && !controller.busy && from >= 0 && destination !== from)
+          void controller.run({
+            op: "reorderTrack",
+            track: id,
+            index: destination,
+          });
+      }}
       className={"track-header " + (selected ? "selected" : "")}
       style={{ "--track-color": track.color } as CSSProperties}
       onClick={() => setSelected(track.id)}
@@ -44,6 +82,39 @@ export function TrackHeader({
         onMenu(track, { x: bounds.left + 30, y: bounds.top + 30 });
       }}
     >
+      <button
+        className="track-reorder"
+        draggable={!s.playing && !controller.busy}
+        disabled={s.playing || controller.busy}
+        aria-label={`Reorder ${track.name}`}
+        title="Drag to reorder; use arrow keys to move"
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          e.dataTransfer.setData("application/x-basement-track", track.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragEnd={() =>
+          document
+            .querySelectorAll(".reorder-target")
+            .forEach((n) => n.classList.remove("reorder-target"))
+        }
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+          e.preventDefault();
+          e.stopPropagation();
+          const next = index + (e.key === "ArrowUp" ? -1 : 1);
+          if (next >= 0 && next < s.tracks.length)
+            void controller.run({
+              op: "reorderTrack",
+              track: track.id,
+              index: next,
+            });
+        }}
+      >
+        <GripVertical size={14} />
+      </button>
       {trackPing === track.id && (
         <span className="properties-ping" aria-hidden="true" />
       )}
@@ -87,7 +158,7 @@ export function TrackHeader({
             className={track.monitor ? "solo" : ""}
             onClick={() => update(track, { monitor: !track.monitor })}
           >
-            <AudioWaveform size={12} />
+            <Volume2 size={12} />
           </button>
           <span className="input-label">
             {track.kind === "midi"

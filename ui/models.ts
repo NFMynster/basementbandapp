@@ -31,7 +31,11 @@ type RecordingPreviewBase = {
   duration: number;
 };
 export type RecordingPreview =
-  | (RecordingPreviewBase & { kind: "audio"; peaks: number[] })
+  | (RecordingPreviewBase & {
+      kind: "audio";
+      peaks: number[];
+      peakInterval?: number;
+    })
   | (RecordingPreviewBase & {
       kind: "midi";
       notes: { start: number; duration: number; note: number }[];
@@ -217,6 +221,7 @@ export type SessionCommand =
       velocity: number;
       channel: number;
     }
+  | { op: "reorderTrack"; track: string; index: number }
   | { op: "seek"; position: number }
   | { op: "loop"; start: number; end: number; enabled: boolean }
   | { op: "tempo"; value: number; match?: "none" | "midi" | "all" }
@@ -271,6 +276,8 @@ export interface DesktopApi {
   soundLibrary(command: LibraryCommand): Promise<SoundLibrary>;
   openLicenses(): Promise<string>;
   openLogs(): Promise<string>;
+  openWebsite(): Promise<void>;
+  waitUntilVisible?(): Promise<void>;
   restart(): Promise<void>;
   dropFiles(files: File[], track?: string, plugin?: boolean): Promise<Session>;
   command<C extends Command>(command: C): Promise<CommandResult<C>>;

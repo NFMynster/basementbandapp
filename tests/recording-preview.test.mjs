@@ -24,6 +24,21 @@ test("recording state includes live audio and MIDI previews", async () => {
     assert.equal(audioPreview.kind, "audio");
     assert.ok(audioPreview.duration > 0);
     assert.ok(audioPreview.peaks.some((peak) => peak > 0.4));
+    state = (await send({ op: "pump", frames: 8192, left: 0.25 })).state;
+    const stable = state.tracks[0].recordingPreview;
+    const completed = stable.peaks.slice(0, -1);
+    for (let i = 0; i < 50; i++)
+      state = (
+        await send({ op: "pump", frames: 8192, left: i % 2 ? 0.1 : 0.7 })
+      ).state;
+    const longer = state.tracks[0].recordingPreview;
+    assert.equal(longer.peakInterval, stable.peakInterval);
+    assert.ok(longer.peaks.length > 400);
+    assert.deepEqual(
+      longer.peaks.slice(0, completed.length),
+      completed,
+      "Finished waveform buckets must not move or change",
+    );
     state = await send({ op: "stop" });
     assert.equal(state.tracks[0].recordingPreview, undefined);
     assert.equal(state.tracks[0].clips.length, 1);

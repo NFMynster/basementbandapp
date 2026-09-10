@@ -60,14 +60,15 @@ export function TrackMenu({
       <button
         role="menuitem"
         className="danger"
-        disabled={controller.s.playing}
-        onClick={() =>
+        disabled={controller.s.playing || controller.busy}
+        onClick={(event) =>
           act(async () => {
             if (
-              await controller.confirmAction(
-                `Delete ${track.name} from this session? Recorded audio files will be kept.`,
+              event.shiftKey ||
+              (await controller.confirmAction(
+                `Delete ${track.name} from this session? Recorded audio files will be kept. Hold Shift while clicking Delete track to skip this confirmation.`,
                 "Delete track",
-              )
+              ))
             )
               void controller.removeTrack(track);
           })

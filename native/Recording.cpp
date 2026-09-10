@@ -138,9 +138,11 @@ void Engine::beginRecording() {
           t->midiRecording = true;
           continue;
         }
-        const auto previewCapacity =
-            static_cast<size_t>(std::ceil(20.0 * 60.0 * rate / jmax(1, block))) + 1;
-        t->recordingPeaks.assign(previewCapacity, 0.0f);
+        t->recordingPeakInterval = jmax(1, (int)std::llround(rate * 0.02));
+        t->recordingPeakFrames = 0;
+        t->recordingPeakValue = 0;
+        t->recordingPartialPeak = 0;
+        t->recordingPeaks.assign((size_t)std::ceil(20 * 60 * rate / t->recordingPeakInterval) + 1, 0.0f);
         t->recordingPath = File(folder).getChildFile(Uuid().toString() + ".wav").getFullPathName();
         auto output = File(t->recordingPath).createOutputStream();
         require(output != nullptr, "Cannot create recording file");

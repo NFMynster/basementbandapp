@@ -20,14 +20,19 @@ export function App() {
   const [startupEntered, setStartupEntered] = useState(false);
   const [startupLeaving, setStartupLeaving] = useState(false);
   useEffect(() => {
+    let cancelled = false;
+    let first = 0;
     let second = 0;
-    // Hidden/minimized windows may not deliver animation frames.
-    const fallback = setTimeout(() => setStartupEntered(true), 80);
-    const first = requestAnimationFrame(() => {
-      second = requestAnimationFrame(() => setStartupEntered(true));
+    // Electron can paint before showing the window. Start the fade only once
+    // the user can see it, with a painted transparent frame first.
+    void Promise.resolve(api.waitUntilVisible?.()).then(() => {
+      if (cancelled) return;
+      first = requestAnimationFrame(() => {
+        second = requestAnimationFrame(() => setStartupEntered(true));
+      });
     });
     return () => {
-      clearTimeout(fallback);
+      cancelled = true;
       cancelAnimationFrame(first);
       cancelAnimationFrame(second);
     };
@@ -37,8 +42,9 @@ export function App() {
     let finish: ReturnType<typeof setTimeout>;
     const timer = setTimeout(() => {
       setStartupLeaving(true);
-      finish = setTimeout(() => setStartupVisible(false), 260);
-    }, 260);
+      // Fallback for reduced motion or a window hidden during the transition.
+      finish = setTimeout(() => setStartupVisible(false), 600);
+    }, 380);
     return () => {
       clearTimeout(timer);
       clearTimeout(finish);
@@ -47,7 +53,7 @@ export function App() {
   return (
     <>
       <div
-        className="app"
+        className={`app ${startupVisible ? "startup-pending" : ""} ${startupLeaving ? "startup-revealing" : ""}`}
         inert={startupVisible}
         style={
           { "--sidebar-width": `${controller.sidebarWidth}px` } as CSSProperties
@@ -57,7 +63,7 @@ export function App() {
       >
         <TitleBar controller={controller} />
         <Transport controller={controller} />
-        <Arrangement controller={controller} />
+        <Arrangement controller={controller} animateReady={!startupVisible} />
         <TrackInspector controller={controller} />
         <StatusBar controller={controller} />
         <Notices controller={controller} />
@@ -177,6 +183,14 @@ export function App() {
         <div
           className={`count-in-overlay export-wait startup-overlay ${startupEntered ? "entered" : ""} ${startupLeaving ? "leaving" : ""}`}
           data-startup
+          onTransitionEnd={(event) => {
+            if (
+              startupLeaving &&
+              event.target === event.currentTarget &&
+              event.propertyName === "opacity"
+            )
+              setStartupVisible(false);
+          }}
           role="status"
           aria-live="polite"
         >
@@ -196,7 +210,7 @@ export function App() {
             ) : (
               <>
                 <div className="startup-spinner" aria-hidden="true" />
-                <p>Getting your session ready...</p>
+                <p>Initializing...</p>
               </>
             )}
           </div>

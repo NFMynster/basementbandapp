@@ -265,6 +265,16 @@ var Engine::command(const var &c) {
     try { updateTrack(settings); } catch (...) { tracks.pop_back(); throw; }
   } else if (op == "track") {
     updateTrack(c);
+  } else if (op == "reorderTrack") {
+    require(!playing, "Stop transport before reordering tracks");
+    const ScopedLock lock(guard);
+    auto &selected = track(c);
+    const int index = (int)number(c, "index", -1);
+    require(index >= 0 && index < (int)tracks.size(), "Invalid track position");
+    auto it = std::find_if(tracks.begin(), tracks.end(), [&](const auto &t) { return t.get() == &selected; });
+    auto moved = std::move(*it);
+    tracks.erase(it);
+    tracks.insert(tracks.begin() + index, std::move(moved));
   } else if (op == "removeTrack") {
     require(!playing, "Stop transport before removing a track");
     editor.reset();

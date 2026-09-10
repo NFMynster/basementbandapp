@@ -94,6 +94,11 @@ app.whenReady().then(() => {
   win.once("ready-to-show", () => {
     if (!smoke) win.show();
   });
+  ipcMain.handle("window-visible", async (event) => {
+    assertSender(event, win);
+    if (smoke || win.isVisible()) return;
+    await new Promise((resolve) => win.once("show", resolve));
+  });
   win.webContents.on("did-fail-load", (_event, code, description) => {
     if (code === -3) return;
     dialog.showErrorBox("Could not open Basement Band", description);
@@ -109,6 +114,10 @@ app.whenReady().then(() => {
   win.webContents.on("will-navigate", (e) => e.preventDefault());
 
   registerIpc(win, request);
+  ipcMain.handle("website", (event) => {
+    assertSender(event, win);
+    return shell.openExternal("https://footstomp.studio/");
+  });
   ipcMain.handle("logs", (event) => {
     assertSender(event, win);
     return shell.openPath(app.getPath("logs"));

@@ -17,42 +17,37 @@ export function HelpDialog({
           onClose={() => setHelp(false)}
           className="help-modal"
         >
-          <span className="eyebrow">LESS SETUP. MORE PLAYING.</span>
-          <h2>Your first take, in three steps.</h2>
+          <h2>Make your first take</h2>
           <ol>
             <li>
-              <strong>Connect your interface.</strong>
+              <strong>Choose your input.</strong>
               <p>
-                Open Input settings, choose a device, and assign a different
-                input to each track.
+                Open Audio settings and assign an input to each audio track.
               </p>
             </li>
             <li>
-              <strong>Mark your tracks. Hit record.</strong>
-              <p>
-                Click R on every track you want to capture. The red transport
-                button records them together. Press{" "}
-                {keyLabel(controller.bindings.play)} to stop.
-              </p>
+              <strong>Mark tracks with R, then record.</strong>
+              <p>Press {keyLabel(controller.bindings.play)} to stop or play.</p>
             </li>
             <li>
-              <strong>Find the part. Play it again.</strong>
+              <strong>Edit and save.</strong>
               <p>
-                Drag the top half of the ruler to loop a range. Drag its bottom
-                half to move the playhead. Double-click a region to loop its
-                length. Press {keyLabel(controller.bindings.loop)} to toggle
-                cycle. With looping enabled, recording starts at the loop’s
-                beginning and keeps each pass as a selectable take.
+                Double-click a region to edit it. Drag track handles to reorder.
+                MIDI tracks need a VST3 instrument for sound.
               </p>
             </li>
           </ol>
           <p>
-            Audio takes are WAV files; MIDI takes are saved as MIDI files when
-            you stop. Save your session to keep them together. MIDI tracks need
-            a VST3 instrument for sound. Enable its monitor button to monitor
-            live input or audition plug-in pads, even while stopped. No MIDI
-            hardware is required for preview. To record MIDI notes, use a MIDI
-            input device; plug-in editor clicks are preview only.
+            Solo developed by @nfmynster.{" "}
+            <a
+              href="https://footstomp.studio/"
+              onClick={(e) => {
+                e.preventDefault();
+                void api.openWebsite();
+              }}
+            >
+              footstomp.studio
+            </a>
           </p>
           <button className="text-button" onClick={() => void api.openLogs()}>
             Open diagnostic logs

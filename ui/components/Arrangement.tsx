@@ -12,8 +12,10 @@ import { TrackHeader } from "./TrackHeader";
 import { TrackLane } from "./TrackLane";
 export function Arrangement({
   controller,
+  animateReady = true,
 }: {
   controller: WorkspaceController;
+  animateReady?: boolean;
 }) {
   const [menu, setMenu] = useState<{
     id?: string;
@@ -46,7 +48,15 @@ export function Arrangement({
       { node: HTMLElement; parent: HTMLElement; index: number }
     >(),
   );
+  const lastProjectRevision = useRef(controller.projectRevision);
   useLayoutEffect(() => {
+    if (!animateReady) {
+      previousRows.current.clear();
+      return;
+    }
+    if (lastProjectRevision.current !== controller.projectRevision)
+      previousRows.current.clear();
+    lastProjectRevision.current = controller.projectRevision;
     const next = new Map<
       string,
       { node: HTMLElement; parent: HTMLElement; index: number }
@@ -54,11 +64,21 @@ export function Arrangement({
     const animations: Animation[] = [];
     const ghosts: HTMLElement[] = [];
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const currentIds = new Set(s.tracks.map((t) => t.id));
+    const removing = [...previousRows.current.keys()].some(
+      (key) =>
+        key.startsWith("data-track-header") &&
+        !currentIds.has(key.slice("data-track-header".length)),
+    );
+    // Pair each header with its lane. Bound the cascade so large projects
+    // become usable quickly, while small projects still enter row by row.
+    const entranceStep = Math.min(45, 320 / Math.max(1, s.tracks.length - 1));
     for (const [selector, attribute] of [
       ["[data-track-header]", "data-track-header"],
       ["[data-lane]", "data-lane"],
     ]) {
       const rows = document.querySelectorAll<HTMLElement>(selector);
+      let entering = 0;
       rows.forEach((node, index) => {
         const key = attribute + node.getAttribute(attribute);
         const old = previousRows.current.get(key);
@@ -75,7 +95,14 @@ export function Arrangement({
                 },
                 { transform: "translateY(0)", opacity: 1 },
               ],
-              { duration: 200, easing: "cubic-bezier(.2,.7,.2,1)" },
+              {
+                duration: old ? 240 : 260,
+                delay: old ? (removing ? 130 : 0) : entering++ * entranceStep,
+                easing: "cubic-bezier(.22,1,.36,1)",
+                // Hold the first frame during the delay; otherwise newly
+                // mounted rows flash visible before their entrance starts.
+                fill: "backwards",
+              },
             ),
           );
       });
@@ -102,10 +129,11 @@ export function Arrangement({
         });
         old.parent.appendChild(ghost);
         ghosts.push(ghost);
-        const animation = ghost.animate(
-          [{ opacity: 1 }, { opacity: 0, transform: "translateY(-6px)" }],
-          { duration: 160, fill: "forwards" },
-        );
+        const animation = ghost.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 130,
+          easing: "ease-out",
+          fill: "forwards",
+        });
         animation.onfinish = () => ghost.remove();
         animations.push(animation);
       }
@@ -114,7 +142,11 @@ export function Arrangement({
       animations.forEach((a) => a.cancel());
       ghosts.forEach((g) => g.remove());
     };
-  }, [s.tracks.map((t) => t.id).join(",")]);
+  }, [
+    s.tracks.map((t) => t.id).join(","),
+    animateReady,
+    controller.projectRevision,
+  ]);
   const zoomScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (zoomScroll.current !== null && timelineScroll.current) {

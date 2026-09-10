@@ -16,11 +16,12 @@ app
       },
     });
     await w.loadFile(path.join(__dirname, "../dist/index.html"));
-    await new Promise((r) => setTimeout(r, 700));
+    w.showInactive();
+    await new Promise((r) => setTimeout(r, 1100));
     await w.webContents.executeJavaScript(
       `document.querySelector('.welcome-dialog .modal-close')?.click(); [...document.querySelectorAll('.tab')].find(b=>b.textContent==='EQ & Effects').click()`,
     );
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 1100));
     // Exercise both dividers with actual Electron pointer input.
     for (const [label, dx, dy] of [
       ["Track sidebar width", 80, 0],
@@ -58,7 +59,12 @@ app
         `Number(document.querySelector('[aria-label="${label}"]').getAttribute('aria-valuenow'))`,
       );
       if (after !== before.value + dx - dy)
-        throw new Error(`${label} did not resize: ${before.value} -> ${after}`);
+        throw new Error(
+          `${label} did not resize: ${before.value} -> ${after}; ` +
+            (await w.webContents.executeJavaScript(
+              `JSON.stringify({startup:document.querySelector('[data-startup]')?.outerHTML, app:document.querySelector('.app').className, opacity:getComputedStyle(document.querySelector('.app')).opacity})`,
+            )),
+        );
     }
     mkdirSync("artifacts/screenshots", { recursive: true });
     await w.webContents.capturePage();
@@ -70,7 +76,7 @@ app
     await w.webContents.executeJavaScript(
       `document.querySelector('[data-clip="m1"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`,
     );
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 1100));
     await w.webContents.capturePage();
     await new Promise((r) => setTimeout(r, 200));
     writeFileSync(
@@ -272,6 +278,23 @@ app
       "Effects, gate, diagnostics and MIDI export verified at desktop and small widths",
     );
     await w.webContents.executeJavaScript(
+      `document.querySelector('[title="Quick guide"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 200));
+    if (
+      !(await w.webContents.executeJavaScript(
+        `document.querySelector('.help-modal').textContent.includes('@nfmynster') && !!document.querySelector('.help-modal a[href="https://footstomp.studio/"]')`,
+      ))
+    )
+      throw new Error("Missing guide credit or website");
+    writeFileSync(
+      "artifacts/screenshots/quick-guide.png",
+      (await w.webContents.capturePage()).toPNG(),
+    );
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.help-modal .modal-close').click()`,
+    );
+    await w.webContents.executeJavaScript(
       `window.basement.command({op:'testAddTrack'})`,
     );
     await new Promise((r) => setTimeout(r, 90));
@@ -288,7 +311,7 @@ app
     await new Promise((r) => setTimeout(r, 90));
     if (
       !(await w.webContents.executeJavaScript(
-        `document.querySelector('[data-track-header="b"]').getAnimations().length > 0 && document.querySelector('[data-lane="b"]').getAnimations().length > 0`,
+        `['[data-track-header="b"]', '[data-lane="b"]'].every(selector => { const animation = document.querySelector(selector).getAnimations()[0]; return animation?.effect.getTiming().delay === 130 && animation.effect.getTiming().fill === 'backwards'; })`,
       ))
     )
       throw new Error("Track removal did not animate both columns");
@@ -310,6 +333,28 @@ app
       ))
     )
       throw new Error("Missing blocking startup overlay");
+    await w.webContents.executeJavaScript(`(() => {
+      window.initialTracksAnimated = false;
+      window.startupTracksFlashed = false;
+      const observer = new MutationObserver(() => {
+        if (document.querySelector('[data-startup]')) {
+          window.startupTracksFlashed ||= [...document.querySelectorAll('[data-track-header], [data-lane]')].some(n => getComputedStyle(n).visibility !== 'hidden');
+        }
+        if (!document.querySelector('[data-startup]')) {
+          window.initialTracksAnimated = [...document.querySelectorAll('[data-track-header]')].every(n => n.getAnimations().length > 0);
+          const headers = [...document.querySelectorAll('[data-track-header]')];
+          const lanes = [...document.querySelectorAll('[data-lane]')];
+          window.initialTracksStaggered = headers.length > 1 && headers.every((node, index) => {
+            const timing = node.getAnimations()[0]?.effect.getTiming();
+            const laneTiming = lanes[index]?.getAnimations()[0]?.effect.getTiming();
+            return timing?.fill === 'backwards' && timing.delay === laneTiming?.delay &&
+              (index === 0 || timing.delay > headers[index - 1].getAnimations()[0].effect.getTiming().delay);
+          });
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body,{childList:true,subtree:true});
+    })()`);
     writeFileSync(
       "artifacts/screenshots/startup-overlay.png",
       (await w.webContents.capturePage()).toPNG(),
@@ -321,7 +366,13 @@ app
       )
     )
       throw new Error("Startup overlay did not release the app");
-    console.log("Startup overlay and transition verified");
+    if (
+      !(await w.webContents.executeJavaScript(
+        `window.initialTracksAnimated && window.initialTracksStaggered && !window.startupTracksFlashed`,
+      ))
+    )
+      throw new Error("Initial track entrance was hidden behind startup");
+    console.log("Startup overlay and track entrance verified");
     app.quit();
   })
   .catch((e) => {

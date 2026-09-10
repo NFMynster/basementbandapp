@@ -927,6 +927,101 @@ function verifyDesktop(win, request) {
         `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='MIDI').click()`,
       );
       await new Promise((r) => setTimeout(r, 80));
+      win.showInactive();
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.timeline-scroll').scrollLeft=0; document.querySelector('.piano-scroll').scrollLeft=0`,
+      );
+      await new Promise((r) => setTimeout(r, 120));
+      await win.webContents.capturePage();
+      // Shared drag previews should move both playheads before committing a seek.
+      const mainPoint = await win.webContents.executeJavaScript(
+        `(() => { const r=document.querySelector('.playhead > span').getBoundingClientRect(); return {x:Math.round(r.left+r.width/2+3), y:Math.round(r.top+4)}; })()`,
+      );
+      const midiBefore = await win.webContents.executeJavaScript(
+        `parseFloat(document.querySelector('.midi-playhead').style.left)`,
+      );
+      win.webContents.sendInputEvent({ type: "mouseMove", ...mainPoint });
+      win.webContents.sendInputEvent({
+        type: "mouseDown",
+        ...mainPoint,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      win.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: mainPoint.x + 40,
+        y: mainPoint.y,
+        modifiers: ["leftButtonDown"],
+        button: "left",
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      await win.webContents.capturePage();
+      if (
+        (await win.webContents.executeJavaScript(
+          `parseFloat(document.querySelector('.midi-playhead').style.left)`,
+        )) <= midiBefore
+      )
+        throw new Error(
+          "Main drag did not preview in MIDI editor: " +
+            JSON.stringify(
+              await win.webContents.executeJavaScript(
+                `({point:${JSON.stringify(mainPoint)}, hit:document.elementFromPoint(${mainPoint.x},${mainPoint.y})?.outerHTML, main:document.querySelector('.playhead').style.cssText})`,
+              ),
+            ),
+        );
+      win.webContents.sendInputEvent({
+        type: "mouseUp",
+        x: mainPoint.x + 40,
+        y: mainPoint.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 80));
+      const midiPoint = await win.webContents.executeJavaScript(
+        `(() => {const r=document.querySelector('.midi-playhead').getBoundingClientRect(), p=document.querySelector('.piano-scroll').getBoundingClientRect(); return {x:Math.round(r.left),y:Math.round(p.top+40)};})()`,
+      );
+      const mainBefore = await win.webContents.executeJavaScript(
+        `parseFloat(document.querySelector('.playhead').style.left)`,
+      );
+      win.webContents.sendInputEvent({ type: "mouseMove", ...midiPoint });
+      win.webContents.sendInputEvent({
+        type: "mouseDown",
+        ...midiPoint,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      win.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: midiPoint.x + 80,
+        y: midiPoint.y,
+        modifiers: ["leftButtonDown"],
+        button: "left",
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      await win.webContents.capturePage();
+      if (
+        (await win.webContents.executeJavaScript(
+          `parseFloat(document.querySelector('.playhead').style.left)`,
+        )) <= mainBefore
+      )
+        throw new Error(
+          "MIDI playhead drag did not preview on timeline: " +
+            JSON.stringify(
+              await win.webContents.executeJavaScript(
+                `({before:${mainBefore}, point:${JSON.stringify(midiPoint)}, after:document.querySelector('.playhead').style.left, head:document.querySelector('.midi-playhead').style.cssText, hit:document.elementFromPoint(${midiPoint.x},${midiPoint.y})?.outerHTML.slice(0,200), ruler:document.querySelector('.note-ruler').getAttribute('aria-valuenow')})`,
+              ),
+            ),
+        );
+      win.webContents.sendInputEvent({
+        type: "mouseUp",
+        x: midiPoint.x + 80,
+        y: midiPoint.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await new Promise((r) => setTimeout(r, 80));
       const editorHeight = await win.webContents.executeJavaScript(
         `document.querySelector('.piano-scroll').clientHeight`,
       );
@@ -1132,6 +1227,54 @@ function verifyDesktop(win, request) {
         throw new Error("Diagnostics should not contain export settings");
       console.log(
         "Built-in effects and audio diagnostics verified through UI-to-engine commands.",
+      );
+      await win.webContents.executeJavaScript(
+        `document.querySelector('.audio-diagnostics .modal-close').click()`,
+      );
+      const orderBefore = (await request({ op: "state" })).tracks.map(
+        (t) => t.id,
+      );
+      await win.webContents.executeJavaScript(
+        `(() => {const headers=document.querySelectorAll('[data-track-header]'), dt=new DataTransfer();dt.setData('application/x-basement-track',headers[headers.length-1].dataset.trackHeader);headers[0].dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()`,
+      );
+      await new Promise((r) => setTimeout(r, 250));
+      if ((await request({ op: "state" })).tracks[0].id !== orderBefore.at(-1))
+        throw new Error("Track drop did not reorder");
+      const openTrackMenu = async () => {
+        await win.webContents.executeJavaScript(
+          `document.querySelector('[data-track-header]').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:100,clientY:250}))`,
+        );
+        await new Promise((r) => setTimeout(r, 80));
+      };
+      await openTrackMenu();
+      await win.webContents.executeJavaScript(
+        `[...document.querySelectorAll('[role="menuitem"]')].find(b=>b.textContent.trim()==='Delete track').click()`,
+      );
+      await new Promise((r) => setTimeout(r, 80));
+      if (
+        !(await win.webContents.executeJavaScript(
+          `document.querySelector('.confirmation-dialog').textContent.includes('Shift')`,
+        ))
+      )
+        throw new Error("Missing shift-delete hint");
+      await win.webContents.executeJavaScript(
+        `[...document.querySelectorAll('.confirmation-dialog button')].find(b=>b.textContent==='Cancel').click()`,
+      );
+      await openTrackMenu();
+      await win.webContents.executeJavaScript(
+        `[...document.querySelectorAll('[role="menuitem"]')].find(b=>b.textContent.trim()==='Delete track').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}))`,
+      );
+      await new Promise((r) => setTimeout(r, 250));
+      if (
+        (await request({ op: "state" })).tracks.length !==
+          orderBefore.length - 1 ||
+        (await win.webContents.executeJavaScript(
+          `!!document.querySelector('.confirmation-dialog')`,
+        ))
+      )
+        throw new Error("Shift-delete did not bypass confirmation");
+      console.log(
+        "Shared playhead drags, track reordering and Shift-delete verified",
       );
       win.destroy();
       app.quit();

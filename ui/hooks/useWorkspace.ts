@@ -88,6 +88,7 @@ export function useWorkspace() {
   const clipboard = useRef<{ track: string; clip: string } | null>(null);
   const previousTracks = useRef<string[] | null>(null);
   const [trackPing, setTrackPing] = useState("");
+  const [projectRevision, setProjectRevision] = useState(0);
   const [starting, setStarting] = useState(true);
   const [propertiesPing, setPropertiesPing] = useState(0);
   const rulerRevision = useRef(0);
@@ -339,6 +340,7 @@ export function useWorkspace() {
     const result = await withBusy(fn);
     if (result) {
       accept(result);
+      if (saved && "tracks" in result) setProjectRevision((v) => v + 1);
       setDirty(!saved);
       if (saved)
         setNotice(
@@ -666,6 +668,7 @@ export function useWorkspace() {
     ...layout,
     soundBrowser,
     setSoundBrowser,
+    projectRevision,
     confirmation,
     confirmAction,
     finishConfirmation,

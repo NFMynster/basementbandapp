@@ -103,6 +103,7 @@ function editDescription(command) {
   }
   if (GLOBAL_EDITS[command.op])
     return `change ${command.op === "master" ? "output volume" : command.op}`;
+  if (command.op === "reorderTrack") return "reorder tracks";
   if (command.op === "removeTrack") return "delete track";
   if (command.op === "removeClip") return "delete region";
   return (
@@ -136,6 +137,7 @@ function isUndoable(command) {
       "removePlugin",
       "bypass",
       "reorderEffect",
+      "reorderTrack",
       "preset",
     ].includes(command.op) ||
     command.op === "removeTrack" ||
@@ -194,6 +196,15 @@ function applyHistoryEntry(current, entry, direction) {
       if (next[key] === undefined) delete live[key];
       else live[key] = structuredClone(next[key]);
     }
+  }
+  if (entry.trackOrder) {
+    const order = destination.tracks.map((t) => t.id);
+    const sorted = order
+      .map((id) => target.tracks.find((t) => t.id === id))
+      .filter(Boolean);
+    target.tracks = target.tracks.map((t) =>
+      order.includes(t.id) ? sorted.shift() : t,
+    );
   }
   return target;
 }

@@ -136,15 +136,22 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
         const int skip = (int)jmin((int64)n, t->captureSkip);
         t->captureSkip -= skip;
         const float *p[] = {inputs[t->input] + skip};
-        if (n > skip) {
-          const auto count = t->recordingPeakCount.load(std::memory_order_relaxed);
-          if (count < (int)t->recordingPeaks.size()) {
-            const auto captured =
-                FloatVectorOperations::findMinAndMax(inputs[t->input] + skip, n - skip);
-            t->recordingPeaks[(size_t)count] =
-                jmax(std::abs(captured.getStart()), std::abs(captured.getEnd()));
-            t->recordingPeakCount.store(count + 1, std::memory_order_release);
+        for (int at = skip; at < n;) {
+          const int count = jmin(n - at, t->recordingPeakInterval - t->recordingPeakFrames);
+          const auto range = FloatVectorOperations::findMinAndMax(inputs[t->input] + at, count);
+          t->recordingPeakValue = jmax(t->recordingPeakValue, jmax(std::abs(range.getStart()), std::abs(range.getEnd())));
+          t->recordingPeakFrames += count;
+          at += count;
+          if (t->recordingPeakFrames == t->recordingPeakInterval) {
+            const auto index = t->recordingPeakCount.load(std::memory_order_relaxed);
+            if (index < (int)t->recordingPeaks.size()) {
+              t->recordingPeaks[(size_t)index] = t->recordingPeakValue;
+              t->recordingPeakCount.store(index + 1, std::memory_order_release);
+            }
+            t->recordingPeakFrames = 0;
+            t->recordingPeakValue = 0;
           }
+          t->recordingPartialPeak = t->recordingPeakValue;
         }
         if (n > skip && !t->writer->write(p, n - skip)) {
           diskOverrun = true;

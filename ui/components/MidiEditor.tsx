@@ -82,7 +82,7 @@ export function MidiEditor({
   const playhead = useAnimatedPlayhead(
     w.s,
     px,
-    null,
+    w.dragPosition,
     clip?.start ?? 0,
     clip?.duration ?? 0,
     60,
@@ -90,6 +90,55 @@ export function MidiEditor({
   const unavailable = w.s.recording || w.busy;
   const disabled = pending || unavailable;
   const quantize = (v: number) => (snap ? Math.round(v / step) * step : v);
+  const seekDrag = useRef<number | null>(null);
+  function seekAt(clientX: number) {
+    const left =
+      scroll.current?.querySelector(".piano-grid")?.getBoundingClientRect()
+        .left ?? 0;
+    return (
+      (clip?.start ?? 0) +
+      Math.max(
+        0,
+        Math.min(clip?.duration ?? 0, quantize((clientX - left - 60) / px)),
+      )
+    );
+  }
+  function beginSeek(e: React.PointerEvent<HTMLDivElement>) {
+    e.stopPropagation();
+    if (e.button !== 0 || unavailable || !clip) return;
+    e.preventDefault();
+    e.currentTarget.focus();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    seekDrag.current = seekAt(e.clientX);
+    w.setDragPosition(seekDrag.current);
+  }
+  function moveSeek(e: React.PointerEvent<HTMLDivElement>) {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    e.stopPropagation();
+    seekDrag.current = seekAt(e.clientX);
+    w.setDragPosition(seekDrag.current);
+  }
+  function endSeek(e: React.PointerEvent<HTMLDivElement>) {
+    if (seekDrag.current === null) return;
+    e.stopPropagation();
+    const position = seekAt(e.clientX);
+    seekDrag.current = null;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    void w
+      .run({ op: "seek", position }, false)
+      .finally(() => w.setDragPosition(null));
+  }
+  function cancelSeek() {
+    if (seekDrag.current === null) return;
+    seekDrag.current = null;
+    w.setDragPosition(null);
+  }
+  useEffect(
+    () => () => {
+      if (seekDrag.current !== null) w.setDragPosition(null);
+    },
+    [clip?.id],
+  );
   useEffect(() => {
     if (scroll.current)
       scroll.current.scrollTop = Math.max(
@@ -546,26 +595,13 @@ export function MidiEditor({
                 Math.min(clip.duration, w.s.position - clip.start),
               )}
               aria-disabled={unavailable}
-              title="Click to move the playhead"
+              title="Click or drag to move the playhead"
               onDoubleClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                if (e.button !== 0 || unavailable) return;
-                e.currentTarget.focus();
-                const time = Math.max(
-                  0,
-                  Math.min(
-                    clip.duration,
-                    quantize(
-                      (e.clientX -
-                        e.currentTarget.getBoundingClientRect().left -
-                        60) /
-                        px,
-                    ),
-                  ),
-                );
-                void w.run({ op: "seek", position: clip.start + time }, false);
-              }}
+              onPointerDown={beginSeek}
+              onPointerMove={moveSeek}
+              onPointerUp={endSeek}
+              onPointerCancel={cancelSeek}
+              onLostPointerCapture={cancelSeek}
               onKeyDown={(e) => {
                 if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
                   return;
@@ -616,7 +652,17 @@ export function MidiEditor({
                 <span>{name(high - i)}</span>
               </div>
             ))}
-            <div ref={playhead} className="midi-playhead" aria-hidden="true" />
+            <div
+              ref={playhead}
+              className="midi-playhead"
+              onDoubleClick={(e) => e.stopPropagation()}
+              aria-hidden="true"
+              onPointerDown={beginSeek}
+              onPointerMove={moveSeek}
+              onPointerUp={endSeek}
+              onPointerCancel={cancelSeek}
+              onLostPointerCapture={cancelSeek}
+            />
             {notes.map((n) => {
               const current = preview?.find((p) => p.event === n.event) ?? n;
               return (

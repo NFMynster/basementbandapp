@@ -108,6 +108,9 @@ struct Track {
   };
   std::vector<RecordedEvent> midiTake;
   std::vector<float> recordingPeaks;
+  int recordingPeakFrames = 0, recordingPeakInterval = 1;
+  float recordingPeakValue = 0;
+  std::atomic<float> recordingPartialPeak{0};
   std::atomic<int> recordingPeakCount{0};
   std::array<RecordingPreviewNote, 2048> recordingPreviewNotes{};
   std::atomic<int> recordingPreviewNoteCount{0};

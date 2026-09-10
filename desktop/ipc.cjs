@@ -11,6 +11,7 @@ const COMMANDS = new Set([
   "track",
   "addTrack",
   "removeTrack",
+  "reorderTrack",
   "play",
   "stop",
   "record",

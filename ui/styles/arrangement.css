@@ -319,3 +319,28 @@
   fill: #f5a4ac;
   opacity: 0.9;
 }
+
+.track-reorder {
+  position: absolute;
+  left: 1px;
+  bottom: 6px;
+  padding: 2px;
+  opacity: 0;
+  cursor: grab;
+}
+.track-header:hover .track-reorder,
+.track-reorder:focus-visible {
+  opacity: 0.7;
+}
+.track-header.reorder-target {
+  box-shadow: inset 0 2px #b0c4a7;
+}
+
+.recording-preview.audio {
+  left: 0;
+  right: 0;
+}
+
+.track-header.reorder-target.reorder-after {
+  box-shadow: inset 0 -2px #b0c4a7;
+}

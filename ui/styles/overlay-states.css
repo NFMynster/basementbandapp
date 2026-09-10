@@ -143,13 +143,30 @@
   text-align: center;
   opacity: 0;
   animation: none;
-  transition: opacity 240ms ease;
+  transition:
+    opacity 360ms ease-in-out,
+    backdrop-filter 360ms ease-in-out;
+}
+.app.startup-pending {
+  opacity: 0;
+}
+.app.startup-pending,
+.app.startup-revealing {
+  transition: opacity 360ms ease-in-out;
+}
+.app.startup-pending.startup-revealing {
+  opacity: 1;
+}
+.startup-pending [data-track-header],
+.startup-pending [data-lane] {
+  visibility: hidden;
 }
 .startup-overlay.entered {
   opacity: 1;
 }
 .startup-overlay.leaving {
   opacity: 0;
+  backdrop-filter: blur(0);
 }
 .startup-content {
   display: flex;
@@ -181,6 +198,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .startup-overlay,
+  .app.startup-pending,
+  .app.startup-revealing,
   .startup-content {
     transition: none;
     transform: none;
