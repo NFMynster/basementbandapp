@@ -20,11 +20,13 @@
     <ClCompile Include="native\AudioCallback.cpp" />
     <None Include="native\CMakeLists.txt" />
     <None Include="native\PatchWasapi.cmake" />
+    <None Include="native\PatchCoreAudio.cmake" />
     <ClCompile Include="native\Commands.cpp" />
     <ClCompile Include="native\DeviceCommands.cpp" />
     <ClCompile Include="native\Editing.cpp" />
     <ClCompile Include="native\Engine.cpp" />
     <ClInclude Include="native\Engine.h" />
+    <ClInclude Include="native\CoreAudioAggregate.h" />
     <ClCompile Include="native\Export.cpp" />
     <None Include="native\Info.plist" />
     <ClInclude Include="native\Json.h" />
