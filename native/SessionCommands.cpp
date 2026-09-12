@@ -31,7 +31,7 @@ void Engine::restoreSession(const var &c) {
   stop();
   { const ScopedLock lock(guard); tunerTrack.clear(); }
   auto session = c["session"];
-  const auto clickGain = number(session, "metronomeGain", 1);
+  const auto clickGain = number(session, "metronomeGain");
   require(std::isfinite(clickGain) && clickGain >= 0 && clickGain <= 4, "Invalid metronome volume");
   const bool preserve = flag(c, "preservePlugins");
   auto replacePlugins = [&](const String &id) {
@@ -60,7 +60,7 @@ void Engine::restoreSession(const var &c) {
     t->pan = (float)number(v, "pan");
     t->sound.prepare(rate, jmax(block, 8192));
     t->sound.update(v);
-    t->eqEnabled = !v.hasProperty("eqEnabled") || flag(v, "eqEnabled");
+    t->eqEnabled = flag(v, "eqEnabled");
     t->eqBass = (float)jlimit(-12.0, 12.0, number(v, "eqBass"));
     t->eqMid = (float)jlimit(-12.0, 12.0, number(v, "eqMid"));
     t->eqTreble = (float)jlimit(-12.0, 12.0, number(v, "eqTreble"));
@@ -79,7 +79,7 @@ void Engine::restoreSession(const var &c) {
       clip->name = str(cv, "name");
       clip->start = number(cv, "start");
       clip->id = str(cv, "id");
-      clip->gain = (float)number(cv, "gain", 1);
+      clip->gain = (float)number(cv, "gain");
       clip->fadeIn = number(cv, "fadeIn");
       clip->fadeOut = number(cv, "fadeOut");
       clip->offset = number(cv, "offset");
@@ -142,7 +142,7 @@ void Engine::restoreSession(const var &c) {
   position = 0;
   tempo = number(session, "tempo");
   masterGain = (float)number(session, "masterGain");
-  limiterEnabled = flag(session, "limiterEnabled", false);
+  limiterEnabled = flag(session, "limiterEnabled");
   outputClipped = false;
   loopStart = number(session, "loopStart");
   loopEnd = number(session, "loopEnd");
@@ -151,5 +151,29 @@ void Engine::restoreSession(const var &c) {
   metronomeGain = (float)clickGain;
   countIn = flag(session, "countIn");
   preparePlayback(position, looping);
+}
+var Engine::handleSessionCommand(const var &c) {
+  const auto op = str(c, "op");
+  if (op == "state") {
+    for (auto &t : tracks)
+      if (t->latency != t->pluginLatency()) {
+        const ScopedLock lock(guard);
+        prepareTrack(*t, position, looping);
+      }
+    return state();
+  }
+  if (op == "snapshot") {
+    require(!recording, "Stop recording before saving");
+    return state(true, !flag(c, "metadataOnly"));
+  }
+  if (op == "init" || op == "new") {
+    resetSession(c);
+  } else if (op == "restore") {
+    restoreSession(c);
+  } else if (op == "rename") {
+    title = str(c, "title").substring(0, 100);
+  } else throw std::runtime_error("Unknown session command");
+  syncAudioInput();
+  return state();
 }
 } // namespace basement

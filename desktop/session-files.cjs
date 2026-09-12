@@ -45,7 +45,7 @@ function validate(session) {
   };
   assertValid(session && typeof session === "object", "Invalid session");
   assertValid(
-    session.version === 3 || session.version === CURRENT_SESSION_VERSION,
+    session.version === CURRENT_SESSION_VERSION,
     "Unsupported session version",
   );
   for (const key of ["countIn", "metronome"])
@@ -53,12 +53,11 @@ function validate(session) {
   text(session.title, 100);
   number(session.tempo, 40, 240);
   number(session.masterGain, 0, 2);
-  if (session.metronomeGain !== undefined) number(session.metronomeGain, 0, 4);
-  if (session.limiterEnabled !== undefined)
-    assertValid(
-      typeof session.limiterEnabled === "boolean",
-      "Invalid output protection switch",
-    );
+  number(session.metronomeGain, 0, 4);
+  assertValid(
+    typeof session.limiterEnabled === "boolean",
+    "Invalid output protection switch",
+  );
   number(session.loopStart, 0, Number.MAX_VALUE);
   number(session.loopEnd, session.loopStart, Number.MAX_VALUE);
   assertValid(
@@ -84,7 +83,7 @@ function validate(session) {
     number(track.gain, 0, 1.5);
     number(track.pan, -1, 1);
     for (const key of ["eqBass", "eqMid", "eqTreble"])
-      if (track[key] !== undefined) number(track[key], -12, 12);
+      number(track[key], -12, 12);
     for (const key of [
       "compressorAmount",
       "reverbAmount",
@@ -92,39 +91,29 @@ function validate(session) {
       "reverbDamping",
       "reverbWidth",
     ])
-      if (track[key] !== undefined) number(track[key], 0, 1);
-    if (track.compressorAttack !== undefined)
-      number(track.compressorAttack, 1, 100);
-    if (track.compressorRelease !== undefined)
-      number(track.compressorRelease, 20, 1000);
-    if (track.gateThreshold !== undefined)
-      number(track.gateThreshold, -80, -10);
+      number(track[key], 0, 1);
+    number(track.compressorAttack, 1, 100);
+    number(track.compressorRelease, 20, 1000);
+    number(track.gateThreshold, -80, -10);
     for (const key of ["compressorEnabled", "reverbEnabled", "gateEnabled"])
-      if (track[key] !== undefined)
-        assertValid(typeof track[key] === "boolean", "Invalid effect switch");
-    if (track.eqEnabled !== undefined)
-      assertValid(typeof track.eqEnabled === "boolean", "Invalid EQ switch");
+      assertValid(typeof track[key] === "boolean", "Invalid effect switch");
+    assertValid(typeof track.eqEnabled === "boolean", "Invalid EQ switch");
     for (const key of ["armed", "mute", "solo", "bypass"])
       assertValid(typeof track[key] === "boolean", "Invalid track switch");
     text(track.midiDevice, 4096);
     number(track.midiChannel, 0, 16);
     assertValid(Number.isInteger(track.midiChannel), "Invalid MIDI channel");
     assertValid(Array.isArray(track.clips), "Invalid regions");
-    if (track.effects !== undefined) {
-      assertValid(
-        Array.isArray(track.effects) && track.effects.length <= 16,
-        "Invalid effect chain",
-      );
-      for (const effect of track.effects) {
-        id(effect.id);
-        text(effect.path, 32768);
-        text(effect.name, 1024);
-        assertValid(
-          typeof effect.bypass === "boolean",
-          "Invalid effect bypass",
-        );
-        if (effect.state !== undefined) text(effect.state, 64 * 1024 * 1024);
-      }
+    assertValid(
+      Array.isArray(track.effects) && track.effects.length <= 16,
+      "Invalid effect chain",
+    );
+    for (const effect of track.effects) {
+      id(effect.id);
+      text(effect.path, 32768);
+      text(effect.name, 1024);
+      assertValid(typeof effect.bypass === "boolean", "Invalid effect bypass");
+      if (effect.state !== undefined) text(effect.state, 64 * 1024 * 1024);
     }
     for (const clip of track.clips) {
       id(clip.id);
@@ -133,9 +122,8 @@ function validate(session) {
       assertValid(["audio", "midi"].includes(clip.kind), "Invalid region kind");
       assertValid(clip.kind === track.kind, "Region type does not match track");
       number(clip.start, 0, Number.MAX_VALUE);
-      if (clip.gain !== undefined) number(clip.gain, 0, 4);
-      for (const key of ["fadeIn", "fadeOut"])
-        if (clip[key] !== undefined) number(clip[key], 0, 1200);
+      number(clip.gain, 0, 4);
+      for (const key of ["fadeIn", "fadeOut"]) number(clip[key], 0, 1200);
       number(clip.offset, 0, 1200);
       number(clip.sourceStart, 0, 1200);
       number(clip.sourceEnd, clip.sourceStart, 1200);

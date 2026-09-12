@@ -34,5 +34,10 @@
     <ClCompile Include="native\SessionCommands.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\TestGain.cpp"><Filter>Test plug-ins</Filter></ClCompile>
     <ClCompile Include="native\TestInstrument.cpp"><Filter>Test plug-ins</Filter></ClCompile>
+    <ClCompile Include="native\PluginCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\RegionCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\TestCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\TrackCommands.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\TransportCommands.cpp"><Filter>Engine</Filter></ClCompile>
   </ItemGroup>
 </Project>

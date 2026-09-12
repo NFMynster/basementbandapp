@@ -12,7 +12,28 @@ FetchContent_Declare(signalsmith-linear GIT_REPOSITORY https://github.com/Signal
 FetchContent_Declare(signalsmith-stretch GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git GIT_TAG 57b93f4e9206a089a45387eaa39bdc9f310d3308)
 FetchContent_MakeAvailable(signalsmith-linear signalsmith-stretch)
 juce_add_console_app(BasementAudio PRODUCT_NAME "Basement Audio")
-target_sources(BasementAudio PRIVATE Main.cpp Engine.cpp AudioCallback.cpp Rendering.cpp Midi.cpp Latency.cpp Editing.cpp Export.cpp Recording.cpp PluginHost.cpp DeviceCommands.cpp SessionCommands.cpp Commands.cpp SoundProcessing.cpp MidiExport.cpp)
+target_sources(BasementAudio PRIVATE
+    Main.cpp
+    Engine.cpp
+    AudioCallback.cpp
+    Rendering.cpp
+    Midi.cpp
+    Latency.cpp
+    Editing.cpp
+    Export.cpp
+    Recording.cpp
+    PluginHost.cpp
+    DeviceCommands.cpp
+    SessionCommands.cpp
+    Commands.cpp
+    TrackCommands.cpp
+    PluginCommands.cpp
+    TransportCommands.cpp
+    RegionCommands.cpp
+    TestCommands.cpp
+    SoundProcessing.cpp
+    MidiExport.cpp
+)
 target_compile_features(BasementAudio PRIVATE cxx_std_20)
 if(APPLE)
     enable_language(OBJCXX)

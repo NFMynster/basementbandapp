@@ -1,28 +1,58 @@
 # Working on Basement Band
 
-The desktop is React/Electron plus a separate C++/JUCE audio process. C# has been removed.
+The desktop is React/Electron plus a separate C++/JUCE audio process.
 
-| Area             | Owns                                                           | Entry points                                           |
-| ---------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
-| Renderer         | Presentation, selection, interaction, preferences              | ui/App.tsx, ui/hooks/, ui/components/                  |
-| Contract         | Typed commands and limited preload API                         | ui/models.ts, desktop/preload.cjs                      |
-| Desktop shell    | Windows, dialogs, sender validation, file drops                | desktop/main.cjs, desktop/ipc.cjs                      |
-| Session service  | Serialized commands, recovery, portable saves, working folders | desktop/session-service.cjs, desktop/session-files.cjs |
-| Session history  | Undo policy and immutable application of history entries       | desktop/session-history.cjs                            |
-| Native transport | Serialized pipe requests, framing, failure quarantine          | desktop/native-client.cjs, desktop/backend.cjs         |
-| JUCE engine      | Devices, MIDI/audio capture, processing and rendering          | native/Engine.h and focused .cpp files                 |
+| Area             | Owns                                                     | Entry points                                           |
+| ---------------- | -------------------------------------------------------- | ------------------------------------------------------ |
+| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                  |
+| Contract         | Typed commands and limited preload API                   | ui/models.ts, desktop/preload.cjs                      |
+| Desktop shell    | Windows, dialogs, sender validation, file drops          | desktop/main.cjs, desktop/ipc.cjs                      |
+| Session service  | Serialized commands, recovery, working folders           | desktop/session-service.cjs                            |
+| Session storage  | Portable projects, validation and atomic writes          | desktop/session-storage.cjs, desktop/session-files.cjs |
+| Session history  | Undo policy and immutable application of history entries | desktop/session-history.cjs                            |
+| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/native-client.cjs, desktop/backend.cjs         |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                 |
 
 ## Extending behavior
 
 1. Extend the typed contract in ui/models.ts.
 2. Allow the command in desktop/ipc.cjs or use a dedicated validated handler for paths. Renderer code must not gain arbitrary filesystem or process access.
-3. Put filesystem/session behavior in the Electron session service; put audio behavior in a focused native file.
+3. Put portable file operations in session-storage.cjs and ordering/history in SessionService. Route audio commands to their native domain handler.
 4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
 5. Add deterministic integration tests and UI checks.
 
 ## Renderer coordination
 
 `useWorkspace` coordinates selection, commands, polling and workspace actions. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
+
+TrackInspector owns the panel shell and tabs; TrackRecordingPanel owns recording controls and pan gestures; TrackPluginsPanel owns the plug-in chain and drag ordering.
+
+The renderer uses ordinary React hooks for behavior and components for rendering:
+
+| Change                                                       | Start here                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Arrangement ruler seeking and loop selection                 | ui/hooks/useRulerGesture.ts                                          |
+| Export preferences, MIDI choice and export focus restoration | ui/hooks/useExport.ts                                                |
+| MIDI note selection, editing, clipboard and audition         | ui/hooks/useMidiEditor.ts                                            |
+| MIDI scrolling, zoom, pitch range and playhead gestures      | ui/hooks/useMidiViewport.ts                                          |
+| Selection movement and resizing bounds                       | ui/services/midi-note-edits.ts                                       |
+| MIDI toolbar or piano-roll appearance                        | ui/components/MidiEditorToolbar.tsx, ui/components/MidiPianoRoll.tsx |
+
+MidiEditor composes these pieces. Editing actions stay in the hook; the toolbar does not manage pending engine requests. Pure note transformations preserve relative timing and pitch intervals and have direct tests. Track/region changes remount the editor via its key in TrackInspector, resetting selection and cancelling an unfinished seek preview.
+
+## Native command routing
+
+Engine::command in native/Commands.cpp routes operations to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. To add an operation, add its route and implementation in the appropriate domain, then extend the renderer contract and IPC allowlist.
+
+Engine retains ownership of processors, devices and shared audio state. Handlers run on the message thread. Callback-visible mutations retain their existing guard scopes; those locks are released before syncAudioInput can restart a device. Test commands remain restricted to the test device. Splitting command files does not add another thread or queue.
+
+## Session storage and desktop checks
+
+SessionService owns the command queue, working folder, undo/redo and recovery ordering. desktop/session-storage.cjs only reads and writes portable projects: saveSession copies media and atomically replaces the document without mutating the supplied snapshot; readSession validates fields and resolves media before engine restore. The service adopts the new working folder only after restore succeeds. desktop/session-files.cjs owns validation and atomic JSON writing.
+
+The desktop smoke entry point owns one Electron lifecycle and invokes named workflows in desktop/smoke/. Workflows are intentionally sequential; explicit return values carry any shared fixtures. Extend the relevant workflow for a UI change and register new workflows in desktop/smoke.cjs. The entry point alone owns app shutdown and failure exit status.
+
+Session documents require CURRENT_SESSION_VERSION and all persisted sound fields. Optional plug-in state remains valid for snapshots that intentionally omit processor state. Keep driver fallbacks: they support current audio devices.
 
 ## Protocol and lifecycle
 
@@ -52,9 +82,9 @@ Waveforms and MIDI note previews are derived rather than saved. Removing a regio
 
 ## Built-in sound and diagnostics
 
-`TrackSound` in `SoundProcessing.h/.cpp` owns compressor, room reverb and noise gate settings and DSP. Processors and wet buffers are prepared outside the audio callback. The audio gate runs before plug-ins, then EQ, compressor and reverb complete the track chain. Captured source audio is always dry. Settings participate in snapshots, undo, recovery and track presets; older sessions default to bypassed effects.
+`TrackSound` in `SoundProcessing.h/.cpp` owns compressor, room reverb and noise gate settings and DSP. Processors and wet buffers are prepared outside the audio callback. The audio gate runs before plug-ins, then EQ, compressor and reverb complete the track chain. Captured source audio is always dry. Settings participate in snapshots, undo, recovery and track presets.
 
-`OutputProtection` applies stereo-linked sample-peak limiting with immediate gain reduction, an 80 ms release and no lookahead or makeup gain. It is shared by playback and audio exports, enabled in new sessions and bypassed when opening older sessions without the field. It does not provide true-peak/inter-sample protection. Audio status reports driver latency plus selected-track plug-in latency, device underruns (when supported), missed processing blocks and recording buffer overruns. Expected export silence is excluded from processing-dropout counts. Diagnostics are runtime readings, not saved session settings.
+`OutputProtection` applies stereo-linked sample-peak limiting with immediate gain reduction, an 80 ms release and no lookahead or makeup gain. It is shared by playback and audio exports, enabled in new sessions. It does not provide true-peak/inter-sample protection. Audio status reports driver latency plus selected-track plug-in latency, device underruns (when supported), missed processing blocks and recording buffer overruns. Expected export silence is excluded from processing-dropout counts. Diagnostics are runtime readings, not saved session settings.
 
 ## Export
 

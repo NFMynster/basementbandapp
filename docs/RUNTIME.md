@@ -45,7 +45,7 @@ No external MIDI device is required to load/audition a plug-in using its editor.
 
 ## Plugins
 
-The default picker accepts VST3 files; “Choose a bundle folder” and drag-and-drop also handle directory bundles. Use plugins matching the native engine architecture. The provided Windows MT-PowerDrumKit 2.1.5.1 64-bit VST3 was successfully loaded by the JUCE test host; the old folder-only picker was inappropriate for that single-file plugin.
+The default picker accepts VST3 files; “Choose a bundle folder” and drag-and-drop also handle directory bundles. Use plugins matching the native engine architecture.
 
 A MIDI track supports one stereo-compatible instrument followed by up to 16 audio effects. Audio tracks support a primary effect plus up to 16 additional effects. Effects run in the displayed order, with separate editor, bypass and remove controls. Use Add VST3 effect to append; dropping onto a track with a primary plug-in also appends. Stop playback to change the effect chain. Combined active processor latency is limited to ten seconds and compensated during playback/export. Plug-ins run inside the audio process; a faulty plug-in can stop that process, while completed recordings remain on disk.
 
@@ -53,7 +53,7 @@ A MIDI track supports one stereo-compatible instrument followed by up to 16 audi
 
 On Windows, startup explicitly requests the system's default multimedia input and output through JUCE's Windows Audio driver. Manual selections still apply for the current run; devices are not switched underneath an active recording. The VST3 picker starts in `/Library/Audio/Plug-Ins/VST3` on macOS and the user's home folder elsewhere.
 
-Master volume defaults to unity at the slider midpoint, with up to 2× gain above it. New sessions enable Protect output peaks: stereo-linked limiting keeps sample peaks below full scale without lookahead delay. The Audio status panel and Settings > Export expose its switch. Older sessions without this setting retain the previous bypassed behavior. A final clamp remains when protection is off; excessive boost can distort. Short loop regions also expose their takes in the arrangement toolbar when selected and in their context menu, independent of zoom.
+Master volume defaults to unity at the slider midpoint, with up to 2× gain above it. New sessions enable Protect output peaks: stereo-linked limiting keeps sample peaks below full scale without lookahead delay. The Audio status panel and Settings > Export expose its switch. A final clamp remains when protection is off; excessive boost can distort. Short loop regions also expose their takes in the arrangement toolbar when selected and in their context menu, independent of zoom.
 
 Status JSON is built outside the audio lock, except for a short timing snapshot and plug-in state capture when saving. Seeking intentionally suspends transport while processors are reset/primed and then resumes; this reset is not reported as a recording dropout. Unexpected callback lock failures during transport and recording-writer/MIDI overflow still raise warnings. This reduces known contention but does not guarantee dropout-free performance with every driver or plug-in.
 

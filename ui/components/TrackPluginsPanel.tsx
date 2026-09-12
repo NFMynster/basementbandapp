@@ -1,0 +1,285 @@
+import { useRef } from "react";
+import { ArrowLeft, ArrowRight, Plus, Power, Trash2 } from "lucide-react";
+import type { WorkspaceController } from "../hooks/useWorkspace";
+import type { Track } from "../models";
+export function TrackPluginsPanel({
+  controller,
+  track,
+}: {
+  controller: WorkspaceController;
+  track: Track;
+}) {
+  const { s, run, busy } = controller;
+  const effectDrag = useRef<string | null>(null);
+  return (
+    <div className="plugins-panel">
+      <div className="plugin-toolbar">
+        <h3>Plug-ins</h3>
+        <button
+          disabled={s.playing || busy}
+          onClick={() =>
+            controller.setSoundBrowser({
+              track: track.id,
+              presets: true,
+            })
+          }
+        >
+          Track presets
+        </button>
+      </div>
+      <div className="plugin-details">
+        <div className="plugin-chain" aria-label="Plug-ins in processing order">
+          <div
+            className="plugin-slot"
+            draggable={
+              track.kind === "audio" &&
+              !!track.pluginName &&
+              !s.playing &&
+              !busy
+            }
+            onDragStart={(e) => {
+              effectDrag.current = "primary";
+              e.dataTransfer.setData("text/plain", "primary");
+            }}
+            onDragEnd={() => {
+              effectDrag.current = null;
+            }}
+            onDragOver={(e) => {
+              if (track.kind === "audio" && effectDrag.current) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+            onDrop={(e) => {
+              if (
+                track.kind !== "audio" ||
+                !effectDrag.current ||
+                effectDrag.current === "primary"
+              )
+                return;
+              e.preventDefault();
+              e.stopPropagation();
+              void run({
+                op: "reorderEffect",
+                track: track.id,
+                effect: effectDrag.current,
+                index: -1,
+              });
+              effectDrag.current = null;
+            }}
+          >
+            {track.pluginName ? (
+              <>
+                {track.kind === "audio" && !!track.effects?.length && (
+                  <button
+                    aria-label="Move first effect later"
+                    disabled={s.playing || busy}
+                    onClick={() =>
+                      void run({
+                        op: "reorderEffect",
+                        track: track.id,
+                        effect: "primary",
+                        index: 0,
+                      })
+                    }
+                  >
+                    <ArrowRight size={14} />
+                  </button>
+                )}
+                <button
+                  title="Enable plug-in"
+                  aria-pressed={!track.bypass}
+                  disabled={s.playing || busy}
+                  className={track.bypass ? "" : "on"}
+                  onClick={() =>
+                    run({
+                      op: "bypass",
+                      track: track.id,
+                      value: !track.bypass,
+                    })
+                  }
+                >
+                  <Power size={18} />
+                </button>
+                <div>
+                  <strong>{track.pluginName}</strong>
+                  <small>
+                    {track.bypass
+                      ? "Bypassed"
+                      : track.kind === "midi"
+                        ? "Instrument"
+                        : "Effect"}
+                  </small>
+                </div>
+                <button
+                  onClick={() => run({ op: "editor", track: track.id }, false)}
+                >
+                  Open editor
+                </button>
+                <button
+                  title="Replace plug-in"
+                  disabled={s.playing || busy}
+                  onClick={() =>
+                    controller.setSoundBrowser({ track: track.id })
+                  }
+                >
+                  Replace
+                </button>
+                <button
+                  title="Remove plug-in"
+                  disabled={s.playing || busy}
+                  onClick={() => run({ op: "removePlugin", track: track.id })}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </>
+            ) : (
+              <button
+                disabled={s.playing || busy}
+                onClick={() => controller.setSoundBrowser({ track: track.id })}
+              >
+                <Plus size={20} />
+                <span>
+                  {track.kind === "midi"
+                    ? "Add VST3 instrument"
+                    : "Add VST3 plug-in"}
+                  <small>Choose from your library or drop a VST3 here</small>
+                </span>
+              </button>
+            )}
+          </div>
+          {(track.effects ?? []).map((effect, index) => (
+            <div
+              className="plugin-slot"
+              key={effect.id}
+              draggable={!s.playing && !busy}
+              onDragStart={(e) => {
+                effectDrag.current = effect.id;
+                e.dataTransfer.setData("text/plain", effect.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragEnd={() => {
+                effectDrag.current = null;
+              }}
+              onDragOver={(e) => {
+                if (effectDrag.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              onDrop={(e) => {
+                if (!effectDrag.current) return;
+                e.preventDefault();
+                e.stopPropagation();
+                void run({
+                  op: "reorderEffect",
+                  track: track.id,
+                  effect: effectDrag.current,
+                  index,
+                });
+                effectDrag.current = null;
+              }}
+            >
+              <button
+                aria-label={`Move ${effect.name} earlier`}
+                disabled={
+                  s.playing || busy || (track.kind === "midi" && index === 0)
+                }
+                onClick={() =>
+                  void run({
+                    op: "reorderEffect",
+                    track: track.id,
+                    effect: effect.id,
+                    index: index - 1,
+                  })
+                }
+              >
+                <ArrowLeft size={14} />
+              </button>
+              <button
+                aria-label={`Move ${effect.name} later`}
+                disabled={
+                  s.playing ||
+                  busy ||
+                  index === (track.effects?.length ?? 0) - 1
+                }
+                onClick={() =>
+                  void run({
+                    op: "reorderEffect",
+                    track: track.id,
+                    effect: effect.id,
+                    index: index + 1,
+                  })
+                }
+              >
+                <ArrowRight size={14} />
+              </button>
+              <button
+                title={`Enable ${effect.name}`}
+                aria-pressed={!effect.bypass}
+                className={effect.bypass ? "" : "on"}
+                disabled={s.playing || busy}
+                onClick={() =>
+                  run({
+                    op: "bypass",
+                    track: track.id,
+                    effect: effect.id,
+                    value: !effect.bypass,
+                  })
+                }
+              >
+                <Power size={18} />
+              </button>
+              <div>
+                <strong>
+                  {index + 1}. {effect.name}
+                </strong>
+                <small>{effect.bypass ? "Bypassed" : "Effect"}</small>
+              </div>
+              <button
+                onClick={() =>
+                  run(
+                    {
+                      op: "editor",
+                      track: track.id,
+                      effect: effect.id,
+                    },
+                    false,
+                  )
+                }
+              >
+                Open editor
+              </button>
+              <button
+                title={`Remove ${effect.name}`}
+                disabled={s.playing || busy}
+                onClick={() =>
+                  run({
+                    op: "removePlugin",
+                    track: track.id,
+                    effect: effect.id,
+                  })
+                }
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+          {track.pluginName && (
+            <button
+              disabled={s.playing || busy || (track.effects?.length ?? 0) >= 16}
+              onClick={() =>
+                controller.setSoundBrowser({
+                  track: track.id,
+                  append: true,
+                })
+              }
+            >
+              <Plus size={16} /> Add VST3 effect
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -331,24 +331,6 @@ test("audio export includes built-in sound, deterministic reverb tails and peak 
     assert.equal((await send({ op: "state" })).outputClipped, true);
     await send({ op: "limiter", value: false });
     assert.ok((await render())[1000] > 0.999);
-    const legacy = await send({ op: "snapshot" });
-    legacy.version = 4;
-    delete legacy.limiterEnabled;
-    for (const t of legacy.tracks)
-      for (const key of [
-        "compressorEnabled",
-        "compressorAmount",
-        "reverbEnabled",
-        "reverbAmount",
-        "gateEnabled",
-        "gateThreshold",
-      ])
-        delete t[key];
-    validate(legacy);
-    await send({ op: "restore", session: legacy, folder });
-    const reopened = await send({ op: "state" });
-    assert.equal(reopened.limiterEnabled, false);
-    assert.equal(reopened.tracks[0].compressorEnabled, false);
   } finally {
     await rpc.close();
   }

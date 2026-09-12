@@ -1,3 +1,4 @@
+const { saveSession, readSession } = require("./session-storage.cjs");
 const {
   UNDOABLE_TRACK_SETTINGS,
   GLOBAL_EDITS,
@@ -447,70 +448,21 @@ class SessionService {
   }
   async executeRaw(command) {
     if (command.op === "save") {
-      const snapshot = await this.engine.request({ op: "snapshot" });
-      snapshot.version = CURRENT_SESSION_VERSION;
-      validate(snapshot);
-      const target = path.resolve(command.path),
-        assets = target + ".audio";
-      await fs.mkdir(assets, { recursive: true });
-      const copied = new Map();
-      for (const clip of sessionClips(snapshot)) {
-        const source = path.resolve(clip.path),
-          key = process.platform === "win32" ? source.toLowerCase() : source;
-        let destination = copied.get(key);
-        if (!destination) {
-          destination =
-            path.dirname(source) === assets
-              ? source
-              : path.join(assets, randomUUID() + path.extname(source));
-          if (source !== destination) await fs.copyFile(source, destination);
-          copied.set(key, destination);
-        }
-        clip.path = path.relative(path.dirname(target), destination);
-        delete clip.peaks;
-        delete clip.notes;
-      }
-      for (const key of [
-        "position",
-        "playing",
-        "recording",
-        "device",
-        "deviceError",
-        "diskOverrun",
-        "sampleRate",
-        "bufferSize",
-        "inputLatencySamples",
-        "outputLatencySamples",
-        "countdown",
-        "audioCpu",
-        "masterPeak",
-        "outputClipped",
-        "processingDropouts",
-        "recordingDropouts",
-        "deviceDropouts",
-      ])
-        delete snapshot[key];
-      for (const track of snapshot.tracks)
-        for (const key of ["peak", "recordStart", "latencySamples"])
-          delete track[key];
-      await writeJsonAtomically(target, snapshot, 2);
-      return { saved: target };
+      return saveSession(
+        command.path,
+        await this.engine.request({ op: "snapshot" }),
+      );
     }
     if (command.op === "open") {
-      const target = path.resolve(command.path);
-      const session = JSON.parse(await fs.readFile(target, "utf8"));
-      validate(session);
-      for (const track of session.tracks) track.monitor = false;
-      for (const clip of sessionClips(session)) {
-        clip.path = path.resolve(path.dirname(target), clip.path);
-        await fs.access(clip.path);
-      }
-      this.folder = await this.workingDirectory();
-      return this.engine.request({
+      const session = await readSession(command.path);
+      const folder = await this.workingDirectory();
+      const result = await this.engine.request({
         op: "restore",
         session,
-        folder: this.folder,
+        folder,
       });
+      this.folder = folder;
+      return result;
     }
     if (command.op === "new") {
       this.folder = await this.workingDirectory();

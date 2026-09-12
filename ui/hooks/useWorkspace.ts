@@ -1,9 +1,11 @@
+import { useRulerGesture } from "./useRulerGesture";
+import { useExport } from "./useExport";
 import { optimisticSession } from "../services/session-updates";
 import { useConfirmation } from "./useConfirmation";
 import { usePanelLayout } from "./usePanelLayout";
 import { useShortcuts } from "./useShortcuts";
 import { errorMessage } from "../services/errors";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type {
   Clip,
   Session,
@@ -31,27 +33,11 @@ const empty: Session = {
   deviceError: "",
   diskOverrun: false,
 };
-const RULER_SNAP_DIVISIONS = 4;
-const RULER_DRAG_THRESHOLD = 4;
 type NoticeTone = "notice" | "warning";
 
 function trackContainingClip(tracks: Track[], clipId: string) {
   return tracks.find((candidate) =>
     candidate.clips.some((clip) => clip.id === clipId),
-  );
-}
-
-function rulerPosition(
-  clientX: number,
-  rect: DOMRect,
-  zoom: number,
-  secondsPerBar: number,
-) {
-  const bars = (clientX - rect.left) / zoom;
-  return Math.max(
-    0,
-    (Math.round(bars * RULER_SNAP_DIVISIONS) / RULER_SNAP_DIVISIONS) *
-      secondsPerBar,
   );
 }
 
@@ -75,55 +61,9 @@ export function useWorkspace() {
   const [projectRevision, setProjectRevision] = useState(0);
   const [starting, setStarting] = useState(true);
   const [propertiesPing, setPropertiesPing] = useState(0);
-  const rulerRevision = useRef(0);
-  const rulerGesture = useRef<{
-    mode: "seek" | "loop";
-    start: number;
-    x: number;
-    inside: boolean;
-  } | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const exportReturnFocus = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (exporting || !exportReturnFocus.current) return;
-    const previous = exportReturnFocus.current;
-    exportReturnFocus.current = null;
-    const modal = document.querySelector<HTMLElement>('.modal[role="dialog"]');
-    if (!modal) return;
-    const target =
-      previous.isConnected &&
-      modal.contains(previous) &&
-      !previous.matches(":disabled")
-        ? previous
-        : modal.querySelector<HTMLElement>("button:not(:disabled)");
-    target?.focus({ preventScroll: true });
-  }, [exporting]);
   const [pendingTempo, setPendingTempo] = useState<number | null>(null);
   const { confirmation, confirmAction, finishConfirmation } = useConfirmation();
-  const [midiExportTrack, setMidiExportTrack] = useState<string | null>(null);
-  const [exportMidi, setExportMidi] = useState<"audio" | "midi">(() =>
-    localStorage.getItem("basement.exportMidi") === "midi" ? "midi" : "audio",
-  );
-  useEffect(
-    () => localStorage.setItem("basement.exportMidi", exportMidi),
-    [exportMidi],
-  );
-  const [exportMode, setExportMode] = useState<"separate" | "mix">(() =>
-    localStorage.getItem("basement.exportMode") === "mix" ? "mix" : "separate",
-  );
-  const [exportFormat, setExportFormat] = useState<"wav" | "flac">(() =>
-    localStorage.getItem("basement.exportFormat") === "flac" ? "flac" : "wav",
-  );
-  useEffect(
-    () => localStorage.setItem("basement.exportMode", exportMode),
-    [exportMode],
-  );
-  useEffect(
-    () => localStorage.setItem("basement.exportFormat", exportFormat),
-    [exportFormat],
-  );
   const [seekRevision, setSeekRevision] = useState(0);
-  const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
     [clipId, setPrimaryClipId] = useState(""),
@@ -190,10 +130,6 @@ export function useWorkspace() {
       setRegionMove(null);
     }
   }
-  const [selection, setSelection] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
   const trackList = useRef<HTMLElement>(null),
     timelineScroll = useRef<HTMLDivElement>(null),
     polling = useRef(false),
@@ -209,6 +145,28 @@ export function useWorkspace() {
       ...s.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration + 8)),
     ),
     width = Math.ceil(end / secondsPerBar) * zoom;
+  const {
+    selection,
+    setSelection,
+    dragPosition,
+    setDragPosition,
+    rulerDown,
+    rulerMove,
+    rulerUp,
+    rulerCancel,
+  } = useRulerGesture({ session: s, zoom, secondsPerBar, run });
+  const {
+    exporting,
+    midiExportTrack,
+    setMidiExportTrack,
+    exportMidi,
+    setExportMidi,
+    exportMode,
+    setExportMode,
+    exportFormat,
+    setExportFormat,
+    exportAudio,
+  } = useExport({ session: s, busy, withBusy, setError, setNotice });
   const wasRecording = useRef(false);
   useEffect(() => {
     const timeline = timelineScroll.current;
@@ -582,110 +540,6 @@ export function useWorkspace() {
     } finally {
       setDeviceLoading(false);
     }
-  }
-  async function exportAudio(target?: string, midi?: "audio" | "midi") {
-    if (busy || s.playing) return;
-    if (
-      target &&
-      midi === undefined &&
-      s.tracks.find((t) => t.id === target)?.kind === "midi"
-    ) {
-      setError("");
-      setMidiExportTrack(target);
-      return;
-    }
-    exportReturnFocus.current = document.activeElement as HTMLElement | null;
-    setExporting(true);
-    try {
-      const result = await withBusy(() =>
-        api.exportAudio({
-          mode: target ? "separate" : exportMode,
-          format: exportFormat,
-          midi: midi ?? exportMidi,
-          track: target,
-        }),
-      );
-      if (result)
-        setNotice(
-          `Exported ${result.files.length} file(s) to ${result.folder}`,
-        );
-      return result;
-    } finally {
-      setExporting(false);
-    }
-  }
-  function rulerDown(e: React.PointerEvent) {
-    if (s.recording || e.button !== 0) return;
-    ++rulerRevision.current;
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const start = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
-    const mode =
-      (e.target as HTMLElement).closest<HTMLElement>("[data-ruler-zone]")
-        ?.dataset.rulerZone === "seek"
-        ? "seek"
-        : "loop";
-    const raw = (e.clientX - rect.left) / pxPerSecond;
-    rulerGesture.current = {
-      mode,
-      start,
-      x: e.clientX,
-      inside: raw >= s.loopStart && raw <= s.loopEnd,
-    };
-    if (mode === "seek") {
-      setSelection(null);
-      setDragPosition(start);
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-  function rulerMove(e: React.PointerEvent) {
-    const gesture = rulerGesture.current;
-    if (!gesture || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const end = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
-    if (gesture.mode === "seek") setDragPosition(end);
-    else if (Math.abs(e.clientX - gesture.x) > RULER_DRAG_THRESHOLD)
-      setSelection({ start: gesture.start, end });
-  }
-  function rulerUp(e: React.PointerEvent) {
-    const gesture = rulerGesture.current;
-    if (!gesture) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const end = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
-    rulerGesture.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId))
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    const a = Math.min(gesture.start, end),
-      b = Math.max(gesture.start, end);
-    if (gesture.mode === "seek")
-      void run({ op: "seek", position: end }, false).finally(() =>
-        setDragPosition(null),
-      );
-    else if (
-      Math.abs(e.clientX - gesture.x) <= RULER_DRAG_THRESHOLD &&
-      gesture.inside
-    ) {
-      void run({
-        op: "loop",
-        start: s.loopStart,
-        end: s.loopEnd,
-        enabled: !s.looping,
-      });
-      setSelection(null);
-    } else if (b - a >= 0.05) {
-      const revision = rulerRevision.current;
-      setSelection({ start: a, end: b });
-      // Keep the final preview until the native reply replaces the old range.
-      void run({ op: "loop", start: a, end: b, enabled: true }).finally(() => {
-        if (revision === rulerRevision.current) setSelection(null);
-      });
-    } else setSelection(null);
-  }
-  function rulerCancel() {
-    ++rulerRevision.current;
-    rulerGesture.current = null;
-    setSelection(null);
-    setDragPosition(null);
   }
   function openProperties(id: string) {
     setSelected(id);

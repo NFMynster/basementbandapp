@@ -1,3 +1,5 @@
+import { saveSession, readSession } from "../desktop/session-storage.cjs";
+import { SessionService } from "../desktop/session-service.cjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,29 +36,59 @@ test("Electron session service saves portable audio, reopens edits, and preserve
     assert.equal(saved.title, "Two friends");
     assert.equal(isAbsolute(saved.tracks[0].clips[0].path), false);
     assert.ok(existsSync(resolve(folder, saved.tracks[0].clips[0].path)));
+    const portable = await readSession(path);
+    const beforeStorage = structuredClone(portable);
+    const copyPath = resolve(folder, "Copy.basement");
+    await saveSession(copyPath, portable);
+    assert.deepEqual(
+      portable,
+      beforeStorage,
+      "Saving must not mutate the caller's snapshot",
+    );
+    assert.equal((await readSession(copyPath)).title, portable.title);
+    const previousFile = readFileSync(copyPath, "utf8");
+    const broken = structuredClone(portable);
+    broken.tracks[0].clips[0].path = resolve(folder, "missing.wav");
+    await assert.rejects(saveSession(copyPath, broken));
+    assert.equal(
+      readFileSync(copyPath, "utf8"),
+      previousFile,
+      "Failed saves preserve the previous document",
+    );
+    const service = Object.create(SessionService.prototype);
+    service.folder = "current-working-folder";
+    service.workingDirectory = async () => "next-working-folder";
+    service.engine = {
+      request: async () => {
+        throw new Error("Could not restore media");
+      },
+    };
+    await assert.rejects(
+      service.executeRaw({ op: "open", path }),
+      /Could not restore media/,
+    );
+    assert.equal(
+      service.folder,
+      "current-working-folder",
+      "Failed restores keep the active working folder",
+    );
     await send({ op: "new" });
     r = await send({ op: "open", path });
     assert.equal(r.result.title, "Two friends");
     assert.equal(r.result.tracks[0].pan, -0.5);
     assert.equal(r.result.tracks[0].clips.length, 1);
-    const legacy = structuredClone(saved);
-    legacy.version = 3;
-    for (const track of legacy.tracks) delete track.effects;
-    const legacyPath = resolve(folder, "legacy.basement");
-    writeFileSync(legacyPath, JSON.stringify(legacy));
-    r = await send({ op: "open", path: legacyPath });
-    assert.equal(r.error, undefined);
-    assert.equal(
-      r.result.tracks[0].clips.length,
-      1,
-      "Version 3 sessions still open",
-    );
     assert.equal(
       saved.tracks[0].clips[0].peaks,
       undefined,
       "Waveforms are derived, not persisted",
     );
     for (const mutate of [
+      (s) => (s.version = 3),
+      (s) => delete s.tracks[0].effects,
+      (s) => delete s.limiterEnabled,
+      (s) => delete s.metronomeGain,
+      (s) => delete s.tracks[0].eqEnabled,
+      (s) => delete s.tracks[0].clips[0].gain,
       (s) => (s.tempo = 0),
       (s) => (s.tracks[0].gain = 100),
       (s) => (s.tracks[0].id = "../escape"),

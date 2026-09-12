@@ -90,6 +90,8 @@
     <None Include="ui\components\TrackAppearance.tsx" />
     <None Include="ui\components\TrackIcon.tsx" />
     <None Include="ui\components\TrackInspector.tsx" />
+    <None Include="ui\components\TrackRecordingPanel.tsx" />
+    <None Include="ui\components\TrackPluginsPanel.tsx" />
     <None Include="ui\components\TrackHeader.tsx" />
     <None Include="ui\components\TrackLane.tsx" />
     <None Include="ui\components\TrackMenu.tsx" />
@@ -106,6 +108,7 @@
     <None Include="ui\services\desktop.ts" />
     <None Include="ui\services\errors.ts" />
     <None Include="ui\services\session-updates.ts" />
+    <None Include="ui\services\midi-note-edits.ts" />
     <None Include="ui\startup.css" />
     <None Include="ui\styles\app-chrome.css" />
     <None Include="ui\styles\arrangement-states.css" />
@@ -122,6 +125,21 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <None Include="ui\components\MidiEditorToolbar.tsx" />
+    <None Include="ui\components\MidiPianoRoll.tsx" />
+    <None Include="ui\hooks\useExport.ts" />
+    <None Include="ui\hooks\useMidiEditor.ts" />
+    <None Include="ui\hooks\useMidiViewport.ts" />
+    <None Include="ui\hooks\useRulerGesture.ts" />
+    <None Include="desktop\session-storage.cjs" />
+    <None Include="desktop\smoke\arrangement.cjs" />
+    <None Include="desktop\smoke\export.cjs" />
+    <None Include="desktop\smoke\midi-editing.cjs" />
+    <None Include="desktop\smoke\midi-navigation.cjs" />
+    <None Include="desktop\smoke\midi-routing.cjs" />
+    <None Include="desktop\smoke\recording.cjs" />
+    <None Include="desktop\smoke\sound.cjs" />
+    <None Include="desktop\smoke\startup.cjs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

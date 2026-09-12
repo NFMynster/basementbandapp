@@ -44,6 +44,11 @@
     <ClCompile Include="native\SessionCommands.cpp" />
     <ClCompile Include="native\TestGain.cpp" />
     <ClCompile Include="native\TestInstrument.cpp" />
+    <ClCompile Include="native\PluginCommands.cpp" />
+    <ClCompile Include="native\RegionCommands.cpp" />
+    <ClCompile Include="native\TestCommands.cpp" />
+    <ClCompile Include="native\TrackCommands.cpp" />
+    <ClCompile Include="native\TransportCommands.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -52,7 +52,7 @@ export function Modal({
           if (e.key !== "Tab") return;
           const elements = [
             ...(dialog.current?.querySelectorAll<HTMLElement>(
-              'button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]',
+              'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
             ) ?? []),
           ];
           const first = elements[0],
@@ -66,7 +66,12 @@ export function Modal({
           }
         }}
       >
-        <button className="modal-close" onClick={onClose} title="Close">
+        <button
+          className="modal-close"
+          onClick={onClose}
+          title="Close"
+          aria-label="Close"
+        >
           <X size={20} />
         </button>
         {footer ? (

@@ -65,6 +65,14 @@ public:
   var command(const var &command);
 
 private:
+  // Message-thread command handlers; mutations lock shared callback state.
+  var handleTrackCommand(const var &command);
+  var handlePluginCommand(const var &command);
+  var handleTransportCommand(const var &command);
+  var handleRegionCommand(const var &command);
+  var handleSessionCommand(const var &command);
+  var handleDeviceCommand(const var &command);
+  var handleTestCommand(const var &command);
   var listDevices();
   var configureDevice(const var &command);
   void resetSession(const var &command);

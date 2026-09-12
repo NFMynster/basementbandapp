@@ -83,6 +83,8 @@
     <None Include="ui\components\TrackAppearance.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackIcon.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackInspector.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackRecordingPanel.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\TrackPluginsPanel.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackHeader.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackLane.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\TrackMenu.tsx"><Filter>React interface\components</Filter></None>
@@ -99,6 +101,7 @@
     <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\session-updates.ts"><Filter>React interface\services</Filter></None>
+    <None Include="ui\services\midi-note-edits.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\startup.css"><Filter>React interface</Filter></None>
     <None Include="ui\styles\app-chrome.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\arrangement-states.css"><Filter>React interface\styles</Filter></None>
@@ -110,5 +113,20 @@
     <None Include="ui\styles\overlay-states.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\shell.css"><Filter>React interface\styles</Filter></None>
     <None Include="vite.config.ts"><Filter>Configuration</Filter></None>
+    <None Include="ui\components\MidiEditorToolbar.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\MidiPianoRoll.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\hooks\useExport.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useMidiEditor.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useMidiViewport.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\useRulerGesture.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="desktop\session-storage.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\arrangement.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\export.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\midi-editing.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\midi-navigation.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\midi-routing.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\recording.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\sound.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\startup.cjs"><Filter>Electron</Filter></None>
   </ItemGroup>
 </Project>

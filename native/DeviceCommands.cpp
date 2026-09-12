@@ -96,4 +96,34 @@ var Engine::configureDevice(const var &c) {
     throw std::runtime_error(deviceError.toStdString());
   return listDevices();
 }
+var Engine::handleDeviceCommand(const var &c) {
+  const auto op = str(c, "op");
+  if (op == "tuner") {
+    require(!playing, "Stop playback before tuning");
+    const auto id = str(c, "track");
+    if (id.isNotEmpty()) require(!track(c).isMidi, "Select an audio track to tune");
+    { const ScopedLock lock(guard); tunerTrack = id; tunerCount = tunerWrite = tunerPhase = 0; }
+    try { syncAudioInput(); }
+    catch (...) { const ScopedLock lock(guard); tunerTrack.clear(); throw; }
+    return state();
+  }
+  if (op == "clearDiagnostics") {
+    outputClipped = false;
+    processingDropouts = 0;
+    recordingDropouts = 0;
+    deviceXRunBaseline = jmax(0, devices.getXRunCount());
+    return state();
+  }
+  if (op == "clearWarning") {
+    diskOverrun = false;
+    return state();
+  }
+  if (op == "devices") {
+    return listDevices();
+  }
+  if (op == "configure") {
+    return configureDevice(c);
+  }
+  throw std::runtime_error("Unknown device command");
+}
 } // namespace basement
