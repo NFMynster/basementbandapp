@@ -38,6 +38,9 @@ export function useAnimatedPlayhead(
   }, [session, scale, drag, origin, duration, gutter]);
   useEffect(() => {
     let frame: number;
+    let lastFrame = performance.now();
+    let lastPosition = anchor.current.session.position;
+    let settling = false;
     const draw = () => {
       const {
         session: s,
@@ -60,14 +63,30 @@ export function useAnimatedPlayhead(
       )
         position =
           s.loopStart + ((position - s.loopStart) % (s.loopEnd - s.loopStart));
+      const elapsed = Math.min(64, performance.now() - lastFrame);
+      lastFrame = performance.now();
+      if (s.position !== lastPosition) {
+        settling = true;
+        lastPosition = s.position;
+      }
       if (element.current) {
         const relative = (drag ?? position) - origin;
         const view = follow?.current;
-        if (view && s.playing && drag === null) {
+        if (view && (s.playing || settling) && drag === null) {
           const x = gutter + relative * scale;
-          if (x < view.scrollLeft + 24) view.scrollLeft = Math.max(0, x - 24);
+          let target = view.scrollLeft;
+          if (x < view.scrollLeft + 24) target = Math.max(0, x - 24);
           else if (x > view.scrollLeft + view.clientWidth * 0.75)
-            view.scrollLeft = x - view.clientWidth * 0.75;
+            target = x - view.clientWidth * 0.75;
+          const reduced = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          const delta = target - view.scrollLeft;
+          view.scrollLeft +=
+            reduced || Math.abs(delta) < 1
+              ? delta
+              : delta * (1 - Math.exp(-elapsed / 85));
+          if (Math.abs(delta) < 1) settling = false;
         }
         element.current.style.left = gutter + relative * scale + "px";
         element.current.style.visibility =

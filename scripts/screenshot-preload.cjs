@@ -150,6 +150,10 @@ contextBridge.exposeInMainWorld("basement", {
       state.audioCpu = c.value;
       state.processingDropouts = 2;
     }
+    if (c.op === "tuner") {
+      state.tunerTrack = c.track ?? "";
+      state.tunerFrequency = c.track ? 82.41 : 0;
+    }
     if (c.op === "configure") {
       if (c.output === "Unavailable")
         throw new Error("Test output unavailable");

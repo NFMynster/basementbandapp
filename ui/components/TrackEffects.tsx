@@ -23,7 +23,7 @@ const effects = {
     min: 0,
     max: 1,
     step: 0.01,
-    label: "Room",
+    label: "Amount",
   },
   gate: {
     title: "Noise gate",
@@ -50,9 +50,67 @@ export function TrackEffect({
   const gesture = useRef<string | undefined>(undefined);
   const config = effects[effect];
   const enabled = !!track[config.toggle];
-  const value = track[config.value] ?? config.initial;
-  const display =
-    effect === "gate" ? `${value} dB` : `${Math.round(value * 100)}%`;
+  const extras = {
+    compressor: [
+      {
+        value: "compressorAttack",
+        label: "Attack",
+        initial: 12,
+        min: 1,
+        max: 100,
+        step: 1,
+        hint: "How quickly loud notes are softened. Slower keeps more pick attack.",
+        unit: " ms",
+      },
+      {
+        value: "compressorRelease",
+        label: "Release",
+        initial: 140,
+        min: 20,
+        max: 1000,
+        step: 10,
+        hint: "How quickly the volume recovers after a loud note.",
+        unit: " ms",
+      },
+    ],
+    reverb: [
+      {
+        value: "reverbSize",
+        label: "Room size",
+        initial: 0.55,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: "Small room to a spacious hall with a longer decay.",
+        unit: "%",
+      },
+      {
+        value: "reverbDamping",
+        label: "Damping",
+        initial: 0.55,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: "Higher values soften bright reflections for a warmer sound.",
+        unit: "%",
+      },
+      {
+        value: "reverbWidth",
+        label: "Stereo width",
+        initial: 1,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: "Centered room sound to a wide stereo space.",
+        unit: "%",
+      },
+    ],
+    gate: [],
+  };
+  const controls = [
+    { ...config, hint: config.hint, unit: effect === "gate" ? " dB" : "%" },
+    ...extras[effect],
+  ];
   return (
     <section
       className={`built-in-effect ${enabled ? "enabled" : ""}`}
@@ -70,43 +128,48 @@ export function TrackEffect({
         </button>
       </div>
       <p>{config.hint}</p>
-      <label className="effect-amount">
-        <span>
-          {config.label}
-          <output>{display}</output>
-        </span>
-        <input
-          type="range"
-          aria-label={`${config.title} ${config.label.toLowerCase()}`}
-          aria-valuetext={display}
-          min={config.min}
-          max={config.max}
-          step={config.step}
-          value={value}
-          disabled={!enabled}
-          onPointerDown={() => {
-            gesture.current = crypto.randomUUID();
-          }}
-          onPointerUp={() => {
-            gesture.current = undefined;
-          }}
-          onPointerCancel={() => {
-            gesture.current = undefined;
-          }}
-          onBlur={() => {
-            gesture.current = undefined;
-          }}
-          onChange={(e) =>
-            update(track, {
-              [config.value]: +e.target.value,
-              historyGroup: gesture.current,
-            })
-          }
-          onDoubleClick={() =>
-            update(track, { [config.value]: config.initial })
-          }
-        />
-      </label>
+      {controls.map((control) => {
+        const key = control.value as keyof Track;
+        const value = (track[key] as number | undefined) ?? control.initial;
+        const display = `${control.unit === "%" ? Math.round(value * 100) : value}${control.unit}`;
+        return (
+          <label className="effect-amount" key={key} title={control.hint}>
+            <span>
+              {control.label}
+              <output>{display}</output>
+            </span>
+            <input
+              type="range"
+              aria-label={`${config.title} ${control.label.toLowerCase()}`}
+              aria-valuetext={display}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              value={value}
+              disabled={!enabled}
+              onPointerDown={() => {
+                gesture.current = crypto.randomUUID();
+              }}
+              onPointerUp={() => {
+                gesture.current = undefined;
+              }}
+              onPointerCancel={() => {
+                gesture.current = undefined;
+              }}
+              onBlur={() => {
+                gesture.current = undefined;
+              }}
+              onChange={(e) =>
+                update(track, {
+                  [key]: +e.target.value,
+                  historyGroup: gesture.current,
+                })
+              }
+              onDoubleClick={() => update(track, { [key]: control.initial })}
+            />
+          </label>
+        );
+      })}
     </section>
   );
 }

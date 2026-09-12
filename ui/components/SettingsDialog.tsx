@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { desktop as api } from "../services/desktop";
 import type { Devices } from "../models";
@@ -26,6 +26,7 @@ export function SettingsDialog({
     deviceLoading,
     openSetup,
   } = controller;
+  const pending = useRef(false);
   const [deviceDirty, setDeviceDirty] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState("");
@@ -41,7 +42,7 @@ export function SettingsDialog({
     const refresh = async () => {
       try {
         const next = await api.command({ op: "devices" });
-        if (!cancelled) setDevices(next);
+        if (!cancelled && !pending.current) setDevices(next);
       } catch {
         /* Keep the current selections when a device is temporarily absent. */
       }
@@ -55,23 +56,26 @@ export function SettingsDialog({
   }, [setup, deviceDirty, applying, s.playing]);
 
   function editDevices(next: Devices) {
+    if (pending.current || s.playing) return;
     setDevices(next);
     setDeviceDirty(true);
+    void apply(false, next);
   }
 
-  async function apply(close: boolean) {
-    if (!devices || applying || s.playing) return false;
+  async function apply(close: boolean, selected = devices) {
+    if (!selected || pending.current || s.playing) return false;
+    pending.current = true;
     setApplying(true);
     setApplyError("");
     try {
       const result = await run(
         {
           op: "configure",
-          type: devices.type,
-          input: devices.input,
-          output: devices.output,
-          sampleRate: devices.sampleRate,
-          bufferSize: devices.bufferSize,
+          type: selected.type,
+          input: selected.input,
+          output: selected.output,
+          sampleRate: selected.sampleRate,
+          bufferSize: selected.bufferSize,
         },
         false,
       );
@@ -84,8 +88,8 @@ export function SettingsDialog({
       setDevices(result);
       setDeviceDirty(false);
       if (
-        result.sampleRate !== devices.sampleRate ||
-        result.bufferSize !== devices.bufferSize
+        result.sampleRate !== selected.sampleRate ||
+        result.bufferSize !== selected.bufferSize
       ) {
         setApplyError(
           `The driver selected ${result.sampleRate / 1000} kHz and ${result.bufferSize} samples. These are the active settings.`,
@@ -96,6 +100,7 @@ export function SettingsDialog({
       if (close) setSetup(false);
       return true;
     } finally {
+      pending.current = false;
       setApplying(false);
     }
   }
@@ -113,14 +118,14 @@ export function SettingsDialog({
                 : "") ||
                 applyError ||
                 (deviceDirty
-                  ? "Changes apply when you press Done."
-                  : "Apply audio settings tests changes without closing this window.")}
+                  ? "Could not apply changes. Retry or choose another device."
+                  : "Audio changes apply automatically.")}
             </span>
             <button
               className="primary"
               disabled={applying || (s.playing && deviceDirty)}
               onClick={() =>
-                devices && !s.playing ? void apply(true) : setSetup(false)
+                deviceDirty && !s.playing ? void apply(true) : setSetup(false)
               }
             >
               {applying ? "Applying…" : "Done"}

@@ -39,13 +39,14 @@ var Engine::exportAudio(const var &c) {
       if (clip->active)
         duration = jmax(duration, clip->start + clip->duration());
     if (notesOnly) continue;
-    if (t->sound.reverbEnabled && t->sound.reverbAmount > 0) tail = jmax(tail, 4.0);
+    const double roomTail = t->sound.reverbEnabled && t->sound.reverbAmount > 0 ? jmax(4.0, 4.0 + (t->sound.reverbSize - 0.55f) * 14.0) : 0;
+    tail = jmax(tail, roomTail);
     if (t->plugin && !t->bypass)
       tail = jmax(tail, jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()));
     double effectTail = 0;
     for (auto &effect : t->effects)
       if (!effect.bypass) effectTail += jlimit(0.0, 10.0, effect.plugin->getTailLengthSeconds());
-    tail = jmax(tail, (t->sound.reverbEnabled && t->sound.reverbAmount > 0 ? 4.0 : 0.0) + effectTail + (t->plugin && !t->bypass ? jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()) : 0));
+    tail = jmax(tail, roomTail + effectTail + (t->plugin && !t->bypass ? jlimit(0.0, 10.0, t->plugin->getTailLengthSeconds()) : 0));
   }
   require((!selected.empty() || !midiTracks.empty()) && duration > 0, "No audible regions to export");
   require(std::isfinite(duration) && duration + tail <= 60 * 60 * 4,

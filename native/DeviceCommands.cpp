@@ -85,7 +85,7 @@ var Engine::configureDevice(const var &c) {
   setup.inputDeviceName = needsAudioInput() ? configuredInput : String();
   setup.outputDeviceName = str(c, "output");
   setup.sampleRate = number(c, "sampleRate", 48000);
-  setup.bufferSize = (int)number(c, "bufferSize", 256);
+  setup.bufferSize = (int)number(c, "bufferSize", 64);
   setup.useDefaultInputChannels = false;
   setup.inputChannels.clear();
   if (needsAudioInput()) setup.inputChannels.setRange(0, 128, true);

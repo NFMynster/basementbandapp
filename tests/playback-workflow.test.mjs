@@ -101,7 +101,7 @@ test("loop starts, musical loop bounds, project end and dry tuner", async () => 
     assert.equal(s.position, 64);
     await send({ op: "track", track, monitor: true, reverbEnabled: true });
     await send({ op: "tuner", track });
-    for (const frequency of [41.2, 82.41, 110, 440]) {
+    for (const frequency of [30.87, 41.2, 82.41, 110, 440]) {
       await send({ op: "pump", frames: 8192, frequency });
       const result = await send({
         op: "pump",

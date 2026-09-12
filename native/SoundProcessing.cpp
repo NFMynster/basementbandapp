@@ -14,6 +14,15 @@ void TrackSound::update(const var &v) {
                   value >= (threshold ? -80 : 0) && value <= (threshold ? -10 : 1),
               "Invalid effect amount");
     }
+  const auto validateParameter = [&](const char* key, double low, double high) {
+    if (!v.hasProperty(key)) return;
+    const auto value = number(v, key);
+    require((v[key].isDouble() || v[key].isInt() || v[key].isInt64()) &&
+                std::isfinite(value) && value >= low && value <= high, "Invalid effect parameter");
+  };
+  validateParameter("compressorAttack", 1, 100);
+  validateParameter("compressorRelease", 20, 1000);
+  for (auto key : {"reverbSize", "reverbDamping", "reverbWidth"}) validateParameter(key, 0, 1);
   if (v.hasProperty("compressorEnabled") && compressorEnabled != flag(v, "compressorEnabled")) compressor.reset();
   if (v.hasProperty("reverbEnabled") && reverbEnabled != flag(v, "reverbEnabled")) reverb.reset();
   if (v.hasProperty("gateEnabled") && gateEnabled != flag(v, "gateEnabled")) gate.reset();
@@ -23,6 +32,17 @@ void TrackSound::update(const var &v) {
   if (v.hasProperty("compressorAmount")) compressorAmount = (float)number(v, "compressorAmount");
   if (v.hasProperty("reverbAmount")) reverbAmount = (float)number(v, "reverbAmount");
   if (v.hasProperty("gateThreshold")) gateThreshold = (float)number(v, "gateThreshold");
+  if (v.hasProperty("compressorAttack")) compressorAttack = (float)number(v, "compressorAttack");
+  if (v.hasProperty("compressorRelease")) compressorRelease = (float)number(v, "compressorRelease");
+  if (v.hasProperty("reverbSize")) reverbSize = (float)number(v, "reverbSize");
+  if (v.hasProperty("reverbDamping")) reverbDamping = (float)number(v, "reverbDamping");
+  if (v.hasProperty("reverbWidth")) reverbWidth = (float)number(v, "reverbWidth");
+  compressor.setAttack(compressorAttack);
+  compressor.setRelease(compressorRelease);
+  Reverb::Parameters p;
+  p.roomSize = reverbSize; p.damping = reverbDamping; p.width = reverbWidth;
+  p.wetLevel = 1; p.dryLevel = 0;
+  reverb.setParameters(p);
   compressor.setThreshold(-6 - 24 * compressorAmount);
   compressor.setRatio(1 + 4 * compressorAmount);
   gate.setThreshold(gateThreshold);
@@ -37,21 +57,27 @@ void TrackSound::write(var &v) const {
   o->setProperty("reverbAmount", reverbAmount);
   o->setProperty("gateEnabled", gateEnabled);
   o->setProperty("gateThreshold", gateThreshold);
+  o->setProperty("compressorAttack", compressorAttack);
+  o->setProperty("compressorRelease", compressorRelease);
+  o->setProperty("reverbSize", reverbSize);
+  o->setProperty("reverbDamping", reverbDamping);
+  o->setProperty("reverbWidth", reverbWidth);
 }
 
 void TrackSound::prepare(double rate, int block) {
   const dsp::ProcessSpec spec{rate, (uint32)block, 2};
   compressor.prepare(spec);
-  compressor.setAttack(12);
-  compressor.setRelease(140);
+  compressor.setAttack(compressorAttack);
+  compressor.setRelease(compressorRelease);
   gate.prepare(spec);
   gate.setRatio(4);
   gate.setAttack(1);
   gate.setRelease(120);
   wet.setSize(2, block);
   Reverb::Parameters p;
-  p.roomSize = 0.55f;
-  p.damping = 0.55f;
+  p.roomSize = reverbSize;
+  p.damping = reverbDamping;
+  p.width = reverbWidth;
   p.wetLevel = 1;
   p.dryLevel = 0;
   reverb.setParameters(p);

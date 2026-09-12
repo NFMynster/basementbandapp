@@ -121,19 +121,23 @@ export function AudioDevicePanel({
           </select>
         </label>
       </div>
-      <p className="buffer-help">
-        A smaller buffer reduces latency but gives your CPU less time to process
-        audio. If you hear clicks or dropouts, increase it. Apply or Done
-        confirms the change.
-        <br />
-        <strong>
-          For much lower latency, use your USB audio interface for BOTH input
-          and output, and plug headphones or speakers directly into the
-          interface.
-        </strong>
-        <br />
-        Built-in speakers can add substantial delay even at the smallest buffer.
-      </p>
+      <details className="buffer-help">
+        <summary>Audio setup help</summary>
+        <p>
+          A smaller buffer reduces latency but gives your CPU less time to
+          process audio. Start with 64 samples. Try 16 if your setup stays
+          stable; increase the buffer if you hear clicks or dropouts. Changes
+          apply automatically.
+          <br />
+          <strong>
+            For much lower latency, use your USB audio interface for BOTH input
+            and output, and plug headphones or speakers directly into the
+            interface.
+          </strong>
+          <br />A laptop's built-in speakers, or a desktop's separate audio
+          output, can add delay even at the smallest buffer.
+        </p>
+      </details>
       {s.playing && (
         <p role="status">Stop playback to change audio device settings.</p>
       )}
@@ -142,7 +146,7 @@ export function AudioDevicePanel({
         disabled={s.playing || applying}
         onClick={() => void apply(false)}
       >
-        Apply audio settings
+        {applying ? "Applying…" : "Retry / refresh audio settings"}
       </button>
       {applyError && <p role="alert">{applyError}</p>}
     </div>

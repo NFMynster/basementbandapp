@@ -23,7 +23,15 @@ app
     await win.webContents.insertCSS(
       "*, *::before, *::after { animation: none !important; transition: none !important; }",
     );
-    await new Promise((r) => setTimeout(r, 600));
+    for (let attempt = 0; attempt < 40; ++attempt) {
+      if (
+        await win.webContents.executeJavaScript(
+          "!!document.querySelector('.app') && !document.querySelector('.app').inert",
+        )
+      )
+        break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
     await win.webContents.executeJavaScript(
       `document.querySelector('.welcome-dialog .modal-close')?.click()`,
     );
@@ -57,6 +65,35 @@ app
       `({title:document.title,tracks:document.querySelectorAll('.track-header').length,clips:document.querySelectorAll('.clip').length,overflow:document.documentElement.scrollWidth>window.innerWidth})`,
     );
     console.log(JSON.stringify(result));
+    await win.webContents.executeJavaScript(
+      `document.querySelector('[aria-label="Tuner"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const tuner = await win.webContents.executeJavaScript(`(() => {
+      const dialog = document.querySelector('.tuner-dialog');
+      const cover = dialog?.closest('.modal-backdrop');
+      return { label: dialog?.textContent.includes('6th string'),
+        coversTimeline: document.elementFromPoint(20, innerHeight / 2) === cover,
+        modes: dialog?.querySelectorAll('.tuner-modes button').length };
+    })()`);
+    if (!tuner.label || !tuner.coversTimeline || tuner.modes !== 3)
+      throw new Error(
+        "Tuner must cover the workspace and name guitar strings: " +
+          JSON.stringify(tuner),
+      );
+    await win.webContents.executeJavaScript(
+      "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+    );
+    await win.webContents.capturePage();
+    await new Promise((r) => setTimeout(r, 150));
+    writeFileSync(
+      "artifacts/screenshots/tuner.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    await win.webContents.executeJavaScript(
+      `document.querySelector('.tuner-dialog .modal-close').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 100));
     await win.webContents.executeJavaScript(
       `document.querySelector('[title="Input settings"]').click()`,
     );
@@ -95,12 +132,17 @@ app
       select.dispatchEvent(new Event('change', { bubbles: true }));
     })()`);
       await new Promise((r) => setTimeout(r, 100));
+      const appliedOutput = await win.webContents.executeJavaScript(
+        `(async () => (await window.basement.command({op:'devices'})).output)()`,
+      );
+      if (output === "Headphones" && appliedOutput !== output)
+        throw new Error("Output selection must apply before Done");
       await win.webContents.executeJavaScript(
         `document.querySelector('.modal-bottom .primary').click()`,
       );
       await new Promise((r) => setTimeout(r, 100));
       const result = await win.webContents.executeJavaScript(
-        `(async () => ({open:!!document.querySelector('[role="dialog"]'), error:!!document.querySelector('[role="alert"]'), output:(await window.basement.command({op:'devices'})).output}))()`,
+        `(async () => ({dialogs:[...document.querySelectorAll('[role="dialog"]')].map(e=>e.getAttribute("aria-label")),done:document.querySelector(".modal-bottom .primary")?.outerHTML,open:!!document.querySelector('[role="dialog"]'), error:!!document.querySelector('[role="alert"]'), output:(await window.basement.command({op:'devices'})).output}))()`,
       );
       if (
         output === "Unavailable"
@@ -112,7 +154,7 @@ app
         );
     }
     console.log(
-      "Audio setup: Done applies changes; failures keep the dialog open.",
+      "Audio setup: selections apply immediately; failures keep the dialog open.",
     );
     await win.webContents.executeJavaScript(`(() => {
       document.querySelector('.modal-close')?.click();

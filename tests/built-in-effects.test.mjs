@@ -21,6 +21,74 @@ function audioSamples(path) {
   throw new Error("Missing WAV data");
 }
 
+test("compressor attack and reverb width change the rendered sound", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const rpc = startSession(
+    mkdtempSync(resolve("artifacts/test-sessions/effect-controls-")),
+  );
+  const send = async (c) => {
+    const r = await rpc.send(c);
+    assert.equal(r.error, undefined, r.error);
+    return r.result;
+  };
+  try {
+    const track = (await send({ op: "state" })).tracks[0].id;
+    await send({
+      op: "track",
+      track,
+      monitor: true,
+      gain: 1,
+      compressorEnabled: true,
+      compressorAmount: 1,
+    });
+    const attack = async (value) => {
+      await send({ op: "track", track, compressorAttack: value });
+      await send({ op: "seek", position: 0 });
+      return (await send({ op: "pump", frames: 1024, left: 0.8 })).left;
+    };
+    const fast = await attack(1),
+      slow = await attack(100);
+    assert.ok(
+      slow[50] > fast[50] * 2,
+      "Slower attack preserves the initial transient",
+    );
+    await send({
+      op: "track",
+      track,
+      compressorEnabled: false,
+      reverbEnabled: true,
+      reverbAmount: 1,
+      reverbWidth: 0,
+    });
+    await send({ op: "seek", position: 0 });
+    await send({ op: "pump", frames: 256, left: 0.5 });
+    const mono = await send({ op: "pump", frames: 8192 });
+    assert.deepEqual(mono.left, mono.right, "Zero width centers the reverb");
+    await send({ op: "track", track, reverbWidth: 1 });
+    await send({ op: "seek", position: 0 });
+    await send({ op: "pump", frames: 256, left: 0.5 });
+    const stereo = await send({ op: "pump", frames: 8192 });
+    assert.ok(
+      stereo.left.some(
+        (value, i) => Math.abs(value - stereo.right[i]) > 0.0001,
+      ),
+    );
+    for (const patch of [
+      { compressorAttack: 0 },
+      { compressorRelease: 1001 },
+      { reverbSize: 2 },
+      { reverbDamping: -1 },
+      { reverbWidth: "wide" },
+    ])
+      assert.match(
+        (await rpc.send({ op: "track", track, ...patch })).error,
+        /Invalid/,
+      );
+  } finally {
+    await rpc.close();
+  }
+});
+
 test("built-in effects process sound, preserve raw capture, and survive history, presets and save/open", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/built-ins-"));
@@ -101,6 +169,11 @@ test("built-in effects process sound, preserve raw capture, and survive history,
     const patch = {
       compressorEnabled: true,
       compressorAmount: 0.6,
+      compressorAttack: 30,
+      compressorRelease: 280,
+      reverbSize: 0.8,
+      reverbDamping: 0.7,
+      reverbWidth: 0.4,
       reverbEnabled: true,
       reverbAmount: 0.3,
       gateEnabled: true,
@@ -140,6 +213,17 @@ test("built-in effects process sound, preserve raw capture, and survive history,
     s = await send({ op: "open", path });
     assert.equal(s.limiterEnabled, false);
     assert.equal(s.tracks[0].reverbEnabled, true);
+    for (const key of [
+      "compressorAttack",
+      "compressorRelease",
+      "reverbSize",
+      "reverbDamping",
+      "reverbWidth",
+    ])
+      assert.ok(
+        Math.abs(s.tracks[0][key] - patch[key]) < 1e-5,
+        `${key} survives preset/save/open`,
+      );
     assert.throws(
       () => validate({ ...saved, limiterEnabled: "yes" }),
       /Invalid/,

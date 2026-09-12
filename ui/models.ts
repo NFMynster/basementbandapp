@@ -59,8 +59,13 @@ export type Track = {
   pan: number;
   compressorEnabled?: boolean;
   compressorAmount?: number;
+  compressorAttack?: number;
+  compressorRelease?: number;
   reverbEnabled?: boolean;
   reverbAmount?: number;
+  reverbSize?: number;
+  reverbDamping?: number;
+  reverbWidth?: number;
   gateEnabled?: boolean;
   gateThreshold?: number;
   eqEnabled?: boolean;
@@ -137,8 +142,13 @@ export type TrackPatch = { historyGroup?: string } & Partial<
     | "pan"
     | "compressorEnabled"
     | "compressorAmount"
+    | "compressorAttack"
+    | "compressorRelease"
     | "reverbEnabled"
     | "reverbAmount"
+    | "reverbSize"
+    | "reverbDamping"
+    | "reverbWidth"
     | "gateEnabled"
     | "gateThreshold"
     | "eqEnabled"

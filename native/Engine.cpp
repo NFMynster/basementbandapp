@@ -77,7 +77,7 @@ void Engine::initializeAudio(bool inputAllowed) {
     return;
   std::cerr << "Opening audio device (inputs " << (inputAllowed ? 2 : 0) << ")" << std::endl;
   AudioDeviceManager::AudioDeviceSetup preferred;
-  preferred.bufferSize = 256;
+  preferred.bufferSize = 64;
   preferred.sampleRate = 48000;
   // Pin the OS defaults explicitly. Otherwise JUCE may substitute another
   // input/output pair while searching for a shared sample rate.
@@ -133,7 +133,7 @@ var Engine::state(bool full, bool pluginState) {
     // Analyse a chronological snapshot off the audio thread.
     if (count == (int)samples.size()) {
       const double sampleRate = snapshotRate / jmax(1, (int)(snapshotRate / 12000));
-      const int minLag = (int)(sampleRate / 1000), maxLag = (int)(sampleRate / 40);
+      const int minLag = (int)(sampleRate / 1000), maxLag = (int)(sampleRate / 25);
       std::array<double, 512> correlations{};
       double best = 0;
       int bestLag = 0;

@@ -85,8 +85,18 @@ function validate(session) {
     number(track.pan, -1, 1);
     for (const key of ["eqBass", "eqMid", "eqTreble"])
       if (track[key] !== undefined) number(track[key], -12, 12);
-    for (const key of ["compressorAmount", "reverbAmount"])
+    for (const key of [
+      "compressorAmount",
+      "reverbAmount",
+      "reverbSize",
+      "reverbDamping",
+      "reverbWidth",
+    ])
       if (track[key] !== undefined) number(track[key], 0, 1);
+    if (track.compressorAttack !== undefined)
+      number(track.compressorAttack, 1, 100);
+    if (track.compressorRelease !== undefined)
+      number(track.compressorRelease, 20, 1000);
     if (track.gateThreshold !== undefined)
       number(track.gateThreshold, -80, -10);
     for (const key of ["compressorEnabled", "reverbEnabled", "gateEnabled"])

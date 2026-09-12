@@ -12,8 +12,13 @@ const UNDOABLE_CLIP_ACTIONS = new Set([
 const UNDOABLE_TRACK_SETTINGS = [
   "compressorEnabled",
   "compressorAmount",
+  "compressorAttack",
+  "compressorRelease",
   "reverbEnabled",
   "reverbAmount",
+  "reverbSize",
+  "reverbDamping",
+  "reverbWidth",
   "gateEnabled",
   "gateThreshold",
   "name",

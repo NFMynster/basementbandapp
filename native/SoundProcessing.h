@@ -7,6 +7,8 @@ namespace basement {
 struct TrackSound {
   bool compressorEnabled = false, reverbEnabled = false, gateEnabled = false;
   float compressorAmount = 0.35f, reverbAmount = 0.2f, gateThreshold = -45;
+  float compressorAttack = 12, compressorRelease = 140;
+  float reverbSize = 0.55f, reverbDamping = 0.55f, reverbWidth = 1;
   void update(const var &settings);
   void write(var &settings) const;
   void prepare(double rate, int block);
