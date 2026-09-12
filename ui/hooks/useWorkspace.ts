@@ -122,6 +122,7 @@ export function useWorkspace() {
     () => localStorage.setItem("basement.exportFormat", exportFormat),
     [exportFormat],
   );
+  const [seekRevision, setSeekRevision] = useState(0);
   const [dragPosition, setDragPosition] = useState<number | null>(null);
   const [s, setS] = useState<Session>(empty),
     [selected, setSelected] = useState(""),
@@ -278,6 +279,7 @@ export function useWorkspace() {
       // newest optimistic reply should repaint the slider, otherwise the
       // controlled range input visibly walks through every queued value.
       if (!optimistic || revision === optimisticRevision.current) accept(r);
+      if (c.op === "seek") setSeekRevision((value) => value + 1);
       if (c.op === "undo" || c.op === "redo") {
         if ("tracks" in r && r.historyNotice) {
           setNotice(r.historyNotice);
@@ -399,9 +401,14 @@ export function useWorkspace() {
       )
         return;
       polling.current = true;
+      const revision = optimisticRevision.current;
       try {
         const v = await api.command({ op: "state" });
-        if (alive) {
+        if (
+          alive &&
+          !activeCommands.current &&
+          revision === optimisticRevision.current
+        ) {
           accept(v);
           setStarting(false);
         }
@@ -735,6 +742,7 @@ export function useWorkspace() {
     setExportFormat,
     exportAudio,
     dragPosition,
+    seekRevision,
     setDragPosition,
     starting,
     s,

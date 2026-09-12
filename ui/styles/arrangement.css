@@ -137,6 +137,7 @@
   scrollbar-width: thin;
 }
 .timeline {
+  margin-left: 8px;
   position: relative;
 }
 .ruler {
@@ -352,4 +353,18 @@
   background: #b4c4a622;
   border-radius: 3px;
   pointer-events: none;
+}
+
+.track-header {
+  user-select: none;
+}
+.track-header[draggable="true"] {
+  cursor: grab;
+}
+.track-header[draggable="true"]:active {
+  cursor: grabbing;
+}
+.follow-playhead[aria-pressed="true"] {
+  color: #b3d3f6;
+  background: #486c9233;
 }

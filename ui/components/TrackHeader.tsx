@@ -22,6 +22,33 @@ export function TrackHeader({
   return (
     <div
       data-track-header={track.id}
+      draggable={!s.playing && !controller.busy}
+      onDragStart={(e) => {
+        if (
+          (e.target as HTMLElement).closest(
+            "button:not(.track-reorder), input, select, textarea",
+          )
+        ) {
+          e.preventDefault();
+          return;
+        }
+        e.stopPropagation();
+        e.dataTransfer.setData("application/x-basement-track", track.id);
+        e.dataTransfer.effectAllowed = "move";
+        const bounds = e.currentTarget.getBoundingClientRect();
+        e.dataTransfer.setDragImage(
+          e.currentTarget,
+          e.clientX - bounds.left,
+          e.clientY - bounds.top,
+        );
+      }}
+      onDragEnd={() =>
+        document
+          .querySelectorAll(".reorder-target")
+          .forEach((node) =>
+            node.classList.remove("reorder-target", "reorder-after"),
+          )
+      }
       onDragOver={(e) => {
         if (
           e.dataTransfer.types.includes("application/x-basement-track") &&
@@ -90,16 +117,6 @@ export function TrackHeader({
         title="Drag to reorder; use arrow keys to move"
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
-        onDragStart={(e) => {
-          e.stopPropagation();
-          e.dataTransfer.setData("application/x-basement-track", track.id);
-          e.dataTransfer.effectAllowed = "move";
-        }}
-        onDragEnd={() =>
-          document
-            .querySelectorAll(".reorder-target")
-            .forEach((n) => n.classList.remove("reorder-target"))
-        }
         onKeyDown={(e) => {
           if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
           e.preventDefault();

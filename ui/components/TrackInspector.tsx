@@ -42,23 +42,6 @@ export function TrackInspector({
   useEffect(() => {
     if (panel !== "notes") setMidiExpanded(false);
   }, [panel]);
-  useEffect(() => {
-    const content =
-      inspector.current?.querySelector<HTMLElement>(".inspector-content");
-    if (!content || panel === "notes") return;
-    const fit = () => {
-      const needed = Math.min(
-        controller.inspectorMax,
-        content.scrollHeight + 44,
-      );
-      if (needed > controller.inspectorHeight + 2)
-        controller.setInspectorHeight(needed);
-    };
-    const observer = new ResizeObserver(fit);
-    for (const child of content.children) observer.observe(child);
-    fit();
-    return () => observer.disconnect();
-  }, [panel, track?.id, controller.propertiesPing, controller.inspectorMax]);
   const panGesture = useRef<{ id: string; released: boolean } | undefined>(
     undefined,
   );
@@ -322,7 +305,6 @@ export function TrackInspector({
                           pan: +e.target.value,
                           historyGroup: current?.id,
                         });
-                        if (current?.released) panGesture.current = undefined;
                       }}
                     />
                     <span>R</span>

@@ -3,7 +3,7 @@
   align-items: center;
   gap: 36px;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: auto;
 }
 .eq-summary {
@@ -74,19 +74,19 @@
 }
 .track-sound-panel {
   display: grid;
-  grid-template-columns: minmax(420px, 1.5fr) minmax(350px, 1fr);
+  grid-template-columns: minmax(340px, 1fr) minmax(500px, 1.3fr);
   gap: 16px;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   align-items: stretch;
 }
 .track-sound-panel .track-eq {
   display: grid;
   grid-template-columns: repeat(3, minmax(90px, 1fr));
-  gap: 22px;
+  gap: 14px;
   margin: 0;
-  padding: 18px 20px;
+  padding: 12px 16px;
   border: 1px solid #ffffff0d;
   border-radius: 12px;
   background: #ffffff03;
@@ -319,7 +319,7 @@ footer .audio-cpu.needs-attention {
 }
 @media (max-width: 1100px) {
   .track-sound-panel {
-    grid-template-columns: minmax(340px, 1fr) minmax(300px, 1fr);
+    grid-template-columns: minmax(280px, 1fr) minmax(460px, 1.3fr);
     gap: 18px;
   }
   .track-built-ins {
@@ -586,7 +586,7 @@ footer .audio-cpu.needs-attention {
 }
 .clip-sound {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   position: relative;
 }
@@ -609,12 +609,12 @@ footer .audio-cpu.needs-attention {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 24px 12px;
-  padding: 20px;
+  gap: 4px 12px;
+  padding: 12px 16px;
   border: 1px solid #ffffff10;
   border-radius: 12px;
   background: #ffffff03;
-  font-size: 12px;
+  font-size: 10px;
 }
 .region-controls input {
   grid-column: 1 / -1;
@@ -757,21 +757,100 @@ footer .audio-cpu.needs-attention {
 .track-kind-help > span {
   grid-area: 1 / 1;
 }
+.region-settings-row {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+.region-settings-row .region-controls {
+  flex: 1;
+  min-width: 0;
+}
 .region-takes {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 16px;
   border: 1px solid #ffffff10;
   border-radius: 12px;
   background: #ffffff03;
-  font-size: 12px;
+  font-size: 10px;
 }
 .region-takes select {
-  width: 180px;
-}
-.region-takes span {
-  color: #999ca6;
+  width: 160px;
+  max-width: 100%;
   font-size: 11px;
+}
+
+/* Compact effect cards: grid spacing owns every control's position. */
+.track-built-ins {
+  align-items: start;
+}
+.track-built-ins .built-in-effect {
+  padding: 12px 16px;
+}
+.track-built-ins .built-in-effect p {
+  min-height: 0;
+  margin: 4px 0 12px;
+  line-height: 1.4;
+}
+.track-built-ins .effect-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+}
+.track-built-ins .effect-amount {
+  min-width: 0;
+  margin: 0;
+}
+.track-built-ins .effect-amount > span {
+  height: 14px;
+  line-height: 14px;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.track-built-ins .effect-amount input {
+  display: block;
+  height: 16px;
+  margin: 4px 0 0;
+}
+
+/* Shared compact slider rhythm across the inspector tabs. */
+.inspector .effect-controls .effect-amount {
+  margin: 0;
+}
+.inspector .effect-amount > span,
+.inspector .eq-band > span,
+.recording-volume > span {
+  min-height: 14px;
+  line-height: 14px;
+  font-size: 10px;
+  align-items: center;
+}
+.inspector .eq-band input,
+.inspector .effect-amount input,
+.region-controls input,
+.recording-controls .pan-row input {
+  display: block;
+  height: 16px;
+  margin: 4px 0 0;
+  background: linear-gradient(#51535b, #51535b) center / 100% 3px no-repeat;
+}
+.inspector .eq-band output,
+.region-controls output {
+  font-size: 10px;
+}
+.recording-controls .built-in-effect {
+  padding: 12px 16px;
+}
+.recording-controls .built-in-effect p {
+  min-height: 0;
+  margin: 4px 0 12px;
+}
+.recording-controls .recording-volume .level-slider {
+  margin-top: 4px;
+  height: 16px;
 }

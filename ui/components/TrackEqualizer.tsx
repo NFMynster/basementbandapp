@@ -89,7 +89,10 @@ export function TrackEqualizer({
             onPointerDown={() => {
               gesture.current = crypto.randomUUID();
             }}
-            onPointerUp={() => {
+            onKeyDown={() => {
+              gesture.current = undefined;
+            }}
+            onPointerCancel={() => {
               gesture.current = undefined;
             }}
             onBlur={() => {

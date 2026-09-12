@@ -70,6 +70,8 @@ class SessionService {
         const session = JSON.parse(raw);
         this.lastSnapshot = session;
         validate(session);
+        // Device fallback can route a saved input to speakers on this machine.
+        for (const track of session.tracks) track.monitor = false;
         for (const clip of sessionClips(session)) await fs.access(clip.path);
         state = await this.engine.request({
           op: "restore",
@@ -169,9 +171,33 @@ class SessionService {
     return folder;
   }
   request(command) {
+    // Keep only the newest waiting value in a continuous slider gesture.
+    // Commands already executing finish normally; other edits remain barriers.
+    const key =
+      typeof command.historyGroup === "string" &&
+      ["track", "master", "metronomeVolume", "editClip"].includes(command.op)
+        ? JSON.stringify([
+            command.op,
+            command.track,
+            command.clip,
+            command.action,
+            command.historyGroup,
+            Object.keys(command).sort(),
+          ])
+        : null;
+    if (key && this.pendingGesture?.key === key) {
+      this.pendingGesture.command = command;
+      return this.pendingGesture.result;
+    }
+    const pending = { key, command, result: null };
+    this.pendingGesture = key ? pending : null;
     const result = this.queue
       .then(() => this.ready)
-      .then(() => this.execute(command));
+      .then(() => {
+        if (this.pendingGesture === pending) this.pendingGesture = null;
+        return this.execute(pending.command);
+      });
+    pending.result = result;
     this.queue = result.catch(() => {});
     return result;
   }
@@ -474,6 +500,7 @@ class SessionService {
       const target = path.resolve(command.path);
       const session = JSON.parse(await fs.readFile(target, "utf8"));
       validate(session);
+      for (const track of session.tracks) track.monitor = false;
       for (const clip of sessionClips(session)) {
         clip.path = path.resolve(path.dirname(target), clip.path);
         await fs.access(clip.path);

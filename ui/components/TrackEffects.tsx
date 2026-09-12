@@ -47,7 +47,9 @@ export function TrackEffect({
   update: (track: Track, patch: TrackPatch) => unknown;
   effect: keyof typeof effects;
 }) {
-  const gesture = useRef<string | undefined>(undefined);
+  const gesture = useRef<{ id: string; released: boolean } | undefined>(
+    undefined,
+  );
   const config = effects[effect];
   const enabled = !!track[config.toggle];
   const extras = {
@@ -128,48 +130,57 @@ export function TrackEffect({
         </button>
       </div>
       <p>{config.hint}</p>
-      {controls.map((control) => {
-        const key = control.value as keyof Track;
-        const value = (track[key] as number | undefined) ?? control.initial;
-        const display = `${control.unit === "%" ? Math.round(value * 100) : value}${control.unit}`;
-        return (
-          <label className="effect-amount" key={key} title={control.hint}>
-            <span>
-              {control.label}
-              <output>{display}</output>
-            </span>
-            <input
-              type="range"
-              aria-label={`${config.title} ${control.label.toLowerCase()}`}
-              aria-valuetext={display}
-              min={control.min}
-              max={control.max}
-              step={control.step}
-              value={value}
-              disabled={!enabled}
-              onPointerDown={() => {
-                gesture.current = crypto.randomUUID();
-              }}
-              onPointerUp={() => {
-                gesture.current = undefined;
-              }}
-              onPointerCancel={() => {
-                gesture.current = undefined;
-              }}
-              onBlur={() => {
-                gesture.current = undefined;
-              }}
-              onChange={(e) =>
-                update(track, {
-                  [key]: +e.target.value,
-                  historyGroup: gesture.current,
-                })
-              }
-              onDoubleClick={() => update(track, { [key]: control.initial })}
-            />
-          </label>
-        );
-      })}
+      <div className="effect-controls">
+        {controls.map((control) => {
+          const key = control.value as keyof Track;
+          const value = (track[key] as number | undefined) ?? control.initial;
+          const display = `${control.unit === "%" ? Math.round(value * 100) : value}${control.unit}`;
+          return (
+            <label className="effect-amount" key={key} title={control.hint}>
+              <span>
+                {control.label}
+                <output>{display}</output>
+              </span>
+              <input
+                type="range"
+                aria-label={`${config.title} ${control.label.toLowerCase()}`}
+                aria-valuetext={display}
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                value={value}
+                disabled={!enabled}
+                onPointerDown={() => {
+                  gesture.current = {
+                    id: crypto.randomUUID(),
+                    released: false,
+                  };
+                }}
+                onPointerUp={() => {
+                  if (gesture.current) gesture.current.released = true;
+                }}
+                onPointerCancel={() => {
+                  gesture.current = undefined;
+                }}
+                onBlur={() => {
+                  gesture.current = undefined;
+                }}
+                onKeyDown={() => {
+                  if (gesture.current?.released) gesture.current = undefined;
+                }}
+                onChange={(e) => {
+                  const current = gesture.current;
+                  update(track, {
+                    [key]: +e.target.value,
+                    historyGroup: current?.id,
+                  });
+                }}
+                onDoubleClick={() => update(track, { [key]: control.initial })}
+              />
+            </label>
+          );
+        })}
+      </div>
     </section>
   );
 }

@@ -5,7 +5,7 @@ import { ContextMenu } from "./ContextMenu";
 import { PanelResize } from "./PanelResize";
 import { TrackMenu } from "./TrackMenu";
 import { SessionName } from "./SessionName";
-import { Plus, ZoomIn, ZoomOut } from "lucide-react";
+import { Plus, ZoomIn, ZoomOut, ScanLine } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 import { TrackHeader } from "./TrackHeader";
@@ -23,6 +23,7 @@ export function Arrangement({
     y: number;
     position?: number;
   } | null>(null);
+  const [followPlayhead, setFollowPlayhead] = useState(true);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [marquee, setMarquee] = useState<{
     x: number;
@@ -193,6 +194,8 @@ export function Arrangement({
     Infinity,
     0,
     timelineScroll,
+    followPlayhead,
+    controller.seekRevision,
   );
   useLayoutEffect(() => {
     const timeline = timelineScroll.current,
@@ -276,6 +279,15 @@ export function Arrangement({
             </select>
           )}
           <span className="snap-label">Snap: beat</span>
+          <button
+            title="Follow playhead during playback"
+            aria-label="Follow playhead during playback"
+            aria-pressed={followPlayhead}
+            className="follow-playhead"
+            onClick={() => setFollowPlayhead((value) => !value)}
+          >
+            <ScanLine size={15} />
+          </button>
           <button
             title="Zoom out"
             onClick={() => setZoom(Math.max(40, zoom - 16))}

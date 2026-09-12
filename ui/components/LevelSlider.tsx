@@ -66,7 +66,6 @@ export function LevelSlider({
         onChange={(e) => {
           const current = gesture.current;
           onChange(+e.target.value, current?.id);
-          if (current?.released) gesture.current = undefined;
         }}
       />
     </div>
