@@ -46,6 +46,11 @@ var Engine::handlePluginCommand(const var &c) {
     t.eqBass = (float)jlimit(-12.0, 12.0, number(preset, "eqBass"));
     t.eqMid = (float)jlimit(-12.0, 12.0, number(preset, "eqMid"));
     t.eqTreble = (float)jlimit(-12.0, 12.0, number(preset, "eqTreble"));
+    t.eqBassFrequency = (float)jlimit(20.0, 20000.0, number(preset, "eqBassFrequency", 180));
+    t.eqMidFrequency = (float)jlimit(20.0, 20000.0, number(preset, "eqMidFrequency", 1000));
+    t.eqTrebleFrequency = (float)jlimit(20.0, 20000.0, number(preset, "eqTrebleFrequency", 6000));
+    t.eqMidQ = (float)jlimit(0.2, 10.0, number(preset, "eqMidQ", 0.7));
+    t.eqLowCut = (float)jlimit(20.0, 1000.0, number(preset, "eqLowCut", 20));
     auto soundSettings = object({});
     prepared.sound.write(soundSettings);
     t.sound.update(soundSettings);

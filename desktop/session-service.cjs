@@ -353,6 +353,12 @@ class SessionService {
                           "eqBass",
                           "eqMid",
                           "eqTreble",
+                          "eqBassFrequency",
+                          "eqMidFrequency",
+                          "eqTrebleFrequency",
+                          "eqMidQ",
+                          "eqLowCut",
+
                           "compressorEnabled",
                           "compressorAmount",
                           "compressorAttack",

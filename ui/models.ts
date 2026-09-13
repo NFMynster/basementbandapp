@@ -72,6 +72,12 @@ export type Track = {
   eqBass?: number;
   eqMid?: number;
   eqTreble?: number;
+  eqBassFrequency?: number;
+  eqMidFrequency?: number;
+  eqTrebleFrequency?: number;
+  eqMidQ?: number;
+  eqLowCut?: number;
+
   peak: number;
   clips: Clip[];
   pluginName: string;
@@ -155,6 +161,11 @@ export type TrackPatch = { historyGroup?: string } & Partial<
     | "eqBass"
     | "eqMid"
     | "eqTreble"
+    | "eqBassFrequency"
+    | "eqMidFrequency"
+    | "eqTrebleFrequency"
+    | "eqMidQ"
+    | "eqLowCut"
     | "midiDevice"
     | "midiChannel"
     | "color"

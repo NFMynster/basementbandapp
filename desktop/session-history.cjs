@@ -37,6 +37,12 @@ const UNDOABLE_TRACK_SETTINGS = [
   "eqBass",
   "eqMid",
   "eqTreble",
+  "eqBassFrequency",
+  "eqMidFrequency",
+  "eqTrebleFrequency",
+  "eqMidQ",
+  "eqLowCut",
+
   "bypass",
   "pluginName",
 ];

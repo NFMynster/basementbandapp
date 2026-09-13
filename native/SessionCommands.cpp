@@ -64,6 +64,11 @@ void Engine::restoreSession(const var &c) {
     t->eqBass = (float)jlimit(-12.0, 12.0, number(v, "eqBass"));
     t->eqMid = (float)jlimit(-12.0, 12.0, number(v, "eqMid"));
     t->eqTreble = (float)jlimit(-12.0, 12.0, number(v, "eqTreble"));
+    t->eqBassFrequency = (float)jlimit(20.0, 20000.0, number(v, "eqBassFrequency", 180));
+    t->eqMidFrequency = (float)jlimit(20.0, 20000.0, number(v, "eqMidFrequency", 1000));
+    t->eqTrebleFrequency = (float)jlimit(20.0, 20000.0, number(v, "eqTrebleFrequency", 6000));
+    t->eqMidQ = (float)jlimit(0.2, 10.0, number(v, "eqMidQ", 0.7));
+    t->eqLowCut = (float)jlimit(20.0, 1000.0, number(v, "eqLowCut", 20));
     t->mute = flag(v, "mute");
     t->solo = flag(v, "solo");
     t->armed = flag(v, "armed");

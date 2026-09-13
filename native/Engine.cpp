@@ -178,7 +178,7 @@ var Engine::state(bool full, bool pluginState) {
                      {"gain", t->gain},
                      {"pan", t->pan},
                      {"eqEnabled", t->eqEnabled}, {"eqBass", t->eqBass},
-                     {"eqMid", t->eqMid}, {"eqTreble", t->eqTreble},
+                     {"eqBassFrequency", t->eqBassFrequency}, {"eqMidFrequency", t->eqMidFrequency}, {"eqTrebleFrequency", t->eqTrebleFrequency}, {"eqMidQ", t->eqMidQ}, {"eqLowCut", t->eqLowCut}, {"eqMid", t->eqMid}, {"eqTreble", t->eqTreble},
                      {"peak", t->peak.load()},
                      {"clips", clips},
                      {"pluginName", t->pluginName}, {"pluginUid", t->pluginUid},

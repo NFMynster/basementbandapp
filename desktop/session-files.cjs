@@ -82,6 +82,15 @@ function validate(session) {
     assertValid(Number.isInteger(track.input), "Invalid input channel");
     number(track.gain, 0, 1.5);
     number(track.pan, -1, 1);
+    if (track.eqBassFrequency !== undefined)
+      number(track.eqBassFrequency, 20, 20000);
+    if (track.eqMidFrequency !== undefined)
+      number(track.eqMidFrequency, 20, 20000);
+    if (track.eqTrebleFrequency !== undefined)
+      number(track.eqTrebleFrequency, 20, 20000);
+    if (track.eqMidQ !== undefined) number(track.eqMidQ, 0.2, 10);
+    if (track.eqLowCut !== undefined) number(track.eqLowCut, 20, 1000);
+
     for (const key of ["eqBass", "eqMid", "eqTreble"])
       number(track[key], -12, 12);
     for (const key of [

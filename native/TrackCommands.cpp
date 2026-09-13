@@ -141,6 +141,11 @@ void Engine::updateTrack(const var &c) {
   if (c.hasProperty("eqBass")) t.eqBass = (float)jlimit(-12.0, 12.0, number(c, "eqBass"));
   if (c.hasProperty("eqMid")) t.eqMid = (float)jlimit(-12.0, 12.0, number(c, "eqMid"));
   if (c.hasProperty("eqTreble")) t.eqTreble = (float)jlimit(-12.0, 12.0, number(c, "eqTreble"));
+  if (c.hasProperty("eqBassFrequency")) { require(std::isfinite(number(c, "eqBassFrequency")), "Invalid EQ value"); t.eqBassFrequency = (float)jlimit(20.0, 20000.0, number(c, "eqBassFrequency")); }
+  if (c.hasProperty("eqMidFrequency")) { require(std::isfinite(number(c, "eqMidFrequency")), "Invalid EQ value"); t.eqMidFrequency = (float)jlimit(20.0, 20000.0, number(c, "eqMidFrequency")); }
+  if (c.hasProperty("eqTrebleFrequency")) { require(std::isfinite(number(c, "eqTrebleFrequency")), "Invalid EQ value"); t.eqTrebleFrequency = (float)jlimit(20.0, 20000.0, number(c, "eqTrebleFrequency")); }
+  if (c.hasProperty("eqMidQ")) { require(std::isfinite(number(c, "eqMidQ")), "Invalid EQ value"); t.eqMidQ = (float)jlimit(0.2, 10.0, number(c, "eqMidQ")); }
+  if (c.hasProperty("eqLowCut")) { require(std::isfinite(number(c, "eqLowCut")), "Invalid EQ value"); t.eqLowCut = (float)jlimit(20.0, 1000.0, number(c, "eqLowCut")); }
   if (c.hasProperty("gain"))
     t.gain = (float)jlimit(0.0, 1.5, number(c, "gain"));
   if (c.hasProperty("pan"))

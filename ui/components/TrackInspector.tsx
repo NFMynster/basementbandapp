@@ -1,5 +1,6 @@
 import { TrackEffect } from "./TrackEffects";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   Maximize2,
   Minimize2,
@@ -28,10 +29,37 @@ export function TrackInspector({
       inspector.current?.focus({ preventScroll: true });
   }, [controller.propertiesPing]);
   const { track, panel, setPanel, update, task } = controller;
-  const [midiExpanded, setMidiExpanded] = useState(false);
+  const [expandedPanel, setExpandedPanel] = useState<string | null>(null);
+  const midiExpanded = expandedPanel === "notes" && panel === "notes";
+  const eqExpanded = expandedPanel === "eq" && panel === "eq";
+  const workspaceToggle = useRef<HTMLButtonElement>(null);
+  const expansionAnimation = useRef<Animation | null>(null);
+  function toggleExpanded(open: boolean) {
+    const element = inspector.current;
+    expansionAnimation.current?.cancel();
+    const previousTop = element?.getBoundingClientRect().top ?? 0;
+    flushSync(() => setExpandedPanel(open ? panel : null));
+    if (
+      element &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      const offset = previousTop - element.getBoundingClientRect().top;
+      expansionAnimation.current = element.animate(
+        [
+          { transform: `translateY(${offset}px)`, opacity: 0.8 },
+          { transform: "translateY(0)", opacity: 1 },
+        ],
+        { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+      );
+    }
+    if (open) element?.focus({ preventScroll: true });
+    else workspaceToggle.current?.focus({ preventScroll: true });
+  }
   useEffect(() => {
-    if (panel !== "notes") setMidiExpanded(false);
+    setExpandedPanel(null);
+    expansionAnimation.current?.cancel();
   }, [panel]);
+  useEffect(() => () => expansionAnimation.current?.cancel(), []);
   return (
     <>
       <section
@@ -48,11 +76,11 @@ export function TrackInspector({
             );
           }
         }}
-        className={`inspector ${panel === "notes" ? "with-notes" : ""} ${panel === "notes" && midiExpanded ? "midi-expanded" : ""}`}
+        className={`inspector ${panel === "notes" ? "with-notes" : ""} ${panel === "notes" && midiExpanded ? "midi-expanded" : ""} ${panel === "eq" && eqExpanded ? "eq-expanded" : ""}`}
         onKeyDown={(e) => {
-          if (e.key === "Escape" && midiExpanded) {
+          if (e.key === "Escape" && (eqExpanded || midiExpanded)) {
             e.stopPropagation();
-            setMidiExpanded(false);
+            toggleExpanded(false);
           }
         }}
         tabIndex={-1}
@@ -123,25 +151,38 @@ export function TrackInspector({
                 MIDI
               </button>
             )}
-            {panel === "notes" && (
-              <button
-                aria-label={
-                  midiExpanded ? "Restore MIDI editor" : "Maximize MIDI editor"
-                }
-                title={
-                  midiExpanded ? "Restore editor (Esc)" : "Maximize editor"
-                }
-                aria-pressed={midiExpanded}
-                onClick={() => setMidiExpanded((v) => !v)}
-              >
-                {midiExpanded ? (
-                  <Minimize2 size={14} />
-                ) : (
-                  <Maximize2 size={14} />
-                )}
-              </button>
-            )}
           </div>
+          {(panel === "eq" || panel === "notes") && (
+            <button
+              ref={workspaceToggle}
+              className="editor-workspace-toggle"
+              aria-label={
+                eqExpanded || midiExpanded
+                  ? "Restore editor"
+                  : panel === "eq"
+                    ? "Expand equalizer"
+                    : "Maximize MIDI editor"
+              }
+              aria-expanded={eqExpanded || midiExpanded}
+              title={
+                eqExpanded || midiExpanded
+                  ? "Return to arrangement (Esc)"
+                  : "Expand editor"
+              }
+              onClick={() => toggleExpanded(!(eqExpanded || midiExpanded))}
+            >
+              {eqExpanded || midiExpanded ? (
+                <Minimize2 size={14} />
+              ) : (
+                <Maximize2 size={14} />
+              )}
+              {eqExpanded || midiExpanded
+                ? "Done"
+                : panel === "eq"
+                  ? "Edit EQ"
+                  : "Edit MIDI"}
+            </button>
+          )}
         </div>
         {track && (
           <div key={panel} className={`inspector-content inspector-${panel}`}>
@@ -149,7 +190,13 @@ export function TrackInspector({
               <ClipSound controller={controller} />
             ) : panel === "eq" ? (
               <div className="track-sound-panel">
-                <TrackEqualizer track={track} update={update} />
+                <TrackEqualizer
+                  track={track}
+                  update={update}
+                  sampleRate={controller.s.sampleRate}
+                  expanded={eqExpanded}
+                  onExpand={() => toggleExpanded(true)}
+                />
                 <div className="track-built-ins">
                   <TrackEffect
                     key={`${track.id}-compressor`}

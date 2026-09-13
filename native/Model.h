@@ -128,9 +128,14 @@ struct Track {
   TrackSound sound;
   bool eqEnabled = true;
   float eqBass = 0, eqMid = 0, eqTreble = 0;
+  float eqBassFrequency = 180;
+  float eqMidFrequency = 1000;
+  float eqTrebleFrequency = 6000;
+  float eqMidQ = 0.7;
+  float eqLowCut = 20;
   double eqRate = 0;
-  std::array<float, 3> eqApplied{999, 999, 999};
-  IIRFilter eqFilters[2][3];
+  std::array<float, 8> eqApplied{};
+  IIRFilter eqFilters[2][4];
   std::atomic<float> peak{0};
   std::vector<std::unique_ptr<Clip>> clips;
   std::unique_ptr<AudioFormatWriter::ThreadedWriter> writer;

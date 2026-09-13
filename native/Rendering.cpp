@@ -126,15 +126,16 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
     midi.clear();
     effect.plugin->processBlock(view, midi);
   }
-  const std::array<float, 3> gains{t.eqBass, t.eqMid, t.eqTreble};
+  const std::array<float, 8> gains{t.eqBass, t.eqMid, t.eqTreble, t.eqBassFrequency, t.eqMidFrequency, t.eqTrebleFrequency, t.eqMidQ, t.eqLowCut};
   if (t.eqRate != rate || t.eqApplied != gains) {
-    const auto bass = IIRCoefficients::makeLowShelf(rate, jmin(180.0, rate * 0.1), 0.707, Decibels::decibelsToGain(t.eqBass));
-    const auto mid = IIRCoefficients::makePeakFilter(rate, jmin(1000.0, rate * 0.2), 0.7, Decibels::decibelsToGain(t.eqMid));
-    const auto treble = IIRCoefficients::makeHighShelf(rate, jmin(6000.0, rate * 0.4), 0.707, Decibels::decibelsToGain(t.eqTreble));
+    const auto bass = IIRCoefficients::makeLowShelf(rate, jmin((double)t.eqBassFrequency, rate * 0.49), 0.707, Decibels::decibelsToGain(t.eqBass));
+    const auto mid = IIRCoefficients::makePeakFilter(rate, jmin((double)t.eqMidFrequency, rate * 0.49), t.eqMidQ, Decibels::decibelsToGain(t.eqMid));
+    const auto treble = IIRCoefficients::makeHighShelf(rate, jmin((double)t.eqTrebleFrequency, rate * 0.49), 0.707, Decibels::decibelsToGain(t.eqTreble));
     for (auto &channel : t.eqFilters) {
       channel[0].setCoefficients(bass);
       channel[1].setCoefficients(mid);
       channel[2].setCoefficients(treble);
+      channel[3].setCoefficients(t.eqLowCut <= 20 ? IIRCoefficients(1, 0, 0, 1, 0, 0) : IIRCoefficients::makeHighPass(rate, jmin((double)t.eqLowCut, rate * 0.49), 0.707));
     }
     t.eqRate = rate;
     t.eqApplied = gains;

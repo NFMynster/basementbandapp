@@ -854,3 +854,445 @@ footer .audio-cpu.needs-attention {
   margin-top: 4px;
   height: 16px;
 }
+
+/* Interactive EQ */
+.track-sound-panel .track-eq.eq-editor,
+.track-eq.eq-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff06, #ffffff02);
+}
+.eq-editor .eq-summary {
+  flex-direction: row;
+  align-items: center;
+}
+.eq-editor .eq-summary > button {
+  margin-left: auto;
+}
+.eq-plot {
+  background: #101216;
+  border: 1px solid #ffffff09;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: opacity 180ms ease;
+}
+.eq-plot.is-bypassed {
+  opacity: 0.4;
+}
+.eq-plot > svg {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+}
+.eq-plot text {
+  fill: #777e8c;
+  font-size: 9px;
+}
+.eq-grid {
+  stroke: #ffffff09;
+  stroke-width: 1;
+}
+.eq-zero {
+  stroke: #ffffff25;
+  stroke-width: 1;
+}
+.eq-fill {
+  fill: #a5c8f310;
+}
+.eq-curve {
+  stroke: #c2d9f4;
+  stroke-width: 2;
+  fill: none;
+  stroke-linejoin: round;
+}
+.eq-node {
+  cursor: grab;
+}
+.eq-node:active {
+  cursor: grabbing;
+}
+.eq-halo {
+  fill: currentColor;
+  opacity: 0.14;
+  transition:
+    r 160ms ease,
+    opacity 160ms ease;
+}
+.eq-node:hover .eq-halo,
+.eq-node:focus-within .eq-halo {
+  opacity: 0.3;
+}
+.eq-node circle:focus-visible {
+  outline: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.eq-band-tabs {
+  display: flex;
+  gap: 6px;
+}
+.eq-band-tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: transparent;
+  color: #a5a9b2;
+  border: 1px solid transparent;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.eq-band-tabs button[aria-pressed="true"] {
+  background: #ffffff08;
+  border-color: #ffffff12;
+  color: #edf0f5;
+}
+.eq-band-tabs i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--band-color);
+}
+.eq-band-tabs span {
+  margin-left: auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.eq-description {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.eq-description strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.eq-description span,
+.eq-more p {
+  font-size: 11px;
+  color: #8e95a2;
+  line-height: 1.5;
+}
+.eq-selected {
+  min-height: 110px;
+  animation: eq-reveal 160ms ease;
+}
+.eq-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.eq-detail {
+  min-width: 0;
+  display: block;
+}
+.eq-detail > span {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11px;
+  color: #a4aab5;
+}
+.eq-detail output {
+  color: #d6dde8;
+  font-variant-numeric: tabular-nums;
+}
+.eq-detail input {
+  width: 100%;
+  margin: 12px 0 0;
+  accent-color: #b3d3f6;
+}
+.eq-more {
+  border-top: 1px solid #ffffff0b;
+  padding-top: 10px;
+}
+.eq-more summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: #9fa7b4;
+}
+.eq-more .eq-detail {
+  margin-top: 14px;
+  max-width: 260px;
+}
+@keyframes eq-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eq-editor *,
+  .eq-editor *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 650px) {
+  .eq-band-tabs button {
+    flex-wrap: wrap;
+  }
+  .eq-band-tabs span {
+    width: 100%;
+    margin: 0;
+  }
+  .eq-detail-grid {
+    gap: 8px;
+  }
+}
+
+/* A compact overview opens a dedicated EQ workspace. */
+.editor-workspace-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid #ffffff16;
+  border-radius: 8px;
+  color: #d2deed;
+  font-size: 11px;
+  background: #ffffff07;
+}
+.editor-workspace-toggle:hover {
+  background: #ffffff10;
+}
+.eq-plot {
+  position: relative;
+}
+.eq-preview-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.eq-preview-open span {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ffffff18;
+  border-radius: 7px;
+  padding: 6px 9px;
+  background: #242a34ed;
+  color: #d5e2f3;
+  font-size: 11px;
+  transition: background 160ms ease;
+}
+.eq-preview-open:hover {
+  background: #ffffff03;
+}
+.eq-preview-open:hover span {
+  background: #3a4558;
+}
+.eq-preview-open:focus-visible {
+  outline: 2px solid #b3d3f6;
+  outline-offset: -3px;
+}
+.eq-compact .eq-plot > svg {
+  height: 112px;
+}
+.eq-compact .eq-band-tabs,
+.eq-compact .eq-selected,
+.eq-compact .eq-more {
+  display: none;
+}
+.eq-preview-hint {
+  color: #9098a6;
+  font-size: 11px;
+}
+.inspector.eq-expanded {
+  position: fixed;
+  inset: 144px 0 0;
+  height: auto !important;
+  z-index: 9;
+  box-shadow: 0 -12px 36px #0003;
+}
+.inspector.eq-expanded > .panel-resize {
+  display: none;
+}
+.eq-expanded .inspector-content {
+  height: calc(100% - 42px);
+  max-height: none;
+  padding: clamp(16px, 3vw, 40px);
+}
+.eq-expanded .track-sound-panel {
+  display: block;
+  max-width: 1280px;
+  height: 100%;
+}
+.eq-expanded .track-built-ins {
+  display: none;
+}
+.eq-expanded .track-eq.eq-full {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-rows: auto minmax(180px, 1fr) auto;
+  column-gap: 30px;
+  row-gap: 20px;
+  height: 100%;
+  max-height: 680px;
+  padding: 24px;
+  align-content: stretch;
+  align-items: stretch;
+}
+.eq-full .eq-summary {
+  grid-column: 1 / -1;
+}
+.eq-full .eq-summary strong {
+  font-size: 17px;
+}
+.eq-full .eq-plot {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+}
+.eq-full .eq-plot > svg {
+  width: 100%;
+  max-height: 100%;
+}
+.eq-full .eq-band-tabs {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: start;
+}
+.eq-full .eq-selected {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  padding: 12px 0 0 24px;
+  border-left: 1px solid #ffffff0b;
+}
+.eq-full .eq-description {
+  margin-bottom: 25px;
+  gap: 10px;
+}
+.eq-full .eq-description strong {
+  font-size: 15px;
+}
+.eq-full .eq-description span {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.eq-full .eq-detail-grid {
+  grid-template-columns: 1fr;
+  gap: 25px;
+}
+.eq-full .eq-detail > span {
+  font-size: 12px;
+}
+.eq-full .eq-more {
+  grid-column: 2;
+  grid-row: 3;
+  padding: 0 0 0 24px;
+  border-top: 0;
+  border-left: 1px solid #ffffff0b;
+}
+.eq-full .eq-more summary {
+  display: none;
+}
+.eq-full .eq-more .eq-detail {
+  margin: 0;
+}
+.eq-full .eq-more p {
+  margin-bottom: 0;
+}
+@media (max-height: 760px) {
+  .eq-expanded .inspector-content {
+    padding: 14px 24px;
+  }
+  .eq-expanded .track-eq.eq-full {
+    padding: 16px;
+    gap: 12px 22px;
+  }
+  .eq-full .eq-description {
+    margin-bottom: 14px;
+  }
+  .eq-full .eq-detail-grid {
+    gap: 16px;
+  }
+}
+@media (max-width: 850px) {
+  .eq-expanded .track-eq.eq-full {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    column-gap: 16px;
+  }
+  .eq-full .eq-selected,
+  .eq-full .eq-more {
+    padding-left: 16px;
+  }
+  .editor-workspace-toggle {
+    padding: 6px 8px;
+  }
+}
+@media (max-width: 650px) {
+  .eq-expanded .track-eq.eq-full {
+    display: flex;
+    height: auto;
+    max-height: none;
+  }
+  .eq-full .eq-plot > svg {
+    height: 190px;
+  }
+  .eq-full .eq-selected,
+  .eq-full .eq-more {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .eq-full .eq-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inspector.eq-expanded {
+    animation: none;
+  }
+}
+
+/* Match the overview to the adjacent effect cards without enlarging them. */
+.track-sound-panel:has(.eq-compact) {
+  align-items: stretch;
+}
+.track-sound-panel .track-eq.eq-compact {
+  padding: 12px 16px;
+  gap: 8px;
+  min-height: 0;
+  position: relative;
+}
+.eq-compact .eq-plot {
+  flex: 1;
+  min-height: 70px;
+}
+.eq-compact .eq-plot > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.eq-compact .eq-preview-hint {
+  display: none;
+}
+.inspector.midi-expanded {
+  inset: 144px 0 0;
+}
