@@ -31,9 +31,7 @@ license. Preserve Electron's LICENSE and LICENSES.chromium.html.
 
 No third-party instruments, effects, samples or ASIO drivers are bundled.
 Users install plug-ins separately under the vendors' terms. Compatibility
-does not grant rights to redistribute those plug-ins. Before distributing
-with proprietary plug-ins, obtain advice on license compatibility; a host's
-AGPL license is not an exception to third-party terms.
+does not grant rights to redistribute those plug-ins.
 
 JUCE, VST, ASIO, Electron and other product names belong to their respective
 owners. This project is not endorsed by Apple or the named vendors.

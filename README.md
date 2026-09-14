@@ -53,7 +53,8 @@ npm run package:win  # on Windows: x64 installer
 npm run package:mac  # on macOS: Apple Silicon DMG
 ```
 
-Build on the target OS. Files go to `release/`. Signing/notarization needs your own credentials; Mac hardware and permissions still need platform validation. [Build, debugging and troubleshooting](docs/BUILD.md)
+Build on the target OS. Files go to `release/`. Mac distribution requires your
+own signing and notarization credentials. [Build, release and troubleshooting details](docs/BUILD.md)
 
 ## License
 

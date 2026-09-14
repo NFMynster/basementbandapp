@@ -19,6 +19,8 @@
     "build:icons": "electron scripts/icons.cjs",
     "package:win": "node scripts/package.mjs win",
     "package:mac": "node scripts/package.mjs mac",
+    "release:win": "node scripts/release-win.mjs",
+    "release:mac": "node scripts/release-mac.mjs",
     "build:licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
@@ -40,7 +42,7 @@
     "directories": {
       "output": "release"
     },
-    "appId": "studio.basementband.app",
+    "appId": "com.footstompstudios.basementband",
     "productName": "Basement Band",
     "files": [
       "dist/**/*",

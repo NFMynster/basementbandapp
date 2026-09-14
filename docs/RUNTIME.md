@@ -18,15 +18,15 @@ Removing C# reduces process/runtime and control-hop overhead, but does not direc
 
 ## MIDI and loop takes
 
-MIDI endpoints are per track and independent of the single audio interface. Enable a MIDI track’s headphone (monitor) button to hear its VST3 instrument live, including while stopped; choose device/channel under Settings → MIDI tracks. Multiple independent audio interfaces are not supported.
+MIDI endpoints are per track and independent of the audio interface. Enable a MIDI track’s headphone (monitor) button to hear its VST3 instrument live, including while stopped; choose device/channel under Settings → MIDI tracks. The app uses one audio interface at a time.
 
-MIDI capture supports channel messages up to three bytes, including notes/controllers/pitch bend. SysEx, MIDI clock sync and external MIDI output are not implemented. The note editor supports drawing, selection, velocity, quantization and tempo matching. Capture is limited to 262,144 events and 20-minute source regions. Overflow raises a dropout warning.
+MIDI capture supports channel messages up to three bytes, including notes/controllers/pitch bend; it excludes SysEx, MIDI clock sync and external MIDI output. The note editor supports drawing, selection, velocity, quantization and tempo matching. Capture is limited to 262,144 events and 20-minute source regions. Overflow raises a dropout warning.
 
 During capture, the arrangement shows live audio peaks and MIDI notes from the in-memory take. On Stop, MIDI becomes a standard .mid asset with millisecond SMPTE timing. A note held at the end is closed. Until then, unfinished MIDI capture has no crash recovery.
 
 Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping.
 
-Count-in is four beats (4, 3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is currently fixed at 4/4.
+Count-in is four beats (4, 3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is fixed at 4/4.
 
 ## Latency compensation
 
@@ -98,7 +98,5 @@ Shift/Ctrl-click toggles region selection. Dragging empty timeline space draws a
 When input and output are different CoreAudio devices, the engine first tries a private aggregate device. The output device supplies the clock; input drift correction is enabled. Input numbering is preserved, and the interface's own output channels are skipped so playback reaches the selected speakers. The temporary device is removed when the route closes and is hidden from the app's device list. If creation, channel validation or opening fails, the engine uses JUCE's previous separate-device path. Single-device and output-only routes stay on JUCE's direct path.
 
 The build applies `native/PatchCoreAudio.cmake` to pinned JUCE 8.0.12. The adapter is `native/CoreAudioAggregate.h`. Logs report `private aggregate active` or `using separate-device fallback`, along with the active rate and buffer on success. Set `BASEMENT_COREAUDIO_AGGREGATE=0` before launching to compare against the previous path.
-
-Mac validation (including M2 Pro): rebuild with arm64 Node using `npm run build:all`, then restart. Select Komplete Audio 2 input and MacBook speakers, 44.1 kHz, and the same buffer for both comparisons. Enable input monitoring, confirm the active path in logs, compare monitoring delay and listen for dropouts for several minutes. Verify each input channel and stereo speaker output, then test unplug/replug, changing routes, closing the app, and USB-interface-only playback. Compare both perceived delay and the driver estimate; a measured loopback is needed to establish actual round-trip latency. Windows regression tests do not validate the macOS HAL or prove a latency reduction.
 
 The tuner uses an opaque workspace overlay with Guitar, Bass and Chromatic modes. String labels distinguish low E from octave numbers, including low B on five-string bass. Detection covers 25 Hz upwards; tuning mutes monitoring without changing saved effects. Timeline following eases the viewport into position on playback and seeks, respecting reduced-motion preferences without delaying transport audio.

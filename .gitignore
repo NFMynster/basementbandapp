@@ -1,3 +1,4 @@
+# Dependencies and generated output
 node_modules/
 dist/
 build/
@@ -9,3 +10,14 @@ release/
 .vs/
 *.user
 *.log
+
+# Local credentials and code-signing material
+.env
+.env.*
+!.env.example
+*.cer
+*.key
+*.mobileprovision
+*.p12
+*.pem
+*.pfx

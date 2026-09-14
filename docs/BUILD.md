@@ -48,6 +48,8 @@ Solution Explorer uses explicit file entries and matching `.vcxproj.filters` ent
 | `npm run package:win`                           | Windows x64 NSIS installer and unpacked app        |
 | `npm run package:mac`                           | macOS Apple Silicon DMG                            |
 | `npm run package`                               | Unpacked distribution for current host             |
+| `npm run release:win -- v0.1.0`                 | Build and upload a Windows draft release           |
+| `npm run release:mac -- v0.1.0`                 | Build and upload a macOS draft release             |
 
 ## Distribution
 
@@ -55,7 +57,15 @@ Build Windows on Windows and macOS on macOS: JUCE needs the target platform SDK.
 
 Output goes to `release/`. The app bundles Electron and JUCE, but no .NET runtime or third-party plug-ins. Users install compatible VST3 plugins separately. The Windows app and installer use the waveform icon; the same mark is used for the tray and macOS packaging.
 
-No signing/notarization credentials are configured. Supply your own electron-builder signing configuration for public distribution; OS trust warnings are otherwise expected. macOS microphone permissions and plug-in editor behavior must still be checked on a Mac. Test Windows on a clean machine for Visual C++ runtime dependencies before public release.
+Windows packages are released unsigned, so users may see Unknown publisher or Microsoft Defender SmartScreen warnings. macOS public releases require Developer ID signing, hardened runtime, notarization, and stapling. Clean-machine release testing covers macOS microphone permissions and plug-in editor behavior, plus Windows trust-warning behavior and Visual C++ runtime dependencies.
+
+For a release, set the version in `package.json`, commit it, and push an exact
+matching tag such as `v0.1.0`. From a clean checkout of that tag, authenticate
+GitHub CLI with `gh auth login` and run the platform release command above. On
+macOS, provide notarization credentials such as
+`APPLE_KEYCHAIN_PROFILE=basement-band-notary`. The scripts run checks and tests,
+create checksums and complete source, and upload everything to a GitHub draft;
+review the draft and test both packages before publishing it.
 
 ## Verification
 
@@ -90,12 +100,8 @@ Persistent `main.log` includes startup, permission results, helper path, native 
 
 Logs rotate on launch at 4 MiB. Review before sharing: driver and plug-in diagnostics can contain local paths/device names. Logs do not intentionally include recordings or command payloads.
 
-If it still stalls on Mac, send `main.log`, the macOS version, CPU architecture, audio interface and whether it was `npm start` or a packaged .app. The changes have been built/tested on Windows, not confirmed against your Mac's failure.
-
-For the reported Mac stall before “Opening audio device”, rebuild the native helper as well as Electron: `npm run package:mac`. The fix initializes NSApplication for the console helper. New logs should show “macOS application event dispatcher initialized”, then “Message loop dispatched audio initialization”, followed by device initialization. The Mac-specific branch still needs verification on a Mac.
-
 If a running Windows app locks `artifacts/native/BasementAudio.exe`, close it before rebuilding/F5. For isolated regression tests, `BASEMENT_NATIVE_TEST` can point to a newly compiled engine; desktop smoke tests honor that override only with their test-device mode enabled. Normal app launches ignore it.
 
 For public signed Mac releases, packaging includes microphone/JIT/third-party-library entitlements for the app and helper. Third-party VST3 code is trusted executable code, not sandboxed. Supply Developer ID credentials and notarize before distribution. See [licensing release checklist](LICENSING.md).
 
-Windows builds apply `native/PatchWasapi.cmake` to the pinned JUCE source. It fixes legacy IEEE float sample decoding and exposes validated shared-mode sample-rate conversion without repeating channel probes at every rate. Recheck this patch when upgrading JUCE.
+Windows builds apply `native/PatchWasapi.cmake` to the pinned JUCE source. It fixes legacy IEEE float sample decoding and exposes validated shared-mode sample-rate conversion without repeating channel probes at every rate.

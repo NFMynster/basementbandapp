@@ -61,6 +61,9 @@
     <None Include="scripts\licenses.mjs" />
     <None Include="scripts\native.mjs" />
     <None Include="scripts\package.mjs" />
+    <None Include="scripts\release-common.mjs" />
+    <None Include="scripts\release-mac.mjs" />
+    <None Include="scripts\release-win.mjs" />
     <None Include="scripts\screenshot-preload.cjs" />
     <None Include="scripts\screenshot.cjs" />
     <None Include="scripts\smoke.mjs" />

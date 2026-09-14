@@ -68,7 +68,7 @@ AudioCallback.cpp owns device-clock metronome/count-in and capture. A count-in c
 
 Rendering.cpp chooses the last active overlapping region per track, so playback and WAV export agree with visual stacking. MIDI region transitions send panic messages and chase held notes. Region offsets/lengths are non-destructive; audio buffers are shared across copied regions and take windows, including after restore. Moving a take stack moves all alternatives; splitting creates two independent take stacks. Deleting a selected take promotes another remaining alternative.
 
-The engine uses short control locks. Its callback attempts the lock without blocking and reports dropouts if unavailable. This remains an early real-time implementation; plug-in loading, memory allocation and graph changes are not a production lock-free engine.
+The engine uses short control locks. Its callback attempts the lock without blocking and reports dropouts if unavailable. The processing graph is not fully lock-free: plug-in loading, memory allocation and graph changes happen outside the audio callback.
 
 ## Session files
 
@@ -88,7 +88,7 @@ Waveforms and MIDI note previews are derived rather than saved. Removing a regio
 
 ## Export
 
-Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Each active processor contributes up to ten seconds of tail to its chain. Built-in room reverb adds four seconds of tail. The MIDI preference defaults to rendered instrument audio. In notes mode, `MidiExport.cpp` writes a standard MIDI file per MIDI track at 960 ticks per quarter note, with tempo, channels, velocity, visible overlap windows and trimmed notes. A merged export in this mode contains an audio-only mix plus separate MIDI files, all following mute/solo. Separate exports include muted tracks. MIDI files start at session zero and require no instrument. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and cannot currently be canceled.
+Export requires stopped transport. Separate 24-bit stereo WAV stems share zero origin and common end; mixdown respects mute/solo. Only selected takes render. Processing, level, pan and latency correction share the playback renderer. Each active processor contributes up to ten seconds of tail to its chain. Built-in room reverb adds four seconds of tail. The MIDI preference defaults to rendered instrument audio. In notes mode, `MidiExport.cpp` writes a standard MIDI file per MIDI track at 960 ticks per quarter note, with tempo, channels, velocity, visible overlap windows and trimmed notes. A merged export in this mode contains an audio-only mix plus separate MIDI files, all following mute/solo. Separate exports include muted tracks. MIDI files start at session zero and require no instrument. Each export creates a new subfolder, so earlier exports are not overwritten; failures can leave partial files there. Long exports have a 30-minute deadline and no cancellation control.
 
 ## Checks
 
