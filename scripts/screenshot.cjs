@@ -41,6 +41,82 @@ app
       "artifacts/screenshots/workspace.png",
       (await win.webContents.capturePage()).toPNG(),
     );
+    const footerActions = await win.webContents.executeJavaScript(`(() => ({
+      feedbackRemoved: !document.querySelector('.footer-feedback'),
+      update: document.querySelector('.update-available')?.textContent.trim()
+    }))()`);
+    if (
+      !footerActions.feedbackRemoved ||
+      footerActions.update !== "update available"
+    )
+      throw new Error(
+        "Only the update action should appear in the footer: " +
+          JSON.stringify(footerActions),
+      );
+    await win.webContents.executeJavaScript(
+      `document.querySelector('[title="Quick guide"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    const guide = await win.webContents.executeJavaScript(`(() => {
+      const dialog = document.querySelector('.help-modal');
+      return {
+        recording: dialog?.textContent.includes('on-screen R control'),
+        feedback: dialog?.querySelector('.help-feedback')?.textContent.trim(),
+        links: dialog?.querySelectorAll('.help-links button').length
+      };
+    })()`);
+    if (
+      !guide.recording ||
+      guide.feedback !== "Feedback, bugs & suggestions" ||
+      guide.links !== 3
+    )
+      throw new Error(
+        "Quick guide actions are incomplete: " + JSON.stringify(guide),
+      );
+    await win.webContents.executeJavaScript(
+      "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+    );
+    await win.webContents.capturePage();
+    await new Promise((r) => setTimeout(r, 100));
+    writeFileSync(
+      "artifacts/screenshots/help.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    await win.webContents.executeJavaScript(
+      `document.querySelector('.help-feedback').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    const feedback = await win.webContents.executeJavaScript(`(() => {
+      const dialog = document.querySelector('.feedback-dialog');
+      const box = dialog?.getBoundingClientRect();
+      return {
+        title: dialog?.getAttribute('aria-label'),
+        personal: dialog?.textContent.includes('comes straight to me'),
+        address: dialog?.textContent.includes('nfmynster@footstomp.studio'),
+        onScreen: !!box && box.top >= 0 && box.bottom <= innerHeight
+      };
+    })()`);
+    if (
+      feedback.title !== "Write to me" ||
+      !feedback.personal ||
+      !feedback.address ||
+      !feedback.onScreen
+    )
+      throw new Error(
+        "Feedback dialog is incomplete or clipped: " + JSON.stringify(feedback),
+      );
+    await win.webContents.executeJavaScript(
+      "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+    );
+    await win.webContents.capturePage();
+    await new Promise((r) => setTimeout(r, 100));
+    writeFileSync(
+      "artifacts/screenshots/feedback.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    await win.webContents.executeJavaScript(
+      `document.querySelector('.feedback-dialog .modal-close').click()`,
+    );
     await win.webContents.executeJavaScript(
       `document.querySelector('[aria-label="Track appearance"]').click()`,
     );

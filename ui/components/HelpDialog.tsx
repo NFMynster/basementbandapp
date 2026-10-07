@@ -1,17 +1,26 @@
+import { useState } from "react";
+import { ExternalLink, FileText, MessageCircle, Play } from "lucide-react";
 import { desktop as api } from "../services/desktop";
-import { Modal } from "./Modal";
-import { Play } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
+import { FeedbackDialog } from "./FeedbackDialog";
+import { Modal } from "./Modal";
+
 export function HelpDialog({
   controller,
 }: {
   controller: WorkspaceController;
 }) {
   const { showHelp, setHelp } = controller;
+  const [showFeedback, setShowFeedback] = useState(false);
+  const closeFeedback = () => {
+    setShowFeedback(false);
+    setHelp(false);
+  };
   return (
     <>
-      {showHelp && (
+      {showHelp && showFeedback && <FeedbackDialog onClose={closeFeedback} />}
+      {showHelp && !showFeedback && (
         <Modal
           title="Quick guide"
           onClose={() => setHelp(false)}
@@ -26,8 +35,13 @@ export function HelpDialog({
               </p>
             </li>
             <li>
-              <strong>Mark tracks with R, then record.</strong>
-              <p>Press {keyLabel(controller.bindings.play)} to stop or play.</p>
+              <strong>Mark tracks, then start recording.</strong>
+              <p>
+                Click the on-screen R control on each track you want to capture,
+                then click the round Record button.{" "}
+                {keyLabel(controller.bindings.play)} is the keyboard shortcut
+                for stop or play.
+              </p>
             </li>
             <li>
               <strong>Edit and save.</strong>
@@ -37,29 +51,34 @@ export function HelpDialog({
               </p>
             </li>
           </ol>
-          <p>
-            Solo developed by @nfmynster.{" "}
-            <a
-              href="https://footstomp.studio/"
-              onClick={(e) => {
-                e.preventDefault();
-                void api.openWebsite();
-              }}
-            >
-              footstomp.studio
-            </a>
-          </p>
-          <button className="text-button" onClick={() => void api.openLogs()}>
-            Open diagnostic logs
-          </button>
+          <div className="help-contact">
+            <p>Solo developed by @nfmynster.</p>
+            <div className="help-links">
+              <button
+                className="help-feedback"
+                onClick={() => setShowFeedback(true)}
+              >
+                <MessageCircle size={15} />
+                Feedback, bugs &amp; suggestions
+              </button>
+              <button onClick={() => void api.openWebsite()}>
+                <ExternalLink size={15} />
+                footstomp.studio
+              </button>
+              <button onClick={() => void api.openLogs()}>
+                <FileText size={15} />
+                Open diagnostic logs
+              </button>
+            </div>
+          </div>
           <p className="legal-notice">
             © 2026 Basement Band contributors. AGPLv3 · no warranty. You may
-            modify and redistribute under the license terms.
+            modify and redistribute under the license terms.{" "}
             <button
-              className="text-button"
+              className="legal-link"
               onClick={() => void api.openLicenses()}
             >
-              Licenses & third-party notices
+              Licenses &amp; third-party notices
             </button>
           </p>
           <button className="primary" onClick={() => setHelp(false)}>

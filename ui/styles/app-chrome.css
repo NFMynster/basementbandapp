@@ -19,6 +19,18 @@ footer .live-dot {
   width: 5px;
   height: 5px;
 }
+.update-available {
+  color: #e4bd84;
+  white-space: nowrap;
+}
+.update-available::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e3b467;
+  box-shadow: 0 0 8px #e3b46766;
+}
 .footer-sep {
   margin: 0 12px;
   color: #4f5159;
@@ -180,6 +192,76 @@ footer .live-dot {
   font-size: 12px;
   line-height: 1.8;
   color: #9c9fa9;
+}
+.help-contact {
+  padding: 15px 0;
+  margin: 4px 0 18px;
+  border-top: 1px solid #ffffff0d;
+  border-bottom: 1px solid #ffffff0d;
+}
+.help-contact p {
+  margin: 0 0 11px;
+  color: #c8cad0;
+  font-size: 12px;
+}
+.help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.help-links button {
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid #ffffff12;
+  border-radius: 7px;
+  background: #ffffff04;
+  color: #aeb1ba;
+  font-size: 12px;
+}
+.help-links button:hover {
+  background: #ffffff08;
+  color: #e1e3e7;
+}
+.help-modal .legal-link {
+  display: inline;
+  padding: 0;
+  color: #aebca8;
+  font-size: inherit;
+  line-height: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.feedback-dialog {
+  width: 560px;
+}
+.feedback-icon {
+  color: #d6b36f;
+  background: #302d27;
+  border-color: #e3b46720;
+}
+.feedback-address {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  margin-top: 20px;
+  border: 1px solid #ffffff12;
+  border-radius: 9px;
+  background: #ffffff04;
+}
+.feedback-address span,
+.feedback-hint {
+  color: #8f929c;
+  font-size: 10px;
+}
+.feedback-address strong {
+  color: #dedfe3;
+  font-size: 12px;
+  font-weight: 500;
+}
+.feedback-dialog .feedback-hint {
+  line-height: 1.6;
+  margin: 11px 1px 0;
 }
 button svg {
   flex-shrink: 0;

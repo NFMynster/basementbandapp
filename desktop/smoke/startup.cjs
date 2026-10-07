@@ -28,6 +28,40 @@ async function verifyStartup(win, request) {
     `document.querySelector('.welcome-dialog .modal-close').click()`,
   );
   await new Promise((r) => setTimeout(r, 100));
+  await win.webContents.executeJavaScript(
+    `document.querySelector('[title="Quick guide"]').click()`,
+  );
+  await new Promise((r) => setTimeout(r, 50));
+  const guide = await win.webContents.executeJavaScript(
+    `document.querySelector('.help-modal')?.textContent`,
+  );
+  if (
+    !guide?.includes("on-screen R control") ||
+    !guide.includes("Feedback, bugs & suggestions")
+  )
+    throw new Error("Quick guide wording or feedback link is missing");
+  await win.webContents.executeJavaScript(
+    `document.querySelector('.help-feedback').click()`,
+  );
+  await new Promise((r) => setTimeout(r, 50));
+  const feedback = await win.webContents.executeJavaScript(
+    `document.querySelector('.feedback-dialog')?.textContent`,
+  );
+  if (
+    !feedback?.includes("comes straight to me") ||
+    !feedback.includes("nfmynster@footstomp.studio")
+  )
+    throw new Error("Personal feedback dialog is missing");
+  if (
+    await win.webContents.executeJavaScript(
+      `!!document.querySelector('.update-available')`,
+    )
+  )
+    throw new Error("Smoke mode unexpectedly reported an update");
+  await win.webContents.executeJavaScript(
+    `document.querySelector('.feedback-dialog .modal-close').click()`,
+  );
+  await new Promise((r) => setTimeout(r, 50));
   if (
     !(await win.webContents.executeJavaScript(`(() => {
         const name = document.querySelector('[aria-label="Session name"]').getBoundingClientRect();

@@ -310,6 +310,9 @@ export interface DesktopApi {
   openLicenses(): Promise<string>;
   openLogs(): Promise<string>;
   openWebsite(): Promise<void>;
+  checkForUpdate(): Promise<{ available: boolean; version?: string }>;
+  openRelease(): Promise<void>;
+  openFeedback(): Promise<void>;
   waitUntilVisible?(): Promise<void>;
   restart(): Promise<void>;
   dropFiles(files: File[], track?: string, plugin?: boolean): Promise<Session>;

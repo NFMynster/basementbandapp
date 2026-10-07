@@ -5,6 +5,9 @@ const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 contextBridge.exposeInMainWorld("basement", {
   openLicenses: () => invoke("licenses"),
   openWebsite: () => invoke("website"),
+  checkForUpdate: () => invoke("check-update"),
+  openRelease: () => invoke("open-release"),
+  openFeedback: () => invoke("feedback"),
   waitUntilVisible: () => invoke("window-visible"),
   openLogs: () => invoke("logs"),
   restart: () => invoke("restart"),

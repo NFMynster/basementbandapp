@@ -173,4 +173,7 @@ contextBridge.exposeInMainWorld("basement", {
   plugin: async () => null,
   importAudio: async () => null,
   exportAudio: async () => null,
+  checkForUpdate: async () => ({ available: true, version: "0.2.0" }),
+  openRelease: async () => undefined,
+  openFeedback: async () => undefined,
 });

@@ -5,6 +5,7 @@ const {
   Tray,
   Menu,
   nativeImage,
+  net,
   shell,
   ipcMain,
 } = require("electron");
@@ -14,6 +15,7 @@ const { startBackend } = require("./backend.cjs");
 const { assertSender, registerIpc } = require("./ipc.cjs");
 const { initializeLogging } = require("./logging.cjs");
 const { microphoneAccess } = require("./permissions.cjs");
+const { RELEASE_PAGE, checkForUpdate } = require("./updates.cjs");
 const smoke = process.env.BASEMENT_SMOKE === "1";
 if (smoke) {
   const data = path.resolve("artifacts/smoke-user");
@@ -24,6 +26,7 @@ let backend;
 let tray;
 let startupError;
 let backendReady;
+let updateCheck;
 const request = (command) =>
   backendReady.then(() =>
     backend ? backend.request(command) : Promise.reject(startupError),
@@ -117,6 +120,29 @@ app.whenReady().then(() => {
   ipcMain.handle("website", (event) => {
     assertSender(event, win);
     return shell.openExternal("https://footstomp.studio/");
+  });
+  ipcMain.handle("check-update", (event) => {
+    assertSender(event, win);
+    if (smoke) return { available: false };
+    updateCheck ??= checkForUpdate(
+      (url, options) => net.fetch(url, options),
+      app.getVersion(),
+    );
+    return updateCheck;
+  });
+  ipcMain.handle("open-release", (event) => {
+    assertSender(event, win);
+    return shell.openExternal(RELEASE_PAGE);
+  });
+  ipcMain.handle("feedback", (event) => {
+    assertSender(event, win);
+    const subject = encodeURIComponent("Basement Band feedback");
+    const body = encodeURIComponent(
+      `Hi NFMynster,\n\n[Write your feedback, bug report, or suggestion here]\n\nWhat I was doing:\n\nWhat happened:\n\nWhat I expected:\n\n---\nBasement Band ${app.getVersion()} · ${process.platform}`,
+    );
+    return shell.openExternal(
+      `mailto:nfmynster@footstomp.studio?subject=${subject}&body=${body}`,
+    );
   });
   ipcMain.handle("logs", (event) => {
     assertSender(event, win);

@@ -46,6 +46,7 @@
     <None Include="desktop\session-service.cjs" />
     <None Include="desktop\session-files.cjs" />
     <None Include="desktop\session-history.cjs" />
+    <None Include="desktop\updates.cjs" />
     <None Include="desktop\smoke.cjs" />
     <None Include="docs\ARCHITECTURE.md" />
     <None Include="docs\BUILD.md" />
@@ -77,6 +78,7 @@
     <None Include="ui\components\ContextMenu.tsx" />
     <None Include="ui\components\CreateTrackDialog.tsx" />
     <None Include="ui\components\ExportSettings.tsx" />
+    <None Include="ui\components\FeedbackDialog.tsx" />
     <None Include="ui\components\HelpDialog.tsx" />
     <None Include="ui\components\LevelSlider.tsx" />
     <None Include="ui\components\MidiNotes.tsx" />

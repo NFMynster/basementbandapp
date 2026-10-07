@@ -12,6 +12,8 @@ C++ JUCE: audio/MIDI devices and VST3 hosting
 
 No C# process, .NET runtime or TCP control bridge remains. Installed builds load UI files locally. Development adds a loopback Vite HTTP/WebSocket server for HTML/CSS/JS hot reload only.
 
+At startup, Electron makes one best-effort request to the public GitHub latest-release endpoint. It sends the app version in its user-agent, shows a small footer link only when a newer semantic version exists, and stays quiet when there is no published release or the network is unavailable. The Quick guide's Feedback action opens a local dialog; choosing Write to me hands a pre-addressed `mailto:` draft to the operating system's default mail client. The app does not send the message itself.
+
 Audio samples never travel through JavaScript, JSON, HTTP or TCP. Hardware MIDI performance messages enter JUCE directly. Third-party plugins may have their own networking or activation behavior.
 
 Removing C# reduces process/runtime and control-hop overhead, but does not directly lower device-buffer or plugin latency. No numerical performance improvement is claimed without measurement.

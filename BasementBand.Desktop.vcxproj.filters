@@ -39,6 +39,7 @@
     <None Include="desktop\session-service.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-files.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\session-history.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\updates.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke.cjs"><Filter>Electron</Filter></None>
     <None Include="docs\ARCHITECTURE.md"><Filter>Documentation</Filter></None>
     <None Include="docs\BUILD.md"><Filter>Documentation</Filter></None>
@@ -70,6 +71,7 @@
     <None Include="ui\components\ContextMenu.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\CreateTrackDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\ExportSettings.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\FeedbackDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\HelpDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\LevelSlider.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\MidiNotes.tsx"><Filter>React interface\components</Filter></None>

@@ -1,13 +1,27 @@
 import { useAudioLoad } from "../hooks/useAudioLoad";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AudioDiagnostics } from "./AudioDiagnostics";
 import { ChevronDown } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
+import { desktop as api } from "../services/desktop";
 export function StatusBar({ controller }: { controller: WorkspaceController }) {
   const { s, armed } = controller;
   const [diagnostics, setDiagnostics] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState<string>();
   const audioLoad = useAudioLoad(s.audioCpu);
+  useEffect(() => {
+    let active = true;
+    void api
+      .checkForUpdate()
+      .then((update) => {
+        if (active && update.available) setUpdateVersion(update.version);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
   const openSetup = () => {
     void controller.openSetup("audio");
   };
@@ -35,6 +49,15 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
             <span>
               Audio <output>{audioLoad.toFixed(1)}%</output>
             </span>
+          </button>
+        )}
+        {updateVersion && (
+          <button
+            className="update-available"
+            title={`Basement Band ${updateVersion} is available on GitHub`}
+            onClick={() => void api.openRelease()}
+          >
+            update available
           </button>
         )}
         <div className="footer-right">
