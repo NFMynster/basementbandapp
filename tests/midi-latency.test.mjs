@@ -19,7 +19,6 @@ test("MIDI instruments record, loop, chase notes, restore and export; plug-in an
   const send = rpc.send;
   try {
     let s = await send({ op: "init", folder });
-    const audio = s.tracks[0].id;
     s = await send({ op: "addTrack", kind: "midi" });
     const id = s.tracks.at(-1).id;
     assert.equal(s.tracks.at(-1).kind, "midi");

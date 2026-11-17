@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useRef } from "react";
+import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import type { Session } from "../models";
 
 export function useAnimatedPlayhead(
@@ -13,6 +13,8 @@ export function useAnimatedPlayhead(
   seekRevision = 0,
 ) {
   const element = useRef<HTMLDivElement>(null);
+  // Read the clock once, on mount, rather than on every render.
+  const [mountedAt] = useState(() => performance.now());
   const anchor = useRef({
     session,
     scale,
@@ -22,7 +24,7 @@ export function useAnimatedPlayhead(
     gutter,
     followEnabled,
     seekRevision,
-    time: performance.now(),
+    time: mountedAt,
   });
   useLayoutEffect(() => {
     const previous = anchor.current;
@@ -136,6 +138,6 @@ export function useAnimatedPlayhead(
       view?.removeEventListener("wheel", cancelSettling);
       view?.removeEventListener("pointerdown", cancelSettling);
     };
-  }, []);
+  }, [follow]);
   return element;
 }

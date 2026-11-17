@@ -61,7 +61,7 @@ test("CoreAudio patch applies to pinned JUCE, is repeatable and rejects changed 
   assert.equal(patched.split('#include "CoreAudioAggregate.h"').length - 1, 1);
   assert.match(patched, /std::make_unique<BasementCoreAudioAggregate>/);
   assert.match(patched, /getNumChannels \(inputDeviceID, false\)/);
-  assert.match(patched, /if \(in  == nullptr\)  return out.release\(\)/);
+  assert.match(patched, /if \(in {2}== nullptr\) {2}return out.release\(\)/);
   assert.match(patched, /selected.findNextSetBit/);
   assert.equal(apply().status, 0);
   assert.equal(statSync(adapter).mtimeMs, adapterModified);

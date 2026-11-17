@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, type ReactNode } from "react";
+import { useEffectEvent, useRef, useLayoutEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export function ContextMenu({
@@ -15,15 +15,14 @@ export function ContextMenu({
   onClose: () => void;
 }) {
   const menu = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  const closeOnResize = useEffectEvent(onClose);
   useLayoutEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     menu.current
       ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
       ?.focus();
     const node = menu.current;
-    const close = () => closeRef.current();
+    const close = () => closeOnResize();
     window.addEventListener("resize", close);
     return () => {
       window.removeEventListener("resize", close);

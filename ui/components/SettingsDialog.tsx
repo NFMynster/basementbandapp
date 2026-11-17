@@ -31,9 +31,12 @@ export function SettingsDialog({
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState("");
 
-  useEffect(() => {
+  // Closing setup discards unsaved device edits (adjusted during render).
+  const [setupWasOpen, setSetupWasOpen] = useState(setup);
+  if (setupWasOpen !== setup) {
+    setSetupWasOpen(setup);
     if (!setup) setDeviceDirty(false);
-  }, [setup]);
+  }
 
   useEffect(() => {
     if (!setup || deviceDirty || applying || s.playing) return;
@@ -53,7 +56,7 @@ export function SettingsDialog({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [setup, deviceDirty, applying, s.playing]);
+  }, [setup, deviceDirty, applying, s.playing, setDevices]);
 
   function editDevices(next: Devices) {
     if (pending.current || s.playing) return;

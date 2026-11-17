@@ -55,7 +55,10 @@ export function useWorkspace() {
   const [settingsTab, setSettingsTab] = useState<
     "audio" | "midi" | "shortcuts" | "export"
   >("audio");
-  const clipboard = useRef<{ track: string; clip: string } | null>(null);
+  const [clipboard, setClipboard] = useState<{
+    track: string;
+    clip: string;
+  } | null>(null);
   const previousTracks = useRef<string[] | null>(null);
   const [trackPing, setTrackPing] = useState("");
   const [projectRevision, setProjectRevision] = useState(0);
@@ -391,9 +394,13 @@ export function useWorkspace() {
     const t = setTimeout(() => setNotice(""), 4000);
     return () => clearTimeout(t);
   }, [notice, noticeVersion]);
+  const copyRegion = (track: string, clip: string) => {
+    setClipboard({ track, clip });
+    setNotice("Region copied. Paste at the playhead.");
+  };
   const editSelected = (
     action: "split" | "copy" | "move",
-    source = clipboard.current,
+    source = clipboard,
   ) => {
     const regionTrack = trackContainingClip(s.tracks, clipId);
     const target =
@@ -462,10 +469,7 @@ export function useWorkspace() {
     split: () => editSelected("split"),
     copy: () => {
       const t = trackContainingClip(s.tracks, clipId);
-      if (t) {
-        clipboard.current = { track: t.id, clip: clipId };
-        setNotice("Region copied. Paste at the playhead.");
-      }
+      if (t) copyRegion(t.id, clipId);
     },
     paste: () => editSelected("copy"),
     undo: () => {
@@ -496,19 +500,21 @@ export function useWorkspace() {
       if (t && clip) void removeClip(t, clip);
     },
   });
+  // Select and reveal a newly added track; other edits leave selection alone.
+  const trackIds = s.tracks.map((t) => t.id).join(",");
   useEffect(() => {
     if (starting) return;
+    const ids = trackIds ? trackIds.split(",") : [];
     const previous = previousTracks.current;
-    const added =
-      previous && s.tracks.filter((t) => !previous.includes(t.id)).at(-1);
-    previousTracks.current = s.tracks.map((t) => t.id);
+    const added = previous && ids.filter((id) => !previous.includes(id)).at(-1);
+    previousTracks.current = ids;
     if (!added) return;
-    setSelected(added.id);
-    setTrackPing(added.id);
+    setSelected(added);
+    setTrackPing(added);
     document
-      .querySelector(`[data-track-header="${added.id}"]`)
+      .querySelector(`[data-track-header="${added}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "instant" });
-  }, [s.tracks.map((t) => t.id).join(","), starting]);
+  }, [trackIds, starting]);
   async function openCreateTrack() {
     setCreatingTrack(true);
     const devices = await run({ op: "devices" }, false);
@@ -581,6 +587,7 @@ export function useWorkspace() {
     setSettingsTab,
     trackPing,
     clipboard,
+    copyRegion,
     editSelected,
     openProperties,
     propertiesPing,

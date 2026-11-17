@@ -13,6 +13,7 @@ export function ShortcutSettings({
 }: {
   controller: WorkspaceController;
 }) {
+  const { bindings, setBindings } = controller;
   const [capture, setCapture] = useState<Shortcut | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -26,10 +27,10 @@ export function ShortcutSettings({
       }
       if (/^(Control|Alt|Shift|Meta)/.test(event.code) || event.repeat) return;
       const binding = keyBinding(event);
-      const conflict = (Object.keys(controller.bindings) as Shortcut[]).find(
+      const conflict = (Object.keys(bindings) as Shortcut[]).find(
         (key) =>
           key !== capture &&
-          controller.bindings[key].replace("Backspace", "Delete") ===
+          bindings[key].replace("Backspace", "Delete") ===
             binding.replace("Backspace", "Delete"),
       );
       if (conflict) {
@@ -38,13 +39,13 @@ export function ShortcutSettings({
         );
         return;
       }
-      controller.setBindings({ ...controller.bindings, [capture]: binding });
+      setBindings({ ...bindings, [capture]: binding });
       setCapture(null);
       setError("");
     };
     window.addEventListener("keydown", listener, true);
     return () => window.removeEventListener("keydown", listener, true);
-  }, [capture, controller.bindings]);
+  }, [capture, bindings, setBindings]);
   return (
     <div className="shortcut-settings">
       {capture && (
@@ -75,9 +76,7 @@ export function ShortcutSettings({
               setError("");
             }}
           >
-            {capture === key
-              ? "Press a key…"
-              : keyLabel(controller.bindings[key])}
+            {capture === key ? "Press a key…" : keyLabel(bindings[key])}
           </button>
         </div>
       ))}
@@ -85,7 +84,7 @@ export function ShortcutSettings({
       <button
         className="text-button"
         onClick={() => {
-          controller.setBindings(defaultBindings);
+          setBindings(defaultBindings);
           setCapture(null);
         }}
       >

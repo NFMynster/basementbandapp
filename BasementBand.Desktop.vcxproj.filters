@@ -67,6 +67,7 @@
     <None Include="scripts\vs-build.mjs"><Filter>Build and development</Filter></None>
     <None Include="tsconfig.json"><Filter>Configuration</Filter></None>
     <None Include="tsconfig.desktop.json"><Filter>Configuration</Filter></None>
+    <None Include="eslint.config.mjs"><Filter>Configuration</Filter></None>
     <None Include="ui\App.tsx"><Filter>React interface</Filter></None>
     <None Include="ui\components\Arrangement.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\AudioDevicePanel.tsx"><Filter>React interface\components</Filter></None>

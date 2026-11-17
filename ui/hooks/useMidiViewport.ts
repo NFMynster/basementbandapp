@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAnimatedPlayhead } from "./useAnimatedPlayhead";
 import type { Clip, Session, Command, CommandResult } from "../models";
 type Options = {
@@ -26,16 +26,18 @@ export function useMidiViewport({
     [zoom, setZoom] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const [fullKeyboard, setFullKeyboard] = useState(false);
-  const pitchRange = useMemo(
-    () =>
-      notes.length
-        ? {
-            high: Math.min(127, Math.max(...notes.map((n) => n.note)) + 2),
-            low: Math.max(0, Math.min(...notes.map((n) => n.note)) - 2),
-          }
-        : { high: 84, low: 36 },
-    [clip?.id],
-  );
+  // The visible pitch range is fitted once per region, then only grows as
+  // notes are drawn outside it (adjusted during render when the region changes).
+  const fitPitchRange = () =>
+    notes.length
+      ? {
+          clipId: clip?.id,
+          high: Math.min(127, Math.max(...notes.map((n) => n.note)) + 2),
+          low: Math.max(0, Math.min(...notes.map((n) => n.note)) - 2),
+        }
+      : { clipId: clip?.id, high: 84, low: 36 };
+  const [pitchRange, setPitchRange] = useState(fitPitchRange);
+  if (pitchRange.clipId !== clip?.id) setPitchRange(fitPitchRange());
   const high = fullKeyboard
     ? 127
     : Math.max(pitchRange.high, ...notes.map((n) => n.note));
@@ -106,15 +108,17 @@ export function useMidiViewport({
     () => () => {
       if (seekDrag.current !== null) setDragPosition(null);
     },
-    [clip?.id],
+    [clip?.id, setDragPosition],
   );
-  useEffect(() => {
+  // Scroll to the notes when the region or keyboard changes, not on every edit.
+  const scrollToNotes = useEffectEvent(() => {
     if (scroll.current)
       scroll.current.scrollTop = Math.max(
         0,
         (high - (notes[0]?.note ?? 60)) * row - 70,
       );
-  }, [clip?.id, fullKeyboard]);
+  });
+  useEffect(() => scrollToNotes(), [clip?.id, fullKeyboard]);
   useEffect(() => {
     const node = scroll.current;
     if (!node) return;

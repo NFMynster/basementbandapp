@@ -60,7 +60,10 @@ export function Arrangement({
     >(),
   );
   const lastProjectRevision = useRef(controller.projectRevision);
+  // Rows animate when the set or order of tracks changes, not on other edits.
+  const trackIds = s.tracks.map((t) => t.id).join(",");
   useLayoutEffect(() => {
+    const ids = trackIds ? trackIds.split(",") : [];
     if (!animateReady) {
       previousRows.current.clear();
       return;
@@ -75,7 +78,7 @@ export function Arrangement({
     const animations: Animation[] = [];
     const ghosts: HTMLElement[] = [];
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const currentIds = new Set(s.tracks.map((t) => t.id));
+    const currentIds = new Set(ids);
     const removing = [...previousRows.current.keys()].some(
       (key) =>
         key.startsWith("data-track-header") &&
@@ -83,7 +86,7 @@ export function Arrangement({
     );
     // Pair each header with its lane. Bound the cascade so large projects
     // become usable quickly, while small projects still enter row by row.
-    const entranceStep = Math.min(45, 320 / Math.max(1, s.tracks.length - 1));
+    const entranceStep = Math.min(45, 320 / Math.max(1, ids.length - 1));
     for (const [selector, attribute] of [
       ["[data-track-header]", "data-track-header"],
       ["[data-lane]", "data-lane"],
@@ -153,19 +156,16 @@ export function Arrangement({
       animations.forEach((a) => a.cancel());
       ghosts.forEach((g) => g.remove());
     };
-  }, [
-    s.tracks.map((t) => t.id).join(","),
-    animateReady,
-    controller.projectRevision,
-  ]);
+  }, [trackIds, animateReady, controller.projectRevision]);
   const zoomScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
-    if (zoomScroll.current !== null && timelineScroll.current) {
-      timelineScroll.current.scrollLeft = zoomScroll.current;
-      zoomScroll.current = null;
-    }
     const view = timelineScroll.current;
     if (!view) return;
+    // Keep the point under the pointer fixed after a Ctrl-wheel zoom.
+    if (zoomScroll.current !== null) {
+      view.scrollTo({ left: zoomScroll.current });
+      zoomScroll.current = null;
+    }
     const wheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
@@ -185,7 +185,7 @@ export function Arrangement({
     };
     view.addEventListener("wheel", wheel, { passive: false });
     return () => view.removeEventListener("wheel", wheel);
-  }, [zoom]);
+  }, [zoom, setZoom, timelineScroll]);
   const playhead = useAnimatedPlayhead(
     s,
     pxPerSecond,
@@ -230,7 +230,7 @@ export function Arrangement({
       timeline.removeEventListener("scroll", fromTimeline);
       sidebar.removeEventListener("scroll", fromSidebar);
     };
-  }, [playhead]);
+  }, [playhead, timelineScroll, trackList]);
   const selectedClip = track?.clips.find((c) => c.id === controller.clipId);
   const selectedTakes = selectedClip?.takeGroup
     ? track!.clips.filter((c) => c.takeGroup === selectedClip.takeGroup)

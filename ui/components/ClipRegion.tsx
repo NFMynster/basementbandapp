@@ -20,6 +20,8 @@ export function ClipRegion({
       position: number;
       y: number;
       duration?: number;
+      // Repeat drags preview looped peaks instead of a trimmed window.
+      repeat?: boolean;
     } | null>(null),
     [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -72,6 +74,7 @@ export function ClipRegion({
           ),
         ),
         y: 0,
+        repeat: true,
       };
     const minimum = Math.min(c.duration, 12 / w.pxPerSecond);
     const shortest = Math.min(
@@ -113,7 +116,7 @@ export function ClipRegion({
   const displayedClip =
     preview?.duration === undefined
       ? c
-      : drag.current?.mode === "repeat"
+      : preview.repeat
         ? {
             ...c,
             duration: previewDuration,
@@ -488,8 +491,7 @@ export function ClipRegion({
           <button
             role="menuitem"
             onClick={() => {
-              w.clipboard.current = { track: t.id, clip: c.id };
-              w.setNotice("Region copied. Paste at the playhead.");
+              w.copyRegion(t.id, c.id);
               setMenu(null);
             }}
           >
@@ -497,7 +499,7 @@ export function ClipRegion({
           </button>
           <button
             role="menuitem"
-            disabled={w.s.recording || !w.clipboard.current}
+            disabled={w.s.recording || !w.clipboard}
             onClick={() => {
               w.editSelected("copy");
               setMenu(null);

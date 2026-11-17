@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 export const defaultBindings = {
   newProject: "Mod+KeyN",
   newTrack: "Shift+KeyN",
@@ -53,8 +53,7 @@ export const keyLabel = (key: string) =>
     .replace("Mod", navigator.platform.includes("Mac") ? "⌘" : "Ctrl")
     .replace(/Key|Digit/g, "");
 export function useShortcuts(actions: Record<Shortcut, () => void>) {
-  const current = useRef(actions);
-  current.current = actions;
+  const run = useEffectEvent((action: Shortcut) => actions[action]());
   const [bindings, setBindings] = useState(() => {
     try {
       const saved = JSON.parse(
@@ -96,7 +95,7 @@ export function useShortcuts(actions: Record<Shortcut, () => void>) {
           : undefined);
       if (action) {
         e.preventDefault();
-        current.current[action]();
+        run(action);
       }
     };
     window.addEventListener("keydown", listener);

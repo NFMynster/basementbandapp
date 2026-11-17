@@ -74,6 +74,7 @@
     <None Include="scripts\vs-build.mjs" />
     <None Include="tsconfig.json" />
     <None Include="tsconfig.desktop.json" />
+    <None Include="eslint.config.mjs" />
     <None Include="ui\App.tsx" />
     <None Include="ui\components\Arrangement.tsx" />
     <None Include="ui\components\AudioDevicePanel.tsx" />

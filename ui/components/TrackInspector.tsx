@@ -55,10 +55,13 @@ export function TrackInspector({
     if (open) element?.focus({ preventScroll: true });
     else workspaceToggle.current?.focus({ preventScroll: true });
   }
-  useEffect(() => {
+  // Switching tabs collapses an expanded editor (adjusted during render).
+  const [expansionPanel, setExpansionPanel] = useState(panel);
+  if (expansionPanel !== panel) {
+    setExpansionPanel(panel);
     setExpandedPanel(null);
-    expansionAnimation.current?.cancel();
-  }, [panel]);
+  }
+  useEffect(() => expansionAnimation.current?.cancel(), [panel]);
   useEffect(() => () => expansionAnimation.current?.cancel(), []);
   return (
     <>
