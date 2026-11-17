@@ -118,15 +118,12 @@
     <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\session-updates.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\midi-note-edits.ts"><Filter>React interface\services</Filter></None>
-    <None Include="ui\startup.css"><Filter>React interface</Filter></None>
-    <None Include="ui\styles\app-chrome.css"><Filter>React interface\styles</Filter></None>
-    <None Include="ui\styles\arrangement-states.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\arrangement.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\base.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\dialogs.css"><Filter>React interface\styles</Filter></None>
-    <None Include="ui\styles\inspector-states.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\inspector.css"><Filter>React interface\styles</Filter></None>
-    <None Include="ui\styles\overlay-states.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\overlays.css"><Filter>React interface\styles</Filter></None>
+    <None Include="ui\styles\plugins.css"><Filter>React interface\styles</Filter></None>
     <None Include="ui\styles\shell.css"><Filter>React interface\styles</Filter></None>
     <None Include="vite.config.ts"><Filter>Configuration</Filter></None>
     <None Include="ui\components\MidiEditorToolbar.tsx"><Filter>React interface\components</Filter></None>

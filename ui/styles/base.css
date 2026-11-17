@@ -1,5 +1,22 @@
 /* Global reset, controls and shared design primitives. */
 :root {
+  /* Shared palette: use these for new styles; one-off shades stay literal. */
+  --accent: #b0c4a7; /* primary actions and focus rings */
+  --accent-blue: #b3d3f6; /* selection and active values */
+  --text-muted: #979ba7;
+  --control: #51535b; /* raised control backgrounds */
+  --selection: #486c9233; /* selected region and row backgrounds */
+  /* White overlays (--tint-NN = alpha in hex) for hairlines and raised surfaces. */
+  --tint-03: #ffffff03;
+  --tint-06: #ffffff06;
+  --tint-08: #ffffff08;
+  --tint-0b: #ffffff0b;
+  --tint-0d: #ffffff0d;
+  --tint-10: #ffffff10;
+  --tint-12: #ffffff12;
+  --tint-18: #ffffff18;
+  --shadow: #0003;
+  --shadow-soft: #0002;
   font-family:
     Inter,
     -apple-system,
@@ -75,7 +92,7 @@ input[type="range"] {
   appearance: none;
   height: 3px;
   padding: 0;
-  background: #51535b;
+  background: var(--control);
   border: 0;
   accent-color: #d3d3db;
   cursor: pointer;
@@ -90,4 +107,17 @@ input[type="range"]::-webkit-slider-thumb {
 }
 input[type="number"]::-webkit-inner-spin-button {
   appearance: none;
+}
+.key {
+  font-family: inherit;
+  font-size: 9px;
+  padding: 2px 5px;
+  background: #2d2e35;
+  border: 1px solid #41434b;
+  border-radius: 3px;
+  margin-left: 8px;
+  color: #a5a7af;
+}
+button svg {
+  flex-shrink: 0;
 }

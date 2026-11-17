@@ -56,6 +56,10 @@ The renderer uses ordinary React hooks for behavior and components for rendering
 
 MidiEditor composes these pieces. Editing actions stay in the hook; the toolbar does not manage pending engine requests. Pure note transformations preserve relative timing and pitch intervals and have direct tests. Track/region changes remount the editor via its key in TrackInspector, resetting selection and cancelling an unfinished seek preview.
 
+## Stylesheets
+
+Each file in `ui/styles/` covers one area: `base` (element defaults and the shared palette tokens), `arrangement`, `shell` (title bar, transport, footer), `dialogs`, `overlays` (toasts, count-in, startup, keyframes), `inspector`, `sound-editors` (EQ, effects, MIDI, region) and `plugins` (chain and starter sounds). `ui/main.tsx` imports them in cascade order. A few rules sit in a later file than their component because they must load after a rule there; each carries a "kept here to load after" comment. Use the `:root` tokens in `base.css` (`--accent`, `--tint-NN`, `--shadow`...) for new styles.
+
 ## Native command routing
 
 Engine::command in native/Commands.cpp looks each op up in one route table and hands it to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. desktop/commands.cjs is the single command list: tests/command-contract.test.mjs fails when the native route table or the types in ui/models.ts disagree with it. To add an operation, register it there, add its route and implementation in the appropriate domain, and type it in ui/models.ts if the renderer sends it.

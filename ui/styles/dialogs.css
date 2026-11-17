@@ -1,4 +1,150 @@
-/* Settings, shortcut and track-creation dialog surfaces. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0b0d12b3;
+  backdrop-filter: blur(7px);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+}
+.modal {
+  width: 620px;
+  background: #292b31;
+  border: 1px solid #4c4f58;
+  border-radius: 14px;
+  padding: 32px;
+  position: relative;
+  box-shadow: 0 20px 90px #0009;
+  max-height: 90vh;
+  overflow: auto;
+}
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  color: #999ca7;
+}
+.modal h2 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  font-weight: 500;
+  margin: 11px 0;
+}
+.modal > p {
+  font-size: 12px;
+  color: #9c9fa9;
+  line-height: 1.8;
+  margin-bottom: 23px;
+}
+.modal select {
+  font-size: 12px;
+  width: 100%;
+  padding: 9px;
+}
+.form-row {
+  display: flex;
+  gap: 18px;
+}
+.apply-device {
+  margin-top: 19px;
+}
+.modal-bottom {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-bottom > span {
+  font-size: 10px;
+  color: #898d98;
+}
+.help-modal ol {
+  padding-left: 25px;
+  color: #b9c5b0;
+}
+.help-modal li {
+  padding-left: 10px;
+  margin: 22px 0;
+}
+.help-modal li strong {
+  font-weight: 500;
+  color: #e0e2e7;
+}
+.help-modal li p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #9c9fa9;
+}
+.help-contact {
+  padding: 15px 0;
+  margin: 4px 0 18px;
+  border-top: 1px solid var(--tint-0d);
+  border-bottom: 1px solid var(--tint-0d);
+}
+.help-contact p {
+  margin: 0 0 11px;
+  color: #c8cad0;
+  font-size: 12px;
+}
+.help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.help-links button {
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--tint-12);
+  border-radius: 7px;
+  background: #ffffff04;
+  color: #aeb1ba;
+  font-size: 12px;
+}
+.help-links button:hover {
+  background: var(--tint-08);
+  color: #e1e3e7;
+}
+.help-modal .legal-link {
+  display: inline;
+  padding: 0;
+  color: #aebca8;
+  font-size: inherit;
+  line-height: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.feedback-dialog {
+  width: 560px;
+}
+.feedback-icon {
+  color: #d6b36f;
+  background: #302d27;
+  border-color: #e3b46720;
+}
+.feedback-address {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  margin-top: 20px;
+  border: 1px solid var(--tint-12);
+  border-radius: 9px;
+  background: #ffffff04;
+}
+.feedback-address span,
+.feedback-hint {
+  color: #8f929c;
+  font-size: 10px;
+}
+.feedback-address strong {
+  color: #dedfe3;
+  font-size: 12px;
+  font-weight: 500;
+}
+.feedback-dialog .feedback-hint {
+  line-height: 1.6;
+  margin: 11px 1px 0;
+} /* Settings, shortcut and track-creation dialog surfaces. */
 .track-types {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -11,12 +157,12 @@
   padding: 22px;
   gap: 12px;
   background: #ffffff04;
-  border: 1px solid #ffffff18;
+  border: 1px solid var(--tint-18);
   border-radius: 12px;
   text-align: left;
 }
 .track-types button[aria-pressed="true"] {
-  border-color: #b0c4a7;
+  border-color: var(--accent);
   background: #b0c4a70c;
   box-shadow: 0 0 0 2px #b0c4a718;
 }
@@ -41,7 +187,7 @@
 .settings-tabs [aria-selected="true"] {
   background: #3a3d42;
   color: #e8ebe5;
-  box-shadow: 0 2px 5px #0003;
+  box-shadow: 0 2px 5px var(--shadow);
 }
 .shortcut-row {
   display: flex;
@@ -56,7 +202,7 @@
 }
 .shortcut-row .capturing {
   color: #c4dab8;
-  outline: 1px solid #b0c4a7;
+  outline: 1px solid var(--accent);
 }
 .key-capture-dialog {
   max-width: 420px;
@@ -69,10 +215,6 @@
   flex-direction: row !important;
   align-items: center;
   gap: 9px;
-}
-.check-row input {
-  width: 16px;
-  height: 16px;
 }
 
 .tuner-reading {
@@ -106,7 +248,7 @@
 }
 .tuner-source,
 .tuner-footnote {
-  color: #979ba7;
+  color: var(--text-muted);
   font-size: 12px;
 }
 .tuner-reading {
@@ -164,11 +306,11 @@
   display: flex;
   width: 100%;
   justify-content: space-between;
-  color: #979ba7;
+  color: var(--text-muted);
   font-size: 11px;
 }
 .tuner-reading small {
-  color: #979ba7;
+  color: var(--text-muted);
 }
 @media (prefers-reduced-motion: reduce) {
   .tuner-scale i {
@@ -183,11 +325,6 @@
 }
 .buffer-help p {
   line-height: 1.6;
-}
-.effect-amount small {
-  font-size: 10px;
-  line-height: 1.4;
-  color: #969ba8;
 }
 
 .effect-amount + .effect-amount {
@@ -206,11 +343,111 @@
   flex: 1;
   padding: 7px 12px;
   border-radius: 7px;
-  color: #979ba7;
+  color: var(--text-muted);
   font-size: 12px;
 }
 .tuner-modes button[aria-pressed="true"] {
   background: #41444e;
   color: #f0f1f3;
   box-shadow: 0 1px 4px #0004;
+}
+.modal {
+  animation: surface-in 140ms ease-out;
+}
+.modal-with-footer {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.settings-dialog {
+  height: 90vh;
+}
+.export-settings {
+  width: 100%;
+  max-width: 620px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #adb0ba;
+}
+.export-settings select {
+  width: 100%;
+  margin-left: 0;
+  padding: 8px;
+}
+.export-settings p {
+  margin: 8px 0;
+}
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+html:has(.modal-backdrop),
+body:has(.modal-backdrop) {
+  overflow: hidden;
+}
+.modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px;
+  margin: 8px 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #686b73 transparent;
+}
+.modal-scroll > p {
+  font-size: 12px;
+  color: #9c9fa9;
+  line-height: 1.8;
+}
+.modal-fixed-footer {
+  flex-shrink: 0;
+  padding: 16px 32px;
+  border-top: 1px solid var(--tint-12);
+  background: #292b31;
+}
+.modal-fixed-footer .modal-bottom {
+  margin: 0;
+  gap: 18px;
+}
+.modal-fixed-footer .primary {
+  flex-shrink: 0;
+  min-width: 104px;
+}
+.modal-with-footer .modal-close {
+  z-index: 2;
+  background: #292b31;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal {
+    animation: none;
+  }
+}
+.buffer-help {
+  line-height: 1.65;
+  font-size: 11px;
+  color: #858892;
+  margin: 16px 0 20px;
+}
+.effect-amount {
+  display: block;
+  color: #bfc3ce;
+  font-size: 10px;
+}
+.effect-amount > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.effect-amount output {
+  font-variant-numeric: tabular-nums;
+}
+.effect-amount input {
+  width: 100%;
+  margin: 12px 0 0;
+  accent-color: var(--accent-blue);
+}
+.modal select {
+  padding-right: 30px;
 }

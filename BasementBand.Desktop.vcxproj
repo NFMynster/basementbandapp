@@ -125,15 +125,12 @@
     <None Include="ui\services\errors.ts" />
     <None Include="ui\services\session-updates.ts" />
     <None Include="ui\services\midi-note-edits.ts" />
-    <None Include="ui\startup.css" />
-    <None Include="ui\styles\app-chrome.css" />
-    <None Include="ui\styles\arrangement-states.css" />
     <None Include="ui\styles\arrangement.css" />
     <None Include="ui\styles\base.css" />
     <None Include="ui\styles\dialogs.css" />
-    <None Include="ui\styles\inspector-states.css" />
     <None Include="ui\styles\inspector.css" />
-    <None Include="ui\styles\overlay-states.css" />
+    <None Include="ui\styles\overlays.css" />
+    <None Include="ui\styles\plugins.css" />
     <None Include="ui\styles\shell.css" />
     <None Include="vite.config.ts" />
     <ProjectReference Include="BasementBand.Audio.vcxproj">

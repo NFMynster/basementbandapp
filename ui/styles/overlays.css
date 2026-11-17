@@ -1,32 +1,52 @@
-/* Arrangement overlays, scrolling and transient feedback states. */
-.track-list-tail {
-  min-height: var(--track-tail-height, 144px);
-  flex: 1 0 var(--track-tail-height, 144px);
+.toast {
+  position: fixed;
+  bottom: 49px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 700px;
+  background: #394238;
+  color: #e4ece0;
+  border: 1px solid #64735f;
+  padding: 12px 18px;
+  border-radius: 7px;
+  box-shadow: 0 5px 24px #0005;
+  z-index: 12;
+  font-size: 12px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 15px;
 }
-.track-sidebar {
-  width: var(--sidebar-width);
-  flex-shrink: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: #26272c;
+.toast.error {
+  background: #463034;
+  border-color: #825157;
+  color: #f2c5c7;
 }
-.track-sidebar .track-list {
-  flex: 1;
-  min-height: 0;
+@keyframes pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+.startup-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #38383f;
+  border-top-color: #dba466;
+  border-radius: 50%;
+  animation: startup-spin 1s linear infinite;
+}
+@keyframes startup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-spinner {
+    animation: none;
+  }
 }
 .track-menu {
   max-height: calc(100vh - 16px);
   overflow-y: auto;
-}
-.count-in-button {
-  width: 39px;
-  height: 39px;
-  padding: 8px;
-  font-size: 12px;
-  font-weight: 650;
 }
 .count-in-overlay {
   position: fixed;
@@ -44,12 +64,6 @@
   color: #c6cabc;
   letter-spacing: 4px;
   font-size: 11px;
-}
-.count-in-overlay strong {
-  font-size: 120px;
-  font-weight: 300;
-  line-height: 1.5;
-  animation: count-beat 450ms ease-out;
 }
 @keyframes count-beat {
   from {
@@ -118,45 +132,6 @@
     box-shadow: inset 0 0 0 transparent;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .count-in-overlay,
-  .count-in-overlay strong,
-  .properties-ping,
-  .toast.notice,
-  .toast.notice.warning,
-  .toast.error {
-    animation: none;
-  }
-}
-.ruler-seek {
-  bottom: 0;
-  cursor: ew-resize;
-}
-.ruler-zone:hover {
-  background-color: #ffffff06;
-}
-.ruler > span {
-  pointer-events: none;
-}
-
-.startup-overlay {
-  text-align: center;
-  opacity: 0;
-  animation: none;
-  transition:
-    opacity 360ms ease-in-out,
-    backdrop-filter 360ms ease-in-out;
-}
-.app.startup-pending {
-  opacity: 0;
-}
-.app.startup-pending,
-.app.startup-revealing {
-  transition: opacity 360ms ease-in-out;
-}
-.app.startup-pending.startup-revealing {
-  opacity: 1;
-}
 .startup-pending [data-track-header],
 .startup-pending [data-lane] {
   visibility: hidden;
@@ -196,53 +171,69 @@
   white-space: pre-wrap;
   font-size: 12px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .startup-overlay,
-  .app.startup-pending,
-  .app.startup-revealing,
-  .startup-content {
-    transition: none;
-    transform: none;
+@keyframes properties-ping {
+  from {
+    opacity: 1;
+    box-shadow: inset 0 0 30px #b0c4a730;
+  }
+  to {
+    opacity: 0;
+    box-shadow: inset 0 0 0 #b0c4a700;
   }
 }
-.metronome-control {
-  position: relative;
+.menu-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
 }
-.metronome-volume {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  width: 58px;
-  padding: 14px 8px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  background: #27292e;
-  border: 1px solid #ffffff18;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px #0005;
+.track-menu {
+  position: fixed;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+  background: #303139f5;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px #0007;
+  animation: surface-in 120ms ease-out;
 }
-.metronome-volume input {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 24px;
-  height: 120px;
-  accent-color: #b0c4a7;
+.track-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 10px 12px;
 }
-.metronome-volume output {
-  font-size: 10px;
-  color: #c7cbbf;
-  font-variant-numeric: tabular-nums;
+.track-menu button:focus {
+  background: #ffffff14;
+  outline: none;
 }
-.transport.metronome-open {
-  z-index: 25;
+.track-menu .danger {
+  color: #f19a9a;
 }
-.metronome-volume input[type="range"] {
-  background: linear-gradient(#51535b, #51535b) center / 3px 100% no-repeat;
+.export-wait {
+  z-index: 30;
 }
-.metronome-volume input::-webkit-slider-thumb {
-  background: #b0c4a7;
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-menu {
+    animation: none;
+  }
+}
+@keyframes eq-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

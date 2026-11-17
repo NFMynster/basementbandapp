@@ -1,0 +1,363 @@
+.plugin-slot {
+  min-width: 0;
+}
+.plugin-slot > div {
+  min-width: 80px;
+  max-width: 170px;
+  overflow: hidden;
+}
+.plugin-slot strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plugin-slot {
+  border: 1px dashed #53565f;
+  border-radius: 6px;
+  min-width: 300px;
+  min-height: 75px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 13px;
+}
+.plugin-slot > button {
+  justify-content: flex-start;
+}
+.plugin-slot small {
+  display: block;
+  font-size: 10px;
+  color: #8f929e;
+  margin-top: 5px;
+}
+.plugin-slot strong {
+  font-size: 12px;
+}
+.plugin-slot span {
+  text-align: left;
+}
+.plugin-slot .on {
+  color: var(--accent);
+}
+.plugin-slot > button:last-child {
+  font-size: 11px;
+}
+/* dialogs.css rule, kept here to load after ".plugin-slot small" */
+.effect-amount small {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #969ba8;
+}
+/* overlays.css rule, kept here to load after ".plugin-slot strong" */
+.count-in-overlay strong {
+  font-size: 120px;
+  font-weight: 300;
+  line-height: 1.5;
+  animation: count-beat 450ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* overlays.css rule, kept here to load after ".count-in-overlay strong" */
+  .count-in-overlay,
+  .count-in-overlay strong,
+  .toast.notice,
+  .toast.notice.warning,
+  .toast.error {
+    animation: none;
+  }
+}
+/* overlays.css rule, kept here to load after ".count-in-overlay" */
+
+.startup-overlay {
+  text-align: center;
+  opacity: 0;
+  animation: none;
+  transition:
+    opacity 360ms ease-in-out,
+    backdrop-filter 360ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* overlays.css rule, kept here to load after ".startup-overlay" */
+  .startup-overlay,
+  .startup-content {
+    transition: none;
+    transform: none;
+  }
+}
+.plugin-details {
+  min-width: 0;
+  flex: 1;
+}
+.plugin-details .plugin-slot {
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.plugin-chain {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 3px 3px 10px;
+}
+.plugin-chain > button {
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
+}
+.plugin-toolbar h3 {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+  line-height: 28px;
+}
+.plugins-panel {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.plugin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.plugin-toolbar button {
+  background: var(--tint-06);
+  border: 1px solid var(--tint-12);
+  border-radius: 7px;
+  font-size: 11px;
+}
+.plugins-panel .plugin-chain {
+  flex-direction: row;
+  gap: 12px;
+  padding: 0 0 10px;
+  overflow-x: auto;
+}
+.plugins-panel .plugin-slot {
+  flex: 0 0 300px;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 70px;
+  border: 1px solid var(--tint-10);
+  border-radius: 12px;
+  background: var(--tint-03);
+  padding: 10px 14px;
+  gap: 8px 12px;
+}
+.plugins-panel .plugin-slot > div {
+  order: 1;
+  flex: 1 0 180px;
+  max-width: none;
+  min-width: 0;
+}
+.plugins-panel .plugin-slot > button {
+  order: 2;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.plugins-panel .plugin-slot > button[title^="Bypass"] {
+  order: 0;
+}
+.plugins-panel .plugin-chain > button {
+  align-self: stretch;
+  min-height: 42px;
+  border: 1px dashed var(--tint-18);
+  border-radius: 10px;
+  font-size: 11px;
+  color: #acb2be;
+}
+.plugins-panel .plugin-slot:has(> button:only-child) {
+  border-style: dashed;
+}
+.plugins-panel .plugin-slot > button:only-child {
+  width: 100%;
+  justify-content: center;
+}
+/* sound-editors.css rule, kept here to load after ".count-in-overlay strong" */
+.eq-summary strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+/* sound-editors.css rule, kept here to load after ".count-in-overlay strong" */
+.effect-heading strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+/* sound-editors.css rule, kept here to load after ".count-in-overlay strong" */
+.export-choices strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+/* sound-editors.css rule, kept here to load after ".plugin-slot strong" */
+.simple-switch strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+/* sound-editors.css rule, kept here to load after ".plugin-slot small" */
+.simple-switch small {
+  color: #a0a5b1;
+  font-size: 11px;
+  font-weight: 400;
+}
+/* sound-editors.css rule, kept here to load after ".count-in-overlay strong" */
+.diagnostic-summary strong {
+  font-size: 26px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+/* shell.css rule, kept here to load after ".plugins-panel .plugin-chain > button" */
+footer .audio-cpu.needs-attention {
+  color: #e4bd84;
+}
+/* sound-editors.css rule, kept here to load after "footer .audio-cpu.needs-attention" */
+.midi-tools button[aria-pressed="true"] {
+  background: #a9cbea1c;
+  color: #c5def2;
+}
+.sound-browser {
+  width: 650px;
+}
+.library-search,
+.library-actions,
+.preset-save {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.library-search input,
+.preset-save input {
+  flex: 1;
+}
+.library-search select {
+  width: 120px;
+}
+.library-actions button,
+.preset-save button {
+  font-size: 11px;
+  background: var(--tint-08);
+}
+.library-list {
+  height: 260px;
+  overflow: auto;
+  border: 1px solid #ffffff15;
+  border-radius: 8px;
+}
+.library-list > p {
+  padding: 18px;
+  color: #a5aaba;
+}
+.library-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid var(--tint-08);
+}
+.library-item > button:has(strong),
+.library-item > button:first-child:not(:has(svg)) {
+  flex: 1;
+  text-align: left;
+  align-items: flex-start;
+  flex-direction: column;
+}
+.library-item small {
+  color: #969dab;
+  font-size: 10px;
+}
+.library-item .favorite {
+  color: #e0c88b;
+}
+.library-list > h3 {
+  margin: 0;
+  padding: 12px 14px 6px;
+  color: #808690;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* Offered only on an empty audio chain: a quick start, not a feature. */
+.starter-sounds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.starter-sounds > span {
+  color: #bfc3ce;
+  font-size: 11px;
+}
+.starter-sounds > button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--tint-12);
+  border-radius: 14px;
+  background: var(--tint-06);
+  font-size: 11px;
+}
+.starter-sounds > small {
+  flex-basis: 100%;
+  color: #808690;
+  font-size: 10px;
+}
+.sound-browser details {
+  font-size: 11px;
+  color: #d7b4a5;
+}
+.plugin-slot[draggable="true"] {
+  cursor: grab;
+}
+/* sound-editors.css rule, kept here to load after ".library-search select" */
+.region-takes select {
+  width: 160px;
+  max-width: 100%;
+  font-size: 11px;
+}
+/* sound-editors.css rule, kept here to load after ".library-actions button" */
+.eq-band-tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: transparent;
+  color: #a5a9b2;
+  border: 1px solid transparent;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+/* sound-editors.css rule, kept here to load after "footer .audio-cpu.needs-attention" */
+.eq-band-tabs button[aria-pressed="true"] {
+  background: var(--tint-08);
+  border-color: var(--tint-12);
+  color: #edf0f5;
+}
+/* sound-editors.css rule, kept here to load after ".count-in-overlay strong" */
+.eq-description strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+/* sound-editors.css rule, kept here to load after ".library-list > p" */
+.eq-description span,
+.eq-more p {
+  font-size: 11px;
+  color: #8e95a2;
+  line-height: 1.5;
+}
+@media (max-width: 650px) {
+  /* sound-editors.css rule, kept here to load after ".eq-band-tabs button" */
+  .eq-band-tabs button {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* inspector.css rule, kept here to load after ".count-in-overlay" */
+  .inspector.eq-expanded {
+    animation: none;
+  }
+}
