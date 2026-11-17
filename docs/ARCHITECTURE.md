@@ -27,7 +27,19 @@ The desktop layer stays plain CommonJS that Electron runs directly, but `tsconfi
 
 ## Renderer coordination
 
-`useWorkspace` coordinates selection, commands, polling and workspace actions. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
+`useWorkspace` only composes the workspace domains in `ui/hooks/workspace/` and wires the cross-domain workflows (new project, shortcuts, recovery notice):
+
+| Domain hook      | Owns                                                                         |
+| ---------------- | ---------------------------------------------------------------------------- |
+| useEngineSession | Session state, `run` (optimistic commands), `task` (busy file work), polling |
+| useNotices       | Transient footer notices and their timer                                     |
+| useTimeline      | Zoom, scale, arrangement length, bar/beat readout, scroll refs               |
+| useSelection     | Selected track, primary and multi-region selection, new-track reveal         |
+| useEditing       | Track/region edits with rollback, clipboard, file drops                      |
+| useDialogs       | Open dialogs and inspector panel, device list for setup                      |
+| useTempoChange   | Tempo edits that wait for a region-matching choice                           |
+
+Components still receive the composed `WorkspaceController`. Put new state in the domain that owns it and pass other domains in explicitly; keep `useWorkspace` to wiring. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
 
 TrackInspector owns the panel shell and tabs; TrackRecordingPanel owns recording controls and pan gestures; TrackPluginsPanel owns the plug-in chain and drag ordering.
 

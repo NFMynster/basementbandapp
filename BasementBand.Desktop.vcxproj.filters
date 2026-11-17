@@ -105,6 +105,13 @@
     <None Include="ui\hooks\useAnimatedPlayhead.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\hooks\useShortcuts.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\hooks\useWorkspace.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useDialogs.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useEditing.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useEngineSession.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useNotices.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useSelection.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useTempoChange.ts"><Filter>React interface\hooks</Filter></None>
+    <None Include="ui\hooks\workspace\useTimeline.ts"><Filter>React interface\hooks</Filter></None>
     <None Include="ui\main.tsx"><Filter>React interface</Filter></None>
     <None Include="ui\models.ts"><Filter>React interface</Filter></None>
     <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
