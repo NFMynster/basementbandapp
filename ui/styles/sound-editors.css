@@ -690,6 +690,40 @@ footer .audio-cpu.needs-attention {
 .library-item .favorite {
   color: #e0c88b;
 }
+.library-list > h3 {
+  margin: 0;
+  padding: 12px 14px 6px;
+  color: #808690;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* Offered only on an empty audio chain: a quick start, not a feature. */
+.starter-sounds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.starter-sounds > span {
+  color: #bfc3ce;
+  font-size: 11px;
+}
+.starter-sounds > button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #ffffff06;
+  font-size: 11px;
+}
+.starter-sounds > small {
+  flex-basis: 100%;
+  color: #808690;
+  font-size: 10px;
+}
 .sound-browser details {
   font-size: 11px;
   color: #d7b4a5;

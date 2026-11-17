@@ -104,7 +104,10 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
   if (liveInput)
     for (int ch = 0; ch < 2; ++ch)
       t.scratch.addFrom(ch, 0, liveInput, n);
-  if (!t.isMidi) t.sound.processGate(t.scratch, n);
+  if (!t.isMidi) {
+    t.sound.processGate(t.scratch, n);
+    t.sound.processAmp(t.scratch, n);
+  }
   if (t.plugin && !t.bypass) {
     midi.addEvents(t.auditionMidi, 0, n, 0);
     t.auditionMidi.clear();

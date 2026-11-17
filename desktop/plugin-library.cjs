@@ -4,6 +4,7 @@ const { spawn } = require("node:child_process");
 const { randomUUID } = require("node:crypto");
 const { NativeClient } = require("./native-client.cjs");
 const { writeJsonAtomically } = require("./session-files.cjs");
+const { STARTER_SOUNDS } = require("./starter-sounds.cjs");
 
 class PluginLibrary {
   constructor(directory, executable, roots) {
@@ -35,6 +36,11 @@ class PluginLibrary {
         id,
         name,
         kind,
+      })),
+      starters: STARTER_SOUNDS.map(({ id, name, hint }) => ({
+        id,
+        name,
+        hint,
       })),
       scanning: this.scanning,
       progress: this.progress,
@@ -178,6 +184,8 @@ class PluginLibrary {
           "reverbWidth",
           "gateEnabled",
           "gateThreshold",
+          "ampCharacter",
+          "ampBypass",
         ].map((key) => [key, track[key]]),
       );
       this.data.presets.push({
@@ -190,7 +198,9 @@ class PluginLibrary {
       return this.view();
     }
     if (c.op === "applyPreset") {
-      const preset = this.data.presets.find((p) => p.id === c.id);
+      const preset =
+        STARTER_SOUNDS.find((p) => p.id === c.id) ??
+        this.data.presets.find((p) => p.id === c.id);
       if (!preset) throw new Error("Preset no longer exists");
       const session = await request({
         op: "preset",

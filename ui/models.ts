@@ -40,6 +40,8 @@ export type RecordingPreview =
       kind: "midi";
       notes: { start: number; duration: number; note: number }[];
     });
+export type AmpCharacter = "none" | "clean" | "crunch" | "lead" | "bass";
+
 export type Track = {
   monitor: boolean;
   icon: TrackIconName;
@@ -68,6 +70,8 @@ export type Track = {
   reverbWidth?: number;
   gateEnabled?: boolean;
   gateThreshold?: number;
+  ampCharacter?: AmpCharacter;
+  ampBypass?: boolean;
   eqEnabled?: boolean;
   eqBass?: number;
   eqMid?: number;
@@ -157,6 +161,8 @@ export type TrackPatch = { historyGroup?: string } & Partial<
     | "reverbWidth"
     | "gateEnabled"
     | "gateThreshold"
+    | "ampCharacter"
+    | "ampBypass"
     | "eqEnabled"
     | "eqBass"
     | "eqMid"
@@ -300,6 +306,7 @@ export type SoundLibrary = {
     recent: number;
   }[];
   presets: { id: string; name: string; kind: "audio" | "midi" }[];
+  starters: { id: string; name: string; hint: string }[];
   scanning: boolean;
   progress: string;
   errors: string[];

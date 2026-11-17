@@ -21,3 +21,6 @@ release/
 *.p12
 *.pem
 *.pfx
+
+# Local agent notes
+CLAUDE.md

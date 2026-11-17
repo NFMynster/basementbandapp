@@ -21,6 +21,8 @@ const UNDOABLE_TRACK_SETTINGS = [
   "reverbWidth",
   "gateEnabled",
   "gateThreshold",
+  "ampCharacter",
+  "ampBypass",
   "name",
   "color",
   "icon",

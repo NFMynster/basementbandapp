@@ -107,13 +107,27 @@ const devices = {
 };
 let startupDelayed = false;
 contextBridge.exposeInMainWorld("basement", {
-  soundLibrary: async () => ({
-    plugins: [],
-    presets: [],
-    scanning: false,
-    progress: "",
-    errors: [],
-  }),
+  soundLibrary: async (c) => {
+    const library = {
+      plugins: [],
+      presets: [],
+      starters: ["clean", "crunch", "lead", "bass"].map((character) => ({
+        id: "starter-" + character,
+        name: character,
+        hint: "",
+      })),
+      scanning: false,
+      progress: "",
+      errors: [],
+    };
+    if (c?.op !== "applyPreset") return library;
+    const t = state.tracks.find((t) => t.id === c.track);
+    Object.assign(t, {
+      ampCharacter: c.id.replace("starter-", ""),
+      ampBypass: false,
+    });
+    return { ...library, session: structuredClone(state) };
+  },
   command: async (c) => {
     if (
       c.op === "state" &&

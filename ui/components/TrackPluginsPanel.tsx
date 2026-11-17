@@ -1,7 +1,17 @@
 import { useRef } from "react";
 import { ArrowLeft, ArrowRight, Plus, Power, Trash2 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
-import type { Track } from "../models";
+import type { AmpCharacter, Track } from "../models";
+import { desktop as api } from "../services/desktop";
+
+// Factory presets from desktop/starter-sounds.cjs, keyed by their amp.
+export const STARTER_SOUNDS: Record<Exclude<AmpCharacter, "none">, string> = {
+  clean: "Clean guitar",
+  crunch: "Crunch guitar",
+  lead: "Lead guitar",
+  bass: "Bass",
+};
+
 export function TrackPluginsPanel({
   controller,
   track,
@@ -11,6 +21,23 @@ export function TrackPluginsPanel({
 }) {
   const { s, run, busy } = controller;
   const effectDrag = useRef<string | null>(null);
+  const amp = track.kind === "audio" ? (track.ampCharacter ?? "none") : "none";
+  const emptyChain =
+    track.kind === "audio" &&
+    amp === "none" &&
+    !track.pluginName &&
+    !track.effects?.length;
+  const applyStarter = (character: string) =>
+    controller.task(
+      async () =>
+        (
+          await api.soundLibrary({
+            op: "applyPreset",
+            track: track.id,
+            id: `starter-${character}`,
+          })
+        ).session ?? null,
+    );
   return (
     <div className="plugins-panel">
       <div className="plugin-toolbar">
@@ -28,7 +55,59 @@ export function TrackPluginsPanel({
         </button>
       </div>
       <div className="plugin-details">
+        {emptyChain && (
+          <div
+            className="starter-sounds"
+            role="group"
+            aria-label="Starter sounds"
+          >
+            <span>Start with a sound</span>
+            {Object.entries(STARTER_SOUNDS).map(([character, name]) => (
+              <button
+                key={character}
+                disabled={s.playing || busy}
+                onClick={() => void applyStarter(character)}
+              >
+                {name}
+              </button>
+            ))}
+            <small>
+              Want more amps and effects? Any VST3 amp sim works here.
+            </small>
+          </div>
+        )}
         <div className="plugin-chain" aria-label="Plug-ins in processing order">
+          {amp !== "none" && (
+            <div className="plugin-slot">
+              <button
+                title="Enable starter sound"
+                aria-pressed={!track.ampBypass}
+                className={track.ampBypass ? "" : "on"}
+                disabled={busy}
+                onClick={() =>
+                  controller.update(track, { ampBypass: !track.ampBypass })
+                }
+              >
+                <Power size={18} />
+              </button>
+              <div>
+                <strong>{STARTER_SOUNDS[amp]}</strong>
+                <small>{track.ampBypass ? "Bypassed" : "Starter sound"}</small>
+              </div>
+              <button
+                title="Remove starter sound"
+                disabled={busy}
+                onClick={() =>
+                  controller.update(track, {
+                    ampCharacter: "none",
+                    ampBypass: false,
+                  })
+                }
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          )}
           <div
             className="plugin-slot"
             draggable={

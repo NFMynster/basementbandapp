@@ -370,6 +370,8 @@ class SessionService {
                           "reverbWidth",
                           "gateEnabled",
                           "gateThreshold",
+                          "ampCharacter",
+                          "ampBypass",
                           "eqEnabled",
                         ]
                       : []),

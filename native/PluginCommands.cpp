@@ -41,8 +41,9 @@ var Engine::handlePluginCommand(const var &c) {
     t.plugin = std::move(prepared.plugin); t.pluginPath = prepared.pluginPath; t.pluginName = prepared.pluginName; t.pluginUid = prepared.pluginUid;
     t.effects = std::move(prepared.effects);
     t.bypass = flag(preset, "bypass");
-    t.gain = (float)jlimit(0.0, 1.5, number(preset, "gain", 0.8));
-    t.pan = (float)jlimit(-1.0, 1.0, number(preset, "pan"));
+    // Starter sounds leave the track's volume and pan alone.
+    if (preset.hasProperty("gain")) t.gain = (float)jlimit(0.0, 1.5, number(preset, "gain"));
+    if (preset.hasProperty("pan")) t.pan = (float)jlimit(-1.0, 1.0, number(preset, "pan"));
     t.eqBass = (float)jlimit(-12.0, 12.0, number(preset, "eqBass"));
     t.eqMid = (float)jlimit(-12.0, 12.0, number(preset, "eqMid"));
     t.eqTreble = (float)jlimit(-12.0, 12.0, number(preset, "eqTreble"));

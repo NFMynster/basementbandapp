@@ -335,3 +335,165 @@ test("audio export includes built-in sound, deterministic reverb tails and peak 
     await rpc.close();
   }
 });
+
+// Goertzel magnitude of one frequency, for checking harmonic content.
+function magnitude(samples, frequency, rate = 48000) {
+  const k = 2 * Math.cos((2 * Math.PI * frequency) / rate);
+  let a = 0,
+    b = 0;
+  for (const x of samples) [a, b] = [x + k * a - b, a];
+  return Math.sqrt(a * a + b * b - k * a * b) / samples.length;
+}
+const rms = (samples) =>
+  Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length);
+
+test("starter amp adds harmonics by character, keeps level steady and survives history and save/open", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const folder = mkdtempSync(resolve("artifacts/test-sessions/amp-"));
+  const rpc = startSession(folder);
+  const send = async (c) => {
+    const r = await rpc.send(c);
+    assert.equal(r.error, undefined, r.error);
+    return r.result;
+  };
+  try {
+    let s = await send({ op: "state" });
+    const track = s.tracks[0].id;
+    assert.equal(s.tracks[0].ampCharacter, "none");
+    await send({ op: "track", track, monitor: true, gain: 1 });
+    const play = async (patch, frequency = 220) => {
+      await send({ op: "track", track, ...patch });
+      await send({ op: "pump", frames: 8192, frequency });
+      return (
+        await send({ op: "pump", frames: 8192, frequency, sampleOffset: 8192 })
+      ).left;
+    };
+    const dry = await play({});
+    const bypassed = await play({ ampCharacter: "lead", ampBypass: true });
+    assert.deepEqual(
+      bypassed,
+      dry,
+      "A bypassed amp leaves the sound untouched",
+    );
+
+    const results = {};
+    for (const ampCharacter of ["clean", "crunch", "lead", "bass"]) {
+      const out = await play({ ampCharacter, ampBypass: false });
+      assert.ok(
+        out.every((x) => Number.isFinite(x) && Math.abs(x) < 1),
+        `${ampCharacter} stays bounded`,
+      );
+      results[ampCharacter] = {
+        level: rms(out) / rms(dry),
+        harmonics: magnitude(out, 660) / magnitude(out, 220),
+      };
+    }
+    for (const [character, { level }] of Object.entries(results))
+      assert.ok(
+        level > 0.5 && level < 2.5,
+        `${character} stays within 8 dB of the dry level`,
+      );
+    assert.ok(results.clean.harmonics < 0.05, "Clean stays clean");
+    assert.ok(results.crunch.harmonics > results.clean.harmonics * 4);
+    assert.ok(results.lead.harmonics > results.crunch.harmonics);
+    const bassDry = await play({ ampCharacter: "none" }, 55);
+    const bass = await play({ ampCharacter: "bass" }, 55);
+    assert.ok(
+      magnitude(bass, 55) > magnitude(bassDry, 55) * 0.7,
+      "Bass keeps its fundamental clean",
+    );
+
+    for (const patch of [
+      { ampBypass: "yes" },
+      { ampCharacter: "metal" },
+      { ampCharacter: 2 },
+    ])
+      assert.match(
+        (await rpc.send({ op: "track", track, ...patch })).error,
+        /Invalid/,
+      );
+    s = await send({ op: "track", track, ampCharacter: "clean" });
+    assert.equal(s.tracks[0].ampCharacter, "clean");
+    s = await send({ op: "undo" });
+    assert.equal(s.tracks[0].ampCharacter, "bass");
+    s = await send({ op: "redo" });
+    assert.equal(s.tracks[0].ampCharacter, "clean");
+
+    const path = resolve(folder, "amp.basement");
+    await send({ op: "track", track, ampBypass: true });
+    await send({ op: "save", path });
+    const saved = JSON.parse(readFileSync(path, "utf8"));
+    assert.equal(saved.tracks[0].ampCharacter, "clean");
+    await send({ op: "new" });
+    s = await send({ op: "open", path });
+    assert.equal(s.tracks[0].ampCharacter, "clean");
+    assert.equal(s.tracks[0].ampBypass, true);
+    assert.throws(
+      () =>
+        validate({
+          ...saved,
+          tracks: [{ ...saved.tracks[0], ampCharacter: "metal" }],
+        }),
+      /Invalid amp/,
+    );
+    const legacy = structuredClone(saved);
+    delete legacy.tracks[0].ampCharacter;
+    delete legacy.tracks[0].ampBypass;
+    validate(legacy);
+  } finally {
+    await rpc.close();
+  }
+});
+
+test("starter sounds are factory presets that keep the track's volume and cannot be deleted", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const folder = mkdtempSync(resolve("artifacts/test-sessions/starters-"));
+  const rpc = startSession(folder);
+  const send = async (c) => {
+    const r = await rpc.send(c);
+    assert.equal(r.error, undefined, r.error);
+    return r.result;
+  };
+  try {
+    const track = (await send({ op: "state" })).tracks[0].id;
+    await send({ op: "track", track, gain: 1.2, pan: -0.4 });
+    const library = new PluginLibrary(folder, "unused", []);
+    const listed = await library.command({ op: "list" }, send);
+    assert.deepEqual(
+      listed.starters.map((p) => p.id),
+      ["starter-clean", "starter-crunch", "starter-lead", "starter-bass"],
+    );
+    assert.deepEqual(listed.presets, [], "Starters are not user presets");
+    for (const starter of listed.starters) {
+      const { session } = await library.command(
+        { op: "applyPreset", id: starter.id, track },
+        send,
+      );
+      const t = session.tracks[0];
+      assert.equal(t.ampCharacter, starter.id.replace("starter-", ""));
+      assert.equal(t.ampBypass, false);
+      assert.ok(Math.abs(t.gain - 1.2) < 1e-5, "Volume is kept");
+      assert.ok(Math.abs(t.pan + 0.4) < 1e-5, "Pan is kept");
+    }
+    let s = await send({ op: "undo" });
+    assert.equal(s.tracks[0].ampCharacter, "lead");
+    await library.command({ op: "deletePreset", id: "starter-bass" }, send);
+    assert.equal(
+      (await library.command({ op: "list" }, send)).starters.length,
+      4,
+    );
+    const midi = (await send({ op: "addTrack", kind: "midi" })).tracks.at(-1);
+    assert.match(
+      (
+        await rpc.send({
+          op: "preset",
+          track: midi.id,
+          preset: JSON.stringify({ kind: "audio" }),
+        })
+      ).error,
+      /preset for this track type/,
+    );
+  } finally {
+    await rpc.close();
+  }
+});

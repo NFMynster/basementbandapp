@@ -172,6 +172,29 @@ export function SoundBrowser({
         className="library-list"
         aria-label={presets ? "Saved track presets" : "Installed plug-ins"}
       >
+        {presets && track.kind === "audio" && !!data?.starters.length && (
+          <>
+            <h3>Starter sounds</h3>
+            {data.starters.map((p) => (
+              <div className="library-item" key={p.id}>
+                <button
+                  disabled={pending || w.s.playing}
+                  onClick={() =>
+                    void command({
+                      op: "applyPreset",
+                      track: track.id,
+                      id: p.id,
+                    })
+                  }
+                >
+                  <strong>{p.name}</strong>
+                  <small>{p.hint}</small>
+                </button>
+              </div>
+            ))}
+            <h3>Your presets</h3>
+          </>
+        )}
         {presets
           ? (data?.presets ?? [])
               .filter((p) => p.kind === track.kind)

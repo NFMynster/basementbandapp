@@ -107,6 +107,19 @@ function validate(session) {
     for (const key of ["compressorEnabled", "reverbEnabled", "gateEnabled"])
       assertValid(typeof track[key] === "boolean", "Invalid effect switch");
     assertValid(typeof track.eqEnabled === "boolean", "Invalid EQ switch");
+    // Starter amp fields arrived after version 4; without them there is no amp.
+    if (track.ampCharacter !== undefined)
+      assertValid(
+        ["none", "clean", "crunch", "lead", "bass"].includes(
+          track.ampCharacter,
+        ),
+        "Invalid amp character",
+      );
+    if (track.ampBypass !== undefined)
+      assertValid(
+        typeof track.ampBypass === "boolean",
+        "Invalid effect switch",
+      );
     for (const key of ["armed", "mute", "solo", "bypass"])
       assertValid(typeof track[key] === "boolean", "Invalid track switch");
     text(track.midiDevice, 4096);

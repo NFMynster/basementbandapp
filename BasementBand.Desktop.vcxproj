@@ -17,6 +17,7 @@
     <None Include="ui\components\ClipSound.tsx" />
     <None Include="ui\components\SoundBrowser.tsx" />
     <None Include="desktop\plugin-library.cjs" />
+    <None Include="desktop\starter-sounds.cjs" />
   </ItemGroup>
   <PropertyGroup Label="Globals"><ProjectGuid>{7166373A-B501-4B8B-8BCB-A328958BC075}</ProjectGuid><Keyword>MakeFileProj</Keyword><ProjectName>Basement Band Desktop</ProjectName></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
