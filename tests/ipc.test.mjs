@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { runInNewContext } from "node:vm";
+import { loadDesktopModule } from "./helpers/desktop-module.mjs";
 
 for (const platform of ["win32", "darwin"])
   test(`file dialogs validate sender, paths and VST defaults on ${platform}`, async () => {
@@ -32,14 +31,14 @@ for (const platform of ["win32", "darwin"])
         },
       },
     };
-    const module = { exports: {} };
-    runInNewContext(readFileSync("desktop/ipc.cjs", "utf8"), {
-      require: (name) =>
-        name === "electron" ? electron : { microphoneAccess: async () => true },
-      module,
-      process: { ...process, platform },
+    const ipc = loadDesktopModule("desktop/ipc.cjs", {
+      stubs: {
+        electron,
+        "./permissions.cjs": { microphoneAccess: async () => true },
+      },
+      globals: { process: { ...process, platform } },
     });
-    module.exports.registerIpc({ webContents: sender }, async (c) => {
+    ipc.registerIpc({ webContents: sender }, async (c) => {
       if (c.op === "state") return { tracks: [{ id: "g", kind: "audio" }] };
       commands.push(c);
       return c;

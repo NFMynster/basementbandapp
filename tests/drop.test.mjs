@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, mkdirSync, mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import { resolve } from "node:path";
-import { createRequire } from "node:module";
-import { runInNewContext } from "node:vm";
+import { loadDesktopModule } from "./helpers/desktop-module.mjs";
 import { startSession } from "./helpers/session.mjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
 test("dropped audio imports to existing/new tracks, rejects mismatches and cleans up failed new imports", async () => {
@@ -11,35 +10,28 @@ test("dropped audio imports to existing/new tracks, rejects mismatches and clean
   const folder = mkdtempSync(resolve("artifacts/test-sessions/drop-"));
   const file = resolve(folder, "My riff.wav");
   writeMonoWav(file, 480, () => 0.1);
-  const session = startSession(folder),
-    handlers = new Map(),
+  const handlers = new Map(),
     sender = {};
-  const require = createRequire(import.meta.url),
-    module = { exports: {} };
-  runInNewContext(readFileSync("desktop/ipc.cjs", "utf8"), {
-    module,
-    process,
-    require: (name) =>
-      name === "electron"
-        ? {
-            ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
-            dialog: {
-              showOpenDialog: async () => ({
-                canceled: false,
-                filePaths: [file],
-              }),
-            },
-          }
-        : name === "./permissions.cjs"
-          ? { microphoneAccess: async () => true }
-          : require(name),
+  const ipc = loadDesktopModule("desktop/ipc.cjs", {
+    stubs: {
+      electron: {
+        ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
+        dialog: {
+          showOpenDialog: async () => ({ canceled: false, filePaths: [file] }),
+        },
+      },
+      "./permissions.cjs": { microphoneAccess: async () => true },
+    },
   });
+  // Start the engine only once the module loaded, so a load failure cannot
+  // leave a child process holding the test run open.
+  const session = startSession(folder);
   const send = async (command) => {
     const result = await session.send(command);
     if (result.error) throw new Error(result.error);
     return result.result;
   };
-  module.exports.registerIpc({ webContents: sender }, send);
+  ipc.registerIpc({ webContents: sender }, send);
   const drop = (files, track, plugin) =>
     handlers.get("drop")({ sender }, files, track, plugin);
   try {

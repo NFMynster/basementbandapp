@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { runInNewContext } from "node:vm";
+import { loadDesktopModule } from "./helpers/desktop-module.mjs";
 
 test("macOS microphone access prompts only when undetermined; denial supports output-only startup", async () => {
   for (const [status, answer, expected, asks] of [
@@ -11,24 +10,26 @@ test("macOS microphone access prompts only when undetermined; denial supports ou
     ["denied", true, false, 0],
     ["restricted", true, false, 0],
   ]) {
-    const module = { exports: {} };
     let called = 0;
-    runInNewContext(readFileSync("desktop/permissions.cjs", "utf8"), {
-      module,
-      process: { platform: "darwin", env: {} },
-      console: { log() {} },
-      require: () => ({
-        systemPreferences: {
-          getMediaAccessStatus: () => status,
-          askForMediaAccess: async (kind) => {
-            assert.equal(kind, "microphone");
-            called++;
-            return answer;
+    const { microphoneAccess } = loadDesktopModule("desktop/permissions.cjs", {
+      stubs: {
+        electron: {
+          systemPreferences: {
+            getMediaAccessStatus: () => status,
+            askForMediaAccess: async (kind) => {
+              assert.equal(kind, "microphone");
+              called++;
+              return answer;
+            },
           },
         },
-      }),
+      },
+      globals: {
+        process: { platform: "darwin", env: {} },
+        console: { log() {} },
+      },
     });
-    assert.equal(await module.exports.microphoneAccess(), expected);
+    assert.equal(await microphoneAccess(), expected);
     assert.equal(called, asks);
   }
 });

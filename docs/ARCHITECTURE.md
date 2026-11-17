@@ -16,7 +16,7 @@ The desktop is React/Electron plus a separate C++/JUCE audio process.
 ## Extending behavior
 
 1. Extend the typed contract in ui/models.ts.
-2. Allow the command in desktop/ipc.cjs or use a dedicated validated handler for paths. Renderer code must not gain arbitrary filesystem or process access.
+2. Register the op in desktop/commands.cjs with its native domain and sender. IPC derives its allowlist from that registry; ops that carry paths are `desktop`-only and go through a dedicated validated handler. Renderer code must not gain arbitrary filesystem or process access.
 3. Put portable file operations in session-storage.cjs and ordering/history in SessionService. Route audio commands to their native domain handler.
 4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
 5. Add deterministic integration tests and UI checks.
@@ -42,7 +42,7 @@ MidiEditor composes these pieces. Editing actions stay in the hook; the toolbar 
 
 ## Native command routing
 
-Engine::command in native/Commands.cpp routes operations to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. To add an operation, add its route and implementation in the appropriate domain, then extend the renderer contract and IPC allowlist.
+Engine::command in native/Commands.cpp looks each op up in one route table and hands it to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. desktop/commands.cjs is the single command list: tests/command-contract.test.mjs fails when the native route table or the types in ui/models.ts disagree with it. To add an operation, register it there, add its route and implementation in the appropriate domain, and type it in ui/models.ts if the renderer sends it.
 
 Engine retains ownership of processors, devices and shared audio state. Handlers run on the message thread. Callback-visible mutations retain their existing guard scopes; those locks are released before syncAudioInput can restart a device. Test commands remain restricted to the test device. Splitting command files does not add another thread or queue.
 

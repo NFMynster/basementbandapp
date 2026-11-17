@@ -1,45 +1,8 @@
 const { ipcMain, dialog, app } = require("electron");
 const path = require("node:path");
 const { microphoneAccess } = require("./permissions.cjs");
+const { LIBRARY_COMMANDS, RENDERER_COMMANDS } = require("./commands.cjs");
 
-const COMMANDS = new Set([
-  "state",
-  "undo",
-  "redo",
-  "devices",
-  "configure",
-  "track",
-  "addTrack",
-  "duplicateTrack",
-  "removeTrack",
-  "reorderTrack",
-  "play",
-  "stop",
-  "record",
-  "seek",
-  "loop",
-  "tempo",
-  "new",
-  "rename",
-  "removeClip",
-  "editRegions",
-  "removePlugin",
-  "clearWarning",
-  "bypass",
-  "editor",
-  "editClip",
-  "createMidi",
-  "reorderEffect",
-  "preset",
-  "metronome",
-  "metronomeVolume",
-  "countIn",
-  "master",
-  "limiter",
-  "clearDiagnostics",
-  "audition",
-  "tuner",
-]);
 const AUDIO_EXTENSIONS = /\.(wav|aif|aiff|flac|mp3)$/i;
 const MIDI_EXTENSIONS = /\.(mid|midi)$/i;
 const VST3_EXTENSION = /\.vst3$/i;
@@ -80,17 +43,7 @@ function registerIpc(win, request) {
   let library;
   ipcMain.handle("soundLibrary", async (event, command) => {
     assertSender(event, win);
-    const allowed = [
-      "list",
-      "scan",
-      "scanFolder",
-      "favorite",
-      "load",
-      "savePreset",
-      "applyPreset",
-      "deletePreset",
-    ];
-    if (!command || !allowed.includes(command.op))
+    if (!command || !LIBRARY_COMMANDS.includes(command.op))
       throw new Error("Unknown library action");
     if (!library) {
       const { PluginLibrary } = require("./plugin-library.cjs");
@@ -147,7 +100,8 @@ function registerIpc(win, request) {
   });
   ipcMain.handle("command", async (event, cmd) => {
     assertSender(event, win);
-    if (!cmd || !COMMANDS.has(cmd.op)) throw new Error("Unknown command");
+    if (!cmd || !RENDERER_COMMANDS.has(cmd.op))
+      throw new Error("Unknown command");
     if (
       process.platform === "darwin" &&
       (cmd.op === "record" || cmd.op === "configure")
