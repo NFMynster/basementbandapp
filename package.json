@@ -22,7 +22,9 @@
     "package:mac": "node scripts/package.mjs mac",
     "release:win": "node scripts/release-win.mjs",
     "release:mac": "node scripts/release-mac.mjs",
-    "build:licenses": "node scripts/licenses.mjs"
+    "build:licenses": "node scripts/licenses.mjs",
+    "video:capture": "npm run build && electron video/capture.cjs",
+    "video:render": "cd video && npm run render"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

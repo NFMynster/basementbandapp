@@ -1,0 +1,22 @@
+{
+  "name": "basement-band-video",
+  "private": true,
+  "description": "Product video for Basement Band, rendered with Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render BasementBand out/basement-band.mp4",
+    "still": "remotion still BasementBand"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.534",
+    "@remotion/google-fonts": "4.0.534",
+    "@remotion/transitions": "4.0.534",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}
