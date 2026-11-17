@@ -1,4 +1,9 @@
 const { dialog } = require("electron");
+/**
+ * @param {import("../types").Window} win
+ * @param {import("../types").Request} request
+ * @param {string} takeChoice
+ */
 async function verifyExportAndShortcuts(win, request, takeChoice) {
   await win.webContents.executeJavaScript(
     `document.activeElement?.blur(); document.querySelector('[data-clip="${takeChoice}"]').click()`,
@@ -44,6 +49,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
     throw new Error("Ctrl-wheel/pinch zoom did not change timeline scale");
   const originalPicker = dialog.showOpenDialog;
   let pickerCalled = false;
+  /** @type {(() => void) | undefined} */
   let cancelExport;
   try {
     dialog.showOpenDialog = async () => {
@@ -65,7 +71,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
       throw new Error(
         "Export must open picker directly with waiting UI, not a settings dialog",
       );
-    cancelExport();
+    cancelExport?.();
     await new Promise((r) => setTimeout(r, 100));
     if (
       await win.webContents.executeJavaScript(
@@ -85,7 +91,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
       `document.querySelector('.export-settings button').click();document.activeElement.blur()`,
     );
     await new Promise((r) => setTimeout(r, 100));
-    cancelExport();
+    cancelExport?.();
     await new Promise((r) => setTimeout(r, 150));
     if (
       !(await win.webContents.executeJavaScript(

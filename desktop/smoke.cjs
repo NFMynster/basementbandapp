@@ -20,7 +20,15 @@ const { verifyMidiEditing } = require("./smoke/midi-editing.cjs");
 const { verifyMidiNavigation } = require("./smoke/midi-navigation.cjs");
 const { verifySoundControls } = require("./smoke/sound.cjs");
 // Workflows run in order against one app and engine. Returned fixtures make dependencies explicit.
+/** @param {import("./types").Window} win @param {import("./types").Request} request */
 function verifyDesktop(win, request) {
+  // Electron only reports that a page script threw; name the failing step.
+  const run = win.webContents.executeJavaScript.bind(win.webContents);
+  win.webContents.executeJavaScript = (code, ...rest) =>
+    run(code, ...rest).catch((/** @type {Error} */ error) => {
+      throw new Error(`${error.message}
+  in: ${code.trim().slice(0, 300)}`);
+    });
   win.webContents.once("did-finish-load", async () => {
     try {
       await verifyStartup(win, request);

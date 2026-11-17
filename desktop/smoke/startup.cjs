@@ -1,4 +1,5 @@
 const { mkdirSync, writeFileSync } = require("node:fs");
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyStartup(win, request) {
   const state = await request({ op: "state" });
   if (state.tracks.length !== 2) throw new Error("Default tracks missing");
@@ -135,7 +136,7 @@ async function verifyStartup(win, request) {
   await new Promise((r) => setTimeout(r, 50));
   win.webContents.sendInputEvent({
     type: "mouseMove",
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
     x: head.x + 132,
     y: head.y,
     button: "left",
@@ -167,7 +168,7 @@ async function verifyStartup(win, request) {
       type: "mouseMove",
       x: point.x + 88,
       y: point.y,
-      modifiers: ["leftButtonDown"],
+      modifiers: ["leftbuttondown"],
     });
     await new Promise((r) => setTimeout(r, 30));
     win.webContents.sendInputEvent({

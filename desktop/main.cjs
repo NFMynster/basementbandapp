@@ -22,11 +22,15 @@ if (smoke) {
   mkdirSync(data, { recursive: true });
   app.setPath("userData", data);
 }
+/** @type {import("./session-service.cjs").SessionService | undefined} */
 let backend;
 let tray;
+/** @type {unknown} */
 let startupError;
+/** @type {Promise<void>} */
 let backendReady;
 let updateCheck;
+/** @type {import("./types").Request} */
 const request = (command) =>
   backendReady.then(() =>
     backend ? backend.request(command) : Promise.reject(startupError),
@@ -100,7 +104,7 @@ app.whenReady().then(() => {
   ipcMain.handle("window-visible", async (event) => {
     assertSender(event, win);
     if (smoke || win.isVisible()) return;
-    await new Promise((resolve) => win.once("show", resolve));
+    await new Promise((resolve) => win.once("show", () => resolve(undefined)));
   });
   win.webContents.on("did-fail-load", (_event, code, description) => {
     if (code === -3) return;
@@ -185,7 +189,7 @@ app.on("before-quit", (event) => {
       recoveryFlushed = true;
       app.quit();
     })
-    .catch((error) => {
+    .catch((/** @type {unknown} */ error) => {
       quitPending = false;
       console.error("Session recovery on exit failed", error);
       const choice = dialog.showMessageBoxSync({
@@ -194,10 +198,10 @@ app.on("before-quit", (event) => {
         defaultId: 0,
         cancelId: 0,
         message: "Your latest session could not be preserved.",
-        detail: error.message,
+        detail: error instanceof Error ? error.message : String(error),
       });
       if (choice === 1) {
-        backend.engine.close();
+        backend?.engine.close();
         recoveryFlushed = true;
         app.quit();
       }

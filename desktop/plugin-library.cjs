@@ -5,15 +5,30 @@ const { randomUUID } = require("node:crypto");
 const { NativeClient } = require("./native-client.cjs");
 const { writeJsonAtomically } = require("./session-files.cjs");
 const { STARTER_SOUNDS } = require("./starter-sounds.cjs");
+const {
+  PLUGIN_SETTINGS,
+  PRESET_SOUND_SETTINGS,
+} = require("./session-history.cjs");
+
+/** @typedef {import("./types").PluginEntry} PluginEntry */
+/** @typedef {import("./types").TrackPreset} TrackPreset */
+/** @typedef {Error & { code?: string }} SystemError */
 
 class PluginLibrary {
+  /**
+   * @param {string} directory
+   * @param {string} executable
+   * @param {string[]} roots
+   */
   constructor(directory, executable, roots) {
     this.file = path.join(directory, "sound-library.json");
     this.executable = executable;
     this.roots = roots;
+    /** @type {{ plugins: PluginEntry[], presets: TrackPreset[] }} */
     this.data = { plugins: [], presets: [] };
     this.scanning = false;
     this.progress = "";
+    /** @type {string[]} */
     this.errors = [];
     this.writes = Promise.resolve();
     this.ready = fs
@@ -24,11 +39,12 @@ class PluginLibrary {
           throw new Error("Invalid sound library");
         this.data = data;
       })
-      .catch((error) => {
+      .catch((/** @type {SystemError} */ error) => {
         if (error.code !== "ENOENT")
           this.errors.push("Could not read saved library: " + error.message);
       });
   }
+  /** @param {import("./types").Snapshot} [session] */
   view(session) {
     return {
       plugins: this.data.plugins,
@@ -54,12 +70,15 @@ class PluginLibrary {
     this.writes = result.catch(() => {});
     return result;
   }
+  /** @param {string} [extraRoot] */
   async scan(extraRoot) {
     if (this.scanning) return;
     this.scanning = true;
     this.errors = [];
     try {
+      /** @type {Set<string>} */
       const files = new Set();
+      /** @param {string} folder */
       const walk = async (folder, depth = 0) => {
         if (depth > 12 || files.size >= 4096) return;
         let entries;
@@ -90,6 +109,7 @@ class PluginLibrary {
         });
         const client = new NativeClient(child, 15000);
         try {
+          /** @type {PluginEntry[]} */
           const result = await client.request({ op: "scanPlugin", path: file });
           const previous = this.data.plugins.filter((p) => p.path === file);
           this.data.plugins = this.data.plugins.filter((p) => p.path !== file);
@@ -105,7 +125,9 @@ class PluginLibrary {
             });
           }
         } catch (error) {
-          this.errors.push(`${path.basename(file)}: ${error.message}`);
+          this.errors.push(
+            `${path.basename(file)}: ${/** @type {Error} */ (error).message}`,
+          );
         } finally {
           client.close();
           child.kill();
@@ -113,12 +135,17 @@ class PluginLibrary {
       }
       await this.save();
     } catch (error) {
-      this.errors.push(error.message);
+      this.errors.push(/** @type {Error} */ (error).message);
     } finally {
       this.scanning = false;
       this.progress = "";
     }
   }
+  /**
+   * @param {import("../ui/models").LibraryCommand & { folder?: string }} c
+   *   `folder` is set only by IPC from the native folder picker, never by the renderer.
+   * @param {import("./types").Request} request
+   */
   async command(c, request) {
     await this.ready;
     if (c.op === "list") return this.view();
@@ -148,45 +175,17 @@ class PluginLibrary {
       return this.view(session);
     }
     if (c.op === "savePreset") {
+      /** @type {import("./types").Snapshot} */
       const snapshot = await request({ op: "snapshot" });
       const track = snapshot.tracks.find((t) => t.id === c.track);
       if (!track) throw new Error("Track no longer exists");
       const name = typeof c.name === "string" ? c.name.trim().slice(0, 80) : "";
       if (!name) throw new Error("Name your preset first");
       const settings = Object.fromEntries(
-        [
-          "kind",
-          "pluginPath",
-          "pluginUid",
-          "pluginState",
-          "effects",
-          "bypass",
-          "gain",
-          "pan",
-          "eqEnabled",
-          "eqBass",
-          "eqMid",
-          "eqTreble",
-          "eqBassFrequency",
-          "eqMidFrequency",
-          "eqTrebleFrequency",
-          "eqMidQ",
-          "eqLowCut",
-
-          "compressorEnabled",
-          "compressorAmount",
-          "compressorAttack",
-          "compressorRelease",
-          "reverbEnabled",
-          "reverbAmount",
-          "reverbSize",
-          "reverbDamping",
-          "reverbWidth",
-          "gateEnabled",
-          "gateThreshold",
-          "ampCharacter",
-          "ampBypass",
-        ].map((key) => [key, track[key]]),
+        ["kind", ...PLUGIN_SETTINGS, ...PRESET_SOUND_SETTINGS].map((key) => [
+          key,
+          track[key],
+        ]),
       );
       this.data.presets.push({
         id: randomUUID(),

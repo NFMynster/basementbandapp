@@ -1,3 +1,5 @@
+const { required } = require("./required.cjs");
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyRegionDrag(win, request) {
   await win.webContents.executeJavaScript(
     `document.querySelectorAll('.settings-tabs button')[2].click()`,
@@ -49,7 +51,7 @@ async function verifyRegionDrag(win, request) {
     type: "mouseMove",
     x: region.x + 88,
     y: region.y + 112,
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
   });
   await new Promise((r) => setTimeout(r, 50));
   await win.webContents.capturePage();
@@ -83,6 +85,7 @@ async function verifyRegionDrag(win, request) {
   );
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyRecordingControls(win, request) {
   await win.webContents.executeJavaScript(
     `document.querySelector('.track-header').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`,
@@ -133,7 +136,11 @@ async function verifyRecordingControls(win, request) {
         slider.dispatchEvent(new Event('input', { bubbles: true }));
       })()`);
   await new Promise((r) => setTimeout(r, 150));
-  if (Math.abs((await request({ op: "state" })).masterGain - 0.35) > 0.001)
+  const masterGain = required(
+    (await request({ op: "state" })).masterGain,
+    "master volume",
+  );
+  if (Math.abs(masterGain - 0.35) > 0.001)
     throw new Error("Master slider did not update native state");
   for (const height of [700, 810, 1080]) {
     win.setSize(1280, height);
@@ -221,13 +228,18 @@ async function verifyRecordingControls(win, request) {
   );
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyRegionTrim(win, request) {
   const trimState = await request({ op: "state" });
-  const trimTrack = trimState.tracks.find((t) =>
-    t.clips.some((c) => c.active !== false && c.duration > 0.4),
+  const trimTrack = required(
+    trimState.tracks.find((t) =>
+      t.clips.some((c) => c.active !== false && c.duration > 0.4),
+    ),
+    "a track with a trimmable region",
   );
-  const trimClip = trimTrack.clips.find(
-    (c) => c.active !== false && c.duration > 0.4,
+  const trimClip = required(
+    trimTrack.clips.find((c) => c.active !== false && c.duration > 0.4),
+    "a trimmable region",
   );
   await win.webContents.capturePage();
   const edge = await win.webContents.executeJavaScript(`(() => {
@@ -253,7 +265,7 @@ async function verifyRegionTrim(win, request) {
     type: "mouseMove",
     x: edge.x + 8,
     y: edge.y,
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
   });
   await win.webContents.capturePage();
   win.webContents.sendInputEvent({
@@ -264,9 +276,12 @@ async function verifyRegionTrim(win, request) {
     clickCount: 1,
   });
   await new Promise((r) => setTimeout(r, 150));
-  const trimmed = (await request({ op: "state" })).tracks
-    .find((t) => t.id === trimTrack.id)
-    .clips.find((c) => c.id === trimClip.id);
+  const trimmed = required(
+    (await request({ op: "state" })).tracks
+      .find((t) => t.id === trimTrack.id)
+      ?.clips.find((c) => c.id === trimClip.id),
+    "the trimmed region",
+  );
   if (!(
     trimmed.start > trimClip.start &&
     trimmed.duration < trimClip.duration &&
@@ -278,13 +293,16 @@ async function verifyRegionTrim(win, request) {
   console.log("Region edge cursor and live trim gesture passed.");
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyLoopTakes(win, request) {
   await request({ op: "loop", start: 0, end: 0.05, enabled: true });
   await request({ op: "record" });
   await request({ op: "pump", frames: 8192, left: 0.2 });
+  /** @type {import("../types").Snapshot} */
   const takeState = await request({ op: "stop" });
-  const takeTrack = takeState.tracks.find((t) =>
-    t.clips.some((c) => c.takeGroup),
+  const takeTrack = required(
+    takeState.tracks.find((t) => t.clips.some((c) => c.takeGroup)),
+    "a track with loop takes",
   );
   if (!takeTrack) throw new Error("Loop capture did not create takes");
   await new Promise((r) => setTimeout(r, 150));
@@ -303,7 +321,7 @@ async function verifyLoopTakes(win, request) {
   if (
     !(await request({ op: "state" })).tracks
       .find((t) => t.id === takeTrack.id)
-      .clips.find((c) => c.id === takeChoice)?.active
+      ?.clips.find((c) => c.id === takeChoice)?.active
   )
     throw new Error("Toolbar take selection did not reach the engine");
   console.log("Short loop takes remain selectable without zooming.");

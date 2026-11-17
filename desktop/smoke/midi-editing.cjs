@@ -1,3 +1,12 @@
+const { required } = require("./required.cjs");
+/** @param {import("../types").Request} request */
+const lastRegionNotes = async (request) =>
+  required(
+    (await request({ op: "state" })).tracks.at(-1)?.clips.at(-1)?.notes,
+    "notes on the last MIDI region",
+  );
+
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyMidiEditing(win, request) {
   await win.webContents.executeJavaScript(
     `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='MIDI').click()`,
@@ -13,10 +22,7 @@ async function verifyMidiEditing(win, request) {
     );
     await new Promise((r) => setTimeout(r, 120));
   }
-  if (
-    (await request({ op: "state" })).tracks.at(-1).clips.at(-1).notes.length !==
-    2
-  )
+  if ((await lastRegionNotes(request)).length !== 2)
     throw new Error("Drawing MIDI notes failed");
   await win.webContents.executeJavaScript(
     `document.querySelector('.piano-grid').focus()`,
@@ -34,19 +40,13 @@ async function verifyMidiEditing(win, request) {
     });
     await new Promise((r) => setTimeout(r, 100));
   }
-  if (
-    (await request({ op: "state" })).tracks.at(-1).clips.at(-1).notes.length !==
-    4
-  )
+  if ((await lastRegionNotes(request)).length !== 4)
     throw new Error("Multiple-note copy/paste failed");
   await win.webContents.executeJavaScript(
     `document.querySelector('[aria-label="Delete notes"]').click()`,
   );
   await new Promise((r) => setTimeout(r, 120));
-  if (
-    (await request({ op: "state" })).tracks.at(-1).clips.at(-1).notes.length !==
-    2
-  )
+  if ((await lastRegionNotes(request)).length !== 2)
     throw new Error("Selected-note delete failed");
   await win.webContents.executeJavaScript(
     `[...document.querySelectorAll('.tab')].find(t=>t.textContent.includes('Plug-ins')).click()`,

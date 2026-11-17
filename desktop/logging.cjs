@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+/** @param {string} directory */
 function initializeLogging(directory) {
   try {
     fs.mkdirSync(directory, { recursive: true });
@@ -16,7 +17,7 @@ function initializeLogging(directory) {
   } catch (error) {
     console.error("Could not rotate diagnostic log", error);
   }
-  for (const level of ["log", "warn", "error"]) {
+  for (const level of /** @type {const} */ (["log", "warn", "error"])) {
     const original = console[level].bind(console);
     console[level] = (...args) => {
       const line = args

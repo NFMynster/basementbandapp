@@ -3,6 +3,7 @@ const RELEASE_API =
 const RELEASE_PAGE =
   "https://github.com/NFMynster/basementbandapp/releases/latest";
 
+/** @param {unknown} value */
 function parseVersion(value) {
   const match = String(value)
     .trim()
@@ -16,6 +17,7 @@ function parseVersion(value) {
   };
 }
 
+/** @param {string[]} left @param {string[]} right */
 function comparePrerelease(left, right) {
   if (!left.length || !right.length)
     return left.length ? -1 : right.length ? 1 : 0;
@@ -33,6 +35,7 @@ function comparePrerelease(left, right) {
   return 0;
 }
 
+/** @param {unknown} latest @param {unknown} current */
 function isNewerVersion(latest, current) {
   const left = parseVersion(latest);
   const right = parseVersion(current);
@@ -44,6 +47,10 @@ function isNewerVersion(latest, current) {
   return comparePrerelease(left.prerelease, right.prerelease) > 0;
 }
 
+/**
+ * @param {(url: string, init: RequestInit) => Promise<Response>} fetchRelease
+ * @param {string} currentVersion
+ */
 async function checkForUpdate(fetchRelease, currentVersion) {
   try {
     const response = await fetchRelease(RELEASE_API, {

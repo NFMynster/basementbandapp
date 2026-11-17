@@ -1,5 +1,21 @@
 const { contextBridge } = require("electron");
 // Explicit visual fixture; never used by the app or its audio engine.
+// The bridge is checked against DesktopApi so it cannot drift from the real one.
+/**
+ * @typedef {import("../ui/models").Session} Session
+ * @typedef {import("../ui/models").Track} Track
+ * @typedef {import("../ui/models").Command
+ *   | { op: "testAddTrack" | "testRemoveTrack" | "testTakes" }
+ *   | { op: "testAudioLoad", value: number }} MockCommand
+ *   Real commands plus fixture-only ops the visual scripts send.
+ */
+/**
+ * @param {string} id
+ * @param {string} name
+ * @param {string} color
+ * @param {number} input
+ * @returns {Track}
+ */
 const track = (id, name, color, input) => ({
   id,
   name,
@@ -16,15 +32,22 @@ const track = (id, name, color, input) => ({
   peak: 0,
   pluginName: "",
   bypass: false,
+  midiDevice: "",
+  midiChannel: 0,
+  recordStart: 0,
   clips: [
     {
       id: "clip" + id,
       kind: "audio",
       active: true,
-      position: 0,
       name: name + " · take 1",
       start: 0,
       duration: 16,
+      offset: 0,
+      sourceStart: 0,
+      sourceEnd: 16,
+      takeGroup: "",
+      take: 0,
       peaks: Array.from(
         { length: 400 },
         (_, i) =>
@@ -33,6 +56,7 @@ const track = (id, name, color, input) => ({
     },
   ],
 });
+/** @type {Session} */
 const state = {
   title: "Friday night",
   tracks: [
@@ -55,6 +79,11 @@ const state = {
           kind: "midi",
           start: 0,
           duration: 16,
+          offset: 0,
+          sourceStart: 0,
+          sourceEnd: 16,
+          takeGroup: "",
+          take: 0,
           peaks: [],
           active: true,
           notes: Array.from({ length: 32 }, (_, i) => ({
@@ -106,7 +135,64 @@ const devices = {
   bufferSize: 256,
 };
 let startupDelayed = false;
-contextBridge.exposeInMainWorld("basement", {
+/** @param {string | undefined} id */
+const fixtureTrack = (id) => {
+  const found = state.tracks.find((t) => t.id === id);
+  if (!found) throw new Error("Unknown fixture track " + id);
+  return found;
+};
+/** @param {MockCommand} c */
+async function mockCommand(c) {
+  if (
+    c.op === "state" &&
+    location.search.includes("startup=slow") &&
+    !startupDelayed
+  ) {
+    startupDelayed = true;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (c.op === "testAddTrack")
+    state.tracks.push({
+      ...track("animated", "New track", "#b0c4a7", 0),
+      clips: [],
+    });
+  if (c.op === "testRemoveTrack")
+    state.tracks = state.tracks.filter((t) => t.id !== "g");
+  if (c.op === "testTakes") {
+    const t = fixtureTrack("b");
+    Object.assign(t.clips[0], { takeGroup: "bass-takes", take: 1 });
+    t.clips.push({
+      ...t.clips[0],
+      id: "bass-take-2",
+      take: 2,
+      active: false,
+    });
+  }
+  if (c.op === "editClip" && c.action === "take") {
+    const t = fixtureTrack(c.track);
+    for (const clip of t.clips) clip.active = clip.id === c.clip;
+  }
+  if (c.op === "devices") return devices;
+  if (c.op === "metronomeVolume") state.metronomeGain = c.value;
+  if (c.op === "testAudioLoad") {
+    state.audioCpu = c.value;
+    state.processingDropouts = 2;
+  }
+  if (c.op === "tuner") {
+    state.tunerTrack = c.track ?? "";
+    state.tunerFrequency = c.track ? 82.41 : 0;
+  }
+  if (c.op === "configure") {
+    if (c.output === "Unavailable") throw new Error("Test output unavailable");
+    Object.assign(devices, c);
+    return devices;
+  }
+  if (c.op === "track") Object.assign(fixtureTrack(c.track), c);
+  if (c.op === "limiter") state.limiterEnabled = c.value;
+  return state;
+}
+/** @type {import("../ui/models").DesktopApi} */
+const api = {
   soundLibrary: async (c) => {
     const library = {
       plugins: [],
@@ -121,67 +207,19 @@ contextBridge.exposeInMainWorld("basement", {
       errors: [],
     };
     if (c?.op !== "applyPreset") return library;
-    const t = state.tracks.find((t) => t.id === c.track);
+    const t = fixtureTrack(c.track);
     Object.assign(t, {
-      ampCharacter: c.id.replace("starter-", ""),
+      ampCharacter: /** @type {import("../ui/models").AmpCharacter} */ (
+        String(c.id).replace("starter-", "")
+      ),
       ampBypass: false,
     });
     return { ...library, session: structuredClone(state) };
   },
-  command: async (c) => {
-    if (
-      c.op === "state" &&
-      location.search.includes("startup=slow") &&
-      !startupDelayed
-    ) {
-      startupDelayed = true;
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-    if (c.op === "testAddTrack")
-      state.tracks.push({
-        ...track("animated", "New track", "#b0c4a7", 0),
-        clips: [],
-      });
-    if (c.op === "testRemoveTrack")
-      state.tracks = state.tracks.filter((t) => t.id !== "g");
-    if (c.op === "testTakes") {
-      const t = state.tracks.find((t) => t.id === "b");
-      Object.assign(t.clips[0], { takeGroup: "bass-takes", take: 1 });
-      t.clips.push({
-        ...t.clips[0],
-        id: "bass-take-2",
-        take: 2,
-        active: false,
-      });
-    }
-    if (c.op === "editClip" && c.action === "take") {
-      const t = state.tracks.find((t) => t.id === c.track);
-      for (const clip of t.clips) clip.active = clip.id === c.clip;
-    }
-    if (c.op === "devices") return devices;
-    if (c.op === "metronomeVolume") state.metronomeGain = c.value;
-    if (c.op === "testAudioLoad") {
-      state.audioCpu = c.value;
-      state.processingDropouts = 2;
-    }
-    if (c.op === "tuner") {
-      state.tunerTrack = c.track ?? "";
-      state.tunerFrequency = c.track ? 82.41 : 0;
-    }
-    if (c.op === "configure") {
-      if (c.output === "Unavailable")
-        throw new Error("Test output unavailable");
-      Object.assign(devices, c);
-      return devices;
-    }
-    if (c.op === "track")
-      Object.assign(
-        state.tracks.find((t) => t.id === c.track),
-        c,
-      );
-    if (c.op === "limiter") state.limiterEnabled = c.value;
-    return state;
-  },
+  // The mock also accepts fixture-only ops, so its own signature is wider.
+  command: /** @type {import("../ui/models").DesktopApi["command"]} */ (
+    /** @type {unknown} */ (mockCommand)
+  ),
   save: async () => null,
   open: async () => null,
   plugin: async () => null,
@@ -190,4 +228,10 @@ contextBridge.exposeInMainWorld("basement", {
   checkForUpdate: async () => ({ available: true, version: "0.2.0" }),
   openRelease: async () => undefined,
   openFeedback: async () => undefined,
-});
+  openLicenses: async () => "",
+  openLogs: async () => "",
+  openWebsite: async () => undefined,
+  restart: async () => undefined,
+  dropFiles: async () => state,
+};
+contextBridge.exposeInMainWorld("basement", api);

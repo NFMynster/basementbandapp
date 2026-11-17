@@ -2,24 +2,28 @@
 
 The desktop is React/Electron plus a separate C++/JUCE audio process.
 
-| Area             | Owns                                                     | Entry points                                           |
-| ---------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                  |
-| Contract         | Typed commands and limited preload API                   | ui/models.ts, desktop/preload.cjs                      |
-| Desktop shell    | Windows, dialogs, sender validation, file drops          | desktop/main.cjs, desktop/ipc.cjs                      |
-| Session service  | Serialized commands, recovery, working folders           | desktop/session-service.cjs                            |
-| Session storage  | Portable projects, validation and atomic writes          | desktop/session-storage.cjs, desktop/session-files.cjs |
-| Session history  | Undo policy and immutable application of history entries | desktop/session-history.cjs                            |
-| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/native-client.cjs, desktop/backend.cjs         |
-| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                 |
+| Area             | Owns                                                     | Entry points                                            |
+| ---------------- | -------------------------------------------------------- | ------------------------------------------------------- |
+| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                   |
+| Contract         | Typed commands and limited preload API                   | ui/models.ts, desktop/commands.cjs, desktop/preload.cjs |
+| Desktop shell    | Windows, dialogs, sender validation, file drops          | desktop/main.cjs, desktop/ipc.cjs                       |
+| Session service  | Serialized commands, recovery, working folders           | desktop/session-service.cjs                             |
+| Session storage  | Portable projects, validation and atomic writes          | desktop/session-storage.cjs, desktop/session-files.cjs  |
+| Session history  | Undo policy and immutable application of history entries | desktop/session-history.cjs                             |
+| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/native-client.cjs, desktop/backend.cjs          |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                  |
 
 ## Extending behavior
 
 1. Extend the typed contract in ui/models.ts.
-2. Register the op in desktop/commands.cjs with its native domain and sender. IPC derives its allowlist from that registry; ops that carry paths are `desktop`-only and go through a dedicated validated handler. Renderer code must not gain arbitrary filesystem or process access.
+2. Register the op in desktop/commands.cjs with its native domain, sender and policy flags (`undoable`, `edits` for recovery, `gesture` for slider coalescing, `query`). IPC derives its allowlist from that registry; ops that carry paths are `desktop`-only and go through a dedicated validated handler. Renderer code must not gain arbitrary filesystem or process access.
 3. Put portable file operations in session-storage.cjs and ordering/history in SessionService. Route audio commands to their native domain handler.
 4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
 5. Add deterministic integration tests and UI checks.
+
+## Desktop types
+
+The desktop layer stays plain CommonJS that Electron runs directly, but `tsconfig.desktop.json` type-checks it strictly through JSDoc as part of `npm run check`. Shared shapes live in `desktop/types.d.ts` and reuse `ui/models.ts`, so the preload bridge is checked against the same `DesktopApi` the renderer calls, and the screenshot bridge mock in `scripts/screenshot-preload.cjs` cannot drift from it. Engine snapshots are typed as `Snapshot`, the renderer `Session` plus document fields only the desktop reads.
 
 ## Renderer coordination
 

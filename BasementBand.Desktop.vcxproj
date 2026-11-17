@@ -73,6 +73,7 @@
     <None Include="scripts\vite-server.mjs" />
     <None Include="scripts\vs-build.mjs" />
     <None Include="tsconfig.json" />
+    <None Include="tsconfig.desktop.json" />
     <None Include="ui\App.tsx" />
     <None Include="ui\components\Arrangement.tsx" />
     <None Include="ui\components\AudioDevicePanel.tsx" />
@@ -147,6 +148,8 @@
     <None Include="desktop\smoke\recording.cjs" />
     <None Include="desktop\smoke\sound.cjs" />
     <None Include="desktop\smoke\startup.cjs" />
+    <None Include="desktop\smoke\required.cjs" />
+    <None Include="desktop\types.d.ts" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

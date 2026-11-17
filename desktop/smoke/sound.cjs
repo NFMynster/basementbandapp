@@ -1,3 +1,4 @@
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifySoundControls(win, request) {
   await win.webContents.executeJavaScript(
     `document.querySelector('.confirmation-dialog .modal-close')?.click(); [...document.querySelectorAll('.tab')].find(b=>b.textContent.trim()==='EQ & Effects').click()`,

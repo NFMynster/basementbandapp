@@ -1,3 +1,4 @@
+const { ENGINE_COMMANDS } = require("./commands.cjs");
 const UNDOABLE_CLIP_ACTIONS = new Set([
   "move",
   "trim",
@@ -48,6 +49,43 @@ const UNDOABLE_TRACK_SETTINGS = [
   "bypass",
   "pluginName",
 ];
+// Plug-in chain fields restored together when plug-ins change or a preset applies.
+const PLUGIN_SETTINGS = [
+  "pluginPath",
+  "pluginUid",
+  "pluginState",
+  "effects",
+  "bypass",
+];
+// The sound a track preset carries besides its plug-ins. Presets keep the
+// track's name, routing and arming.
+const PRESET_SOUND_SETTINGS = [
+  "gain",
+  "pan",
+  "eqBass",
+  "eqMid",
+  "eqTreble",
+  "eqBassFrequency",
+  "eqMidFrequency",
+  "eqTrebleFrequency",
+  "eqMidQ",
+  "eqLowCut",
+  "compressorEnabled",
+  "compressorAmount",
+  "compressorAttack",
+  "compressorRelease",
+  "reverbEnabled",
+  "reverbAmount",
+  "reverbSize",
+  "reverbDamping",
+  "reverbWidth",
+  "gateEnabled",
+  "gateThreshold",
+  "ampCharacter",
+  "ampBypass",
+  "eqEnabled",
+];
+/** @type {Record<string, string>} */
 const GLOBAL_EDITS = {
   master: "masterGain",
   limiter: "limiterEnabled",
@@ -57,6 +95,7 @@ const GLOBAL_EDITS = {
   metronomeVolume: "metronomeGain",
   countIn: "countIn",
 };
+/** @param {import("./types").Snapshot} s */
 function historyFingerprint(s) {
   const keys = [
     ...UNDOABLE_TRACK_SETTINGS,
@@ -96,6 +135,7 @@ function historyFingerprint(s) {
     })),
   });
 }
+/** @param {import("./types").EngineCommand} command */
 function editDescription(command) {
   if (command.op === "duplicateTrack") return "duplicate track";
   if (command.op === "addTrack") return "create track";
@@ -125,7 +165,7 @@ function editDescription(command) {
   if (command.op === "editRegions")
     return command.action === "delete" ? "delete regions" : "move regions";
   return (
-    {
+    /** @type {Record<string, string>} */ ({
       move: "move region",
       trim: "trim region",
       repeat: "loop region",
@@ -135,39 +175,25 @@ function editDescription(command) {
       notes: "edit MIDI notes",
       sound: "change clip sound",
       quantize: "align MIDI notes",
-    }[command.action] || "edit"
+    })[/** @type {string} */ (command.action)] || "edit"
   );
 }
+/** @param {import("./types").EngineCommand} command */
 function isUndoable(command) {
+  const undoable = ENGINE_COMMANDS[command.op]?.undoable;
   return (
-    [
-      "addTrack",
-      "duplicateTrack",
-      "createMidi",
-      "import",
-      "track",
-      "master",
-      "limiter",
-      "tempo",
-      "rename",
-      "metronome",
-      "metronomeVolume",
-      "countIn",
-      "plugin",
-      "removePlugin",
-      "bypass",
-      "reorderEffect",
-      "reorderTrack",
-      "preset",
-    ].includes(command.op) ||
-    command.op === "removeTrack" ||
-    command.op === "removeClip" ||
-    command.op === "editRegions" ||
-    (command.op === "editClip" && UNDOABLE_CLIP_ACTIONS.has(command.action))
+    undoable === true ||
+    (undoable === "by-action" &&
+      UNDOABLE_CLIP_ACTIONS.has(/** @type {string} */ (command.action)))
   );
 }
 
 // Apply an entry to the current session without discarding unrelated edits.
+/**
+ * @param {import("./types").Snapshot} current
+ * @param {import("./types").HistoryEntry} entry
+ * @param {"undo" | "redo"} direction
+ */
 function applyHistoryEntry(current, entry, direction) {
   const source = direction === "undo" ? entry.after : entry.before;
   const destination = direction === "undo" ? entry.before : entry.after;
@@ -220,11 +246,11 @@ function applyHistoryEntry(current, entry, direction) {
   }
   if (entry.trackOrder) {
     const order = destination.tracks.map((t) => t.id);
-    const sorted = order
-      .map((id) => target.tracks.find((t) => t.id === id))
-      .filter(Boolean);
+    const sorted = order.flatMap((id) =>
+      target.tracks.filter((t) => t.id === id),
+    );
     target.tracks = target.tracks.map((t) =>
-      order.includes(t.id) ? sorted.shift() : t,
+      order.includes(t.id) ? /** @type {typeof t} */ (sorted.shift()) : t,
     );
   }
   return target;
@@ -232,6 +258,8 @@ function applyHistoryEntry(current, entry, direction) {
 
 module.exports = {
   UNDOABLE_TRACK_SETTINGS,
+  PLUGIN_SETTINGS,
+  PRESET_SOUND_SETTINGS,
   GLOBAL_EDITS,
   historyFingerprint,
   editDescription,

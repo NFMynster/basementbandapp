@@ -3,6 +3,10 @@ const { existsSync } = require("node:fs");
 const path = require("node:path");
 const { NativeClient } = require("./native-client.cjs");
 const { SessionService } = require("./session-service.cjs");
+/**
+ * @param {string} root
+ * @param {string} dataDirectory
+ */
 function startBackend(root, dataDirectory, inputAllowed = true) {
   const native =
     process.env.BASEMENT_TEST_DEVICE === "1" && process.env.BASEMENT_NATIVE_TEST

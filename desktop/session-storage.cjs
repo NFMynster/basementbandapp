@@ -8,6 +8,7 @@ const {
   writeJsonAtomically,
 } = require("./session-files.cjs");
 // File operations only. The caller owns the engine, queue, history and recovery.
+/** @param {string} targetPath @param {import("./types").Snapshot} snapshot */
 async function saveSession(targetPath, snapshot) {
   snapshot = structuredClone(snapshot);
   snapshot.version = CURRENT_SESSION_VERSION;
@@ -58,6 +59,7 @@ async function saveSession(targetPath, snapshot) {
   await writeJsonAtomically(target, snapshot, 2);
   return { saved: target };
 }
+/** @param {string} targetPath */
 async function readSession(targetPath) {
   const target = path.resolve(targetPath);
   const session = JSON.parse(await fs.readFile(target, "utf8"));

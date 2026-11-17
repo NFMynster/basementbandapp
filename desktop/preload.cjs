@@ -1,8 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
+/** @param {string} channel @param {unknown[]} args */
 const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 
-contextBridge.exposeInMainWorld("basement", {
+/** @type {import("../ui/models").DesktopApi} */
+const api = {
   openLicenses: () => invoke("licenses"),
   openWebsite: () => invoke("website"),
   checkForUpdate: () => invoke("check-update"),
@@ -26,4 +28,5 @@ contextBridge.exposeInMainWorld("basement", {
       track,
       plugin,
     ),
-});
+};
+contextBridge.exposeInMainWorld("basement", api);

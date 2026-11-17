@@ -1,8 +1,16 @@
 const { createInterface } = require("node:readline");
 // Serialize native commands; plug-in stdout is diagnostic, not protocol.
 class NativeClient {
+  /**
+   * @param {import("node:child_process").ChildProcessWithoutNullStreams} child
+   */
   constructor(child, timeout = 60000) {
     this.child = child;
+    /** @type {Error | undefined} */
+    this.failure = undefined;
+    /** @type {{ resolve: (value: any) => void, reject: (error: Error) => void, timer: NodeJS.Timeout } | null} */
+    this.pending = null;
+    this.closing = false;
     this.queue = Promise.resolve();
     this.timeout = timeout;
     createInterface({ input: child.stdout }).on("line", (line) => {
@@ -20,10 +28,10 @@ class NativeClient {
           ? pending.reject(new Error(result.error))
           : pending.resolve(result);
       } catch (error) {
-        this.fail(error);
+        this.fail(/** @type {Error} */ (error));
       }
     });
-    child.stderr.on("data", (data) => console.error(data.toString()));
+    child.stderr.on("data", (data) => console.error(String(data)));
     child.on("error", (error) => this.fail(error));
     child.stdin.on("error", (error) => this.fail(error));
     child.on("close", (code, signal) => {
@@ -40,6 +48,7 @@ class NativeClient {
       );
     });
   }
+  /** @param {import("./types").EngineCommand} command @returns {Promise<any>} */
   request(command) {
     const result = this.queue.then(() => {
       if (this.failure) throw this.failure;
@@ -68,6 +77,7 @@ class NativeClient {
     this.queue = result.catch(() => {});
     return result;
   }
+  /** @param {Error} error */
   fail(error, quiet = false) {
     if (!this.failure && !quiet) console.error("Audio engine failure", error);
     this.failure ??= error;

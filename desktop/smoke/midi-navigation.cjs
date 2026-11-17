@@ -1,3 +1,5 @@
+const { required } = require("./required.cjs");
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyMidiNavigation(win, request) {
   await win.webContents.executeJavaScript(
     `[...document.querySelectorAll('.tab')].find(t=>t.textContent.trim()==='MIDI').click()`,
@@ -27,7 +29,7 @@ async function verifyMidiNavigation(win, request) {
     type: "mouseMove",
     x: mainPoint.x + 40,
     y: mainPoint.y,
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
     button: "left",
   });
   await new Promise((r) => setTimeout(r, 50));
@@ -71,7 +73,7 @@ async function verifyMidiNavigation(win, request) {
     type: "mouseMove",
     x: midiPoint.x + 80,
     y: midiPoint.y,
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
     button: "left",
   });
   await new Promise((r) => setTimeout(r, 50));
@@ -111,7 +113,7 @@ async function verifyMidiNavigation(win, request) {
   )
     throw new Error("MIDI maximize did not expand piano roll");
   await win.webContents.executeJavaScript(
-    `document.querySelector('[aria-label="Restore MIDI editor"]').click()`,
+    `document.querySelector('[aria-label="Restore editor"]').click()`,
   );
   await win.webContents.executeJavaScript(
     `document.querySelector('[aria-label="Play region"]').click()`,
@@ -194,7 +196,7 @@ async function verifyMidiNavigation(win, request) {
     type: "mouseMove",
     x: Math.round(loopRegion.x + loopRegion.width * 1.5),
     y: loopRegion.y,
-    modifiers: ["leftButtonDown"],
+    modifiers: ["leftbuttondown"],
   });
   await new Promise((r) => setTimeout(r, 80));
   win.webContents.sendInputEvent({
@@ -205,7 +207,10 @@ async function verifyMidiNavigation(win, request) {
     clickCount: 1,
   });
   await new Promise((r) => setTimeout(r, 180));
-  const looped = (await request({ op: "state" })).tracks.at(-1).clips;
+  const looped = required(
+    (await request({ op: "state" })).tracks.at(-1),
+    "the last track",
+  ).clips;
   if (looped.length < 2)
     throw new Error(
       "Upper right region drag did not create loops: " +

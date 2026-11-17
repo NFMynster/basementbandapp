@@ -1,3 +1,4 @@
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyArrangementSettings(win, request) {
   for (let i = 0; i < 9; ++i) await request({ op: "addTrack" });
   await new Promise((r) => setTimeout(r, 700));
@@ -28,6 +29,7 @@ async function verifyArrangementSettings(win, request) {
   );
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyLoopControls(win, request) {
   for (const value of ["1", "12", "120"]) {
     await win.webContents.executeJavaScript(`(() => {
@@ -105,6 +107,7 @@ async function verifyLoopControls(win, request) {
   );
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyTrackOrdering(win, request) {
   await win.webContents.executeJavaScript(
     `document.querySelector('.audio-diagnostics .modal-close').click()`,

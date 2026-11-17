@@ -1,6 +1,8 @@
 const { saveSession, readSession } = require("./session-storage.cjs");
 const {
   UNDOABLE_TRACK_SETTINGS,
+  PLUGIN_SETTINGS,
+  PRESET_SOUND_SETTINGS,
   GLOBAL_EDITS,
   historyFingerprint,
   editDescription,
@@ -18,41 +20,44 @@ const {
 } = require("./session-files.cjs");
 const RECOVERY_FILE = "recovery.json";
 const MAX_UNDO_STEPS = 30;
-const NON_STATE_COMMANDS = new Set(["state", "devices", "snapshot"]);
-const EDITABLE_COMMANDS = new Set([
-  "editClip",
-  "createMidi",
-  "reorderEffect",
-  "preset",
-  "removeTrack",
-  "reorderTrack",
-  "removeClip",
-  "editRegions",
-  "addTrack",
-  "duplicateTrack",
-  "import",
-  "track",
-  "rename",
-  "tempo",
-  "record",
-  "master",
-  "limiter",
-  "loop",
-  "metronome",
-  "metronomeVolume",
-  "countIn",
-  "bypass",
-  "plugin",
-  "removePlugin",
-]);
+const { ENGINE_COMMANDS } = require("./commands.cjs");
+/** @param {string} op */
+const policy = (op) => ENGINE_COMMANDS[op] ?? {};
+// Lifecycle moments that always refresh recovery, including desktop-only
+// save/open, which never reach the engine as commands.
 const CHECKPOINT_COMMANDS = new Set(["stop", "save", "new", "open"]);
+/**
+ * @typedef {import("./types").Snapshot} Snapshot
+ * @typedef {import("./types").EngineCommand} EngineCommand
+ * @typedef {import("./types").HistoryEntry} HistoryEntry
+ * @typedef {{ key: string | null, command: EngineCommand, result: Promise<any> | null }} PendingGesture
+ */
 class SessionService {
+  /**
+   * @param {import("./native-client.cjs").NativeClient} engine
+   * @param {string} directory
+   */
   constructor(engine, directory, { recover = true } = {}) {
     this.engine = engine;
     this.directory = directory;
     this.recover = recover;
+    /** @type {HistoryEntry[]} */
     this.undoStack = [];
+    /** @type {HistoryEntry[]} */
     this.redoStack = [];
+    /** @type {string | undefined} Working folder for the open session's new media. */
+    this.folder = undefined;
+    /** @type {Snapshot | undefined} Latest full snapshot, the base for recovery. */
+    this.lastSnapshot = undefined;
+    this.recovered = false;
+    this.recoveryError = "";
+    this.recoveryBlocked = false;
+    /** @type {PendingGesture | null} */
+    this.pendingGesture = null;
+    /** @type {string | null} */
+    this.lastHistoryGroup = null;
+    /** @type {Promise<void> | null} */
+    this.closing = null;
     this.ready = this.initialize();
     this.ready.catch(() => {});
     this.queue = Promise.resolve();
@@ -82,7 +87,8 @@ class SessionService {
         this.recovered = true;
         // Restore the project, but always begin at the start of its timeline.
         // Native restore also resets transport for explicitly opened projects.
-      } catch (error) {
+      } catch (caught) {
+        const error = /** @type {Error & { code?: string }} */ (caught);
         this.lastSnapshot = undefined;
         if (recoveryRead || error.code !== "ENOENT") {
           this.recoveryError =
@@ -112,6 +118,7 @@ class SessionService {
       this.lastSnapshot = await this.engine.request({ op: "snapshot" });
     return state;
   }
+  /** @param {any} result An engine reply; session-shaped replies gain history flags. */
   decorate(result) {
     return result?.tracks
       ? {
@@ -123,17 +130,25 @@ class SessionService {
         }
       : result;
   }
+  /** @param {Snapshot} [snapshot] */
   async checkpoint(snapshot) {
     if (this.recoveryBlocked) throw new Error(this.recoveryError);
-    snapshot ??= await this.engine.request({ op: "snapshot" });
-    this.lastSnapshot = snapshot;
+    /** @type {Snapshot} */
+    const current = snapshot ?? (await this.engine.request({ op: "snapshot" }));
+    this.lastSnapshot = current;
     if (!this.recover) return;
-    snapshot.version = CURRENT_SESSION_VERSION;
-    validate(snapshot);
+    current.version = CURRENT_SESSION_VERSION;
+    validate(current);
     const target = path.join(this.directory, RECOVERY_FILE);
-    await writeJsonAtomically(target, snapshot);
+    await writeJsonAtomically(target, current);
     this.recoveryError = "";
   }
+  /**
+   * Fills a metadata-only reply with the media and plug-in state it omits.
+   * @param {Snapshot} result
+   * @param {Snapshot} before
+   * @returns {Snapshot}
+   */
   recoverySnapshot(result, before) {
     const allClips = new Map(
       before.tracks.flatMap((track) =>
@@ -171,12 +186,12 @@ class SessionService {
     await fs.mkdir(folder, { recursive: true });
     return folder;
   }
+  /** @param {EngineCommand} command @returns {Promise<any>} */
   request(command) {
     // Keep only the newest waiting value in a continuous slider gesture.
     // Commands already executing finish normally; other edits remain barriers.
     const key =
-      typeof command.historyGroup === "string" &&
-      ["track", "master", "metronomeVolume", "editClip"].includes(command.op)
+      typeof command.historyGroup === "string" && policy(command.op).gesture
         ? JSON.stringify([
             command.op,
             command.track,
@@ -188,8 +203,9 @@ class SessionService {
         : null;
     if (key && this.pendingGesture?.key === key) {
       this.pendingGesture.command = command;
-      return this.pendingGesture.result;
+      return /** @type {Promise<any>} */ (this.pendingGesture.result);
     }
+    /** @type {PendingGesture} */
     const pending = { key, command, result: null };
     this.pendingGesture = key ? pending : null;
     const result = this.queue
@@ -202,15 +218,15 @@ class SessionService {
     this.queue = result.catch(() => {});
     return result;
   }
+  /** @param {EngineCommand} command */
   async execute(command) {
     const historyGroup =
-      typeof command.historyGroup === "string" &&
-      ["track", "master", "editClip", "metronomeVolume"].includes(command.op)
+      typeof command.historyGroup === "string" && policy(command.op).gesture
         ? `${command.op}:${command.track || ""}:${command.clip || ""}:${command.historyGroup}`
         : null;
     const continuesHistory =
       historyGroup && historyGroup === this.lastHistoryGroup;
-    if (!NON_STATE_COMMANDS.has(command.op)) this.lastHistoryGroup = null;
+    if (!policy(command.op).query) this.lastHistoryGroup = null;
     if (command.op === "play")
       this.lastSnapshot = await this.engine.request({ op: "snapshot" });
     if (command.op === "undo" || command.op === "redo") {
@@ -219,6 +235,7 @@ class SessionService {
       const from = command.op === "undo" ? this.undoStack : this.redoStack;
       const to = command.op === "undo" ? this.redoStack : this.undoStack;
       if (!from.length) return this.decorate(state);
+      /** @type {Snapshot} */
       const metadata = await this.engine.request({
         op: "snapshot",
         metadataOnly: true,
@@ -226,7 +243,7 @@ class SessionService {
       const current = this.lastSnapshot
         ? this.recoverySnapshot(metadata, this.lastSnapshot)
         : metadata;
-      const entry = from.at(-1);
+      const entry = from[from.length - 1];
       const target = applyHistoryEntry(current, entry, command.op);
       await this.engine.request({
         op: "restore",
@@ -259,14 +276,16 @@ class SessionService {
       try {
         await this.checkpoint(this.recoverySnapshot(restored, target));
       } catch (error) {
-        this.recoveryError = "Recovery could not be saved: " + error.message;
+        this.recoveryError =
+          "Recovery could not be saved: " +
+          /** @type {Error} */ (error).message;
       }
       return {
         ...this.decorate(restored),
         historyNotice: `${command.op === "undo" ? "Undo" : "Redo"} ${entry.description}`,
       };
     }
-    const editable = EDITABLE_COMMANDS.has(command.op);
+    const editable = !!policy(command.op).edits;
     const undoable = isUndoable(command);
     let before;
     if (undoable && !continuesHistory) {
@@ -340,41 +359,9 @@ class SessionService {
                     command.op,
                   )
                 ? [
-                    "pluginPath",
-                    "pluginUid",
-                    "pluginState",
+                    ...PLUGIN_SETTINGS,
                     "pluginName",
-                    "effects",
-                    "bypass",
-                    ...(command.op === "preset"
-                      ? [
-                          "gain",
-                          "pan",
-                          "eqBass",
-                          "eqMid",
-                          "eqTreble",
-                          "eqBassFrequency",
-                          "eqMidFrequency",
-                          "eqTrebleFrequency",
-                          "eqMidQ",
-                          "eqLowCut",
-
-                          "compressorEnabled",
-                          "compressorAmount",
-                          "compressorAttack",
-                          "compressorRelease",
-                          "reverbEnabled",
-                          "reverbAmount",
-                          "reverbSize",
-                          "reverbDamping",
-                          "reverbWidth",
-                          "gateEnabled",
-                          "gateThreshold",
-                          "ampCharacter",
-                          "ampBypass",
-                          "eqEnabled",
-                        ]
-                      : []),
+                    ...(command.op === "preset" ? PRESET_SOUND_SETTINGS : []),
                   ]
                 : command.op === "bypass"
                   ? command.effect
@@ -406,10 +393,8 @@ class SessionService {
         op: "snapshot",
         metadataOnly: true,
       });
-      this.undoStack.at(-1).after = this.recoverySnapshot(
-        after,
-        this.undoStack.at(-1).after,
-      );
+      const latest = this.undoStack[this.undoStack.length - 1];
+      latest.after = this.recoverySnapshot(after, latest.after);
       this.redoStack = [];
     }
     if (command.op === "new" || command.op === "open") {
@@ -449,20 +434,23 @@ class SessionService {
             : undefined,
         );
       } catch (error) {
-        this.recoveryError = "Recovery could not be saved: " + error.message;
+        this.recoveryError =
+          "Recovery could not be saved: " +
+          /** @type {Error} */ (error).message;
       }
     }
     return this.decorate(result);
   }
+  /** @param {EngineCommand} command */
   async executeRaw(command) {
     if (command.op === "save") {
       return saveSession(
-        command.path,
+        /** @type {string} */ (command.path),
         await this.engine.request({ op: "snapshot" }),
       );
     }
     if (command.op === "open") {
-      const session = await readSession(command.path);
+      const session = await readSession(/** @type {string} */ (command.path));
       const folder = await this.workingDirectory();
       const result = await this.engine.request({
         op: "restore",

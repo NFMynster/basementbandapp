@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "desktop/**/*.cjs",
+    "desktop/types.d.ts",
+    "scripts/screenshot-preload.cjs"
+  ]
+}

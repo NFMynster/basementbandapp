@@ -7,21 +7,34 @@ const AUDIO_EXTENSIONS = /\.(wav|aif|aiff|flac|mp3)$/i;
 const MIDI_EXTENSIONS = /\.(mid|midi)$/i;
 const VST3_EXTENSION = /\.vst3$/i;
 
+/**
+ * @typedef {import("./types").Snapshot} Snapshot
+ * @typedef {import("./types").SnapshotTrack} SnapshotTrack
+ * @typedef {import("./types").Request} Request
+ */
+
+/** @param {import("electron").IpcMainInvokeEvent} event @param {import("./types").Window} win */
 function assertSender(event, win) {
   if (event.sender !== win.webContents) throw new Error("Unknown window");
 }
 
+/** @param {Snapshot} state @param {string | undefined} id */
 function requireTrack(state, id) {
   const track = state.tracks.find((candidate) => candidate.id === id);
   if (id !== undefined && !track) throw new Error("Track no longer exists");
   return track;
 }
 
+/** @param {unknown} position */
 function validateImportPosition(position) {
-  if (position !== undefined && (!Number.isFinite(position) || position < 0))
+  if (
+    position !== undefined &&
+    (typeof position !== "number" || !Number.isFinite(position) || position < 0)
+  )
     throw new Error("Invalid import position");
 }
 
+/** @param {string} file @returns {"audio" | "midi"} */
 function mediaKind(file) {
   if (MIDI_EXTENSIONS.test(file)) return "midi";
   if (AUDIO_EXTENSIONS.test(file)) return "audio";
@@ -30,16 +43,20 @@ function mediaKind(file) {
   );
 }
 
+/** @param {SnapshotTrack | undefined} track @param {"audio" | "midi"} kind */
 function matchesTrackKind(track, kind) {
   return !track || (track.kind || "audio") === kind;
 }
 
+/** @param {Request} request @param {string | undefined} trackId @param {Snapshot} state */
 async function removeCreatedTrack(request, trackId, state) {
   if (trackId && !state.playing)
     await request({ op: "removeTrack", track: trackId });
 }
 
+/** @param {import("./types").Window} win @param {Request} request */
 function registerIpc(win, request) {
+  /** @type {import("./plugin-library.cjs").PluginLibrary | undefined} */
   let library;
   ipcMain.handle("soundLibrary", async (event, command) => {
     assertSender(event, win);
@@ -225,6 +242,7 @@ function registerIpc(win, request) {
         ...(target?.pluginName ? { append: true } : {}),
       });
     }
+    /** @type {Snapshot} */
     let state = await request({ op: "state" });
     if (state.recording) throw new Error("Stop recording before importing");
     requireTrack(state, track);
@@ -234,23 +252,21 @@ function registerIpc(win, request) {
       if (!matchesTrackKind(target, kind))
         throw new Error("Drop this file on a matching audio or MIDI track");
       const created = !target;
-      if (created) {
+      if (!target) {
         state = await request({ op: "addTrack", kind });
         target = state.tracks.at(-1);
+        if (!target) throw new Error("The new track could not be created");
         await request({
           op: "track",
           track: target.id,
           name: path.parse(file).name,
         });
       }
+      const trackId = target.id;
       try {
-        state = await request({ op: "import", track: target.id, path: file });
+        state = await request({ op: "import", track: trackId, path: file });
       } catch (error) {
-        await removeCreatedTrack(
-          request,
-          created ? target.id : undefined,
-          state,
-        );
+        await removeCreatedTrack(request, created ? trackId : undefined, state);
         throw error;
       }
     }

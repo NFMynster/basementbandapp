@@ -2,9 +2,11 @@ const fs = require("node:fs/promises");
 const { randomUUID } = require("node:crypto");
 const CURRENT_SESSION_VERSION = 4;
 
+/** @param {import("./types").Snapshot} session */
 const sessionClips = (session) =>
   session.tracks.flatMap((track) => track.clips);
 
+/** @param {string} target @param {unknown} value */
 async function writeJsonAtomically(target, value, space = 0) {
   const temporary = `${target}.${randomUUID()}.tmp`;
   try {
@@ -15,21 +17,33 @@ async function writeJsonAtomically(target, value, space = 0) {
   }
 }
 
+/**
+ * Checks a session document before it reaches the engine. Input is untrusted
+ * JSON, so fields are read loosely and asserted one by one.
+ * @param {any} session
+ */
 function validate(session) {
+  /** @param {unknown} condition @param {string} message */
   const assertValid = (condition, message) => {
     if (!condition) throw new Error(message);
   };
+  /** @param {unknown} value @param {number} min @param {number} max */
   const number = (value, min, max) =>
     assertValid(
-      Number.isFinite(value) && value >= min && value <= max,
+      typeof value === "number" &&
+        Number.isFinite(value) &&
+        value >= min &&
+        value <= max,
       "Invalid numeric session field",
     );
+  /** @param {unknown} value @param {number} length */
   const text = (value, length) =>
     assertValid(
       typeof value === "string" && value.length <= length,
       "Invalid text session field",
     );
   const ids = new Set();
+  /** @param {unknown} value */
   const id = (value) => {
     const canonical =
       typeof value === "string" ? value.replaceAll("-", "").toLowerCase() : "";

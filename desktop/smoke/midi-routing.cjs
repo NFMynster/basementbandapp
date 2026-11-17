@@ -1,3 +1,4 @@
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyMidiRouting(win, request) {
   await win.webContents.executeJavaScript(
     `document.querySelector('[title="Add track"]').click()`,
@@ -11,7 +12,7 @@ async function verifyMidiRouting(win, request) {
     `document.querySelector('.create-track-dialog .primary').click()`,
   );
   await new Promise((r) => setTimeout(r, 250));
-  if ((await request({ op: "state" })).tracks.at(-1).kind !== "midi")
+  if ((await request({ op: "state" })).tracks.at(-1)?.kind !== "midi")
     throw new Error("UI did not create a MIDI track");
   if (
     !(await win.webContents.executeJavaScript(
@@ -34,6 +35,7 @@ async function verifyMidiRouting(win, request) {
   );
 }
 
+/** @param {import("../types").Window} win @param {import("../types").Request} request */
 async function verifyProjectCreation(win, request) {
   await win.webContents.executeJavaScript(
     `window.confirm = () => { throw new Error('Blocking browser confirmation used'); }; document.querySelector('[title="New session"]').click()`,
@@ -137,7 +139,7 @@ async function verifyProjectCreation(win, request) {
     `document.querySelector('.create-track-dialog .primary').click()`,
   );
   await new Promise((r) => setTimeout(r, 250));
-  if ((await request({ op: "state" })).tracks.at(-1).kind !== "midi")
+  if ((await request({ op: "state" })).tracks.at(-1)?.kind !== "midi")
     throw new Error("MIDI creation failed");
   await verifyDropdown();
   console.log(

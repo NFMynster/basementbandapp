@@ -66,6 +66,7 @@
     <None Include="scripts\vite-server.mjs"><Filter>Build and development</Filter></None>
     <None Include="scripts\vs-build.mjs"><Filter>Build and development</Filter></None>
     <None Include="tsconfig.json"><Filter>Configuration</Filter></None>
+    <None Include="tsconfig.desktop.json"><Filter>Configuration</Filter></None>
     <None Include="ui\App.tsx"><Filter>React interface</Filter></None>
     <None Include="ui\components\Arrangement.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\AudioDevicePanel.tsx"><Filter>React interface\components</Filter></None>
@@ -135,5 +136,7 @@
     <None Include="desktop\smoke\recording.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke\sound.cjs"><Filter>Electron</Filter></None>
     <None Include="desktop\smoke\startup.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\smoke\required.cjs"><Filter>Electron</Filter></None>
+    <None Include="desktop\types.d.ts"><Filter>Electron</Filter></None>
   </ItemGroup>
 </Project>
