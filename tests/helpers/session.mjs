@@ -22,9 +22,13 @@ export function startSession(folder) {
         return { error: error.message };
       }
     },
+    // Bounded like startRpc: an engine that ignores EOF (for example one stuck
+    // in init) is killed instead of hanging the test run.
     async close() {
       service.close();
+      const timeout = setTimeout(() => child.kill(), 2000);
       await exited;
+      clearTimeout(timeout);
     },
   };
 }

@@ -63,12 +63,6 @@
   margin: 16px 0 8px;
   accent-color: #b3d3f6;
 }
-.eq-scale {
-  display: flex;
-  justify-content: space-between;
-  color: #9296a2;
-  font-size: 9px;
-}
 .eq-band.bypassed {
   opacity: 0.45;
 }

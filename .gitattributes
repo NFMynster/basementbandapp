@@ -1,0 +1,10 @@
+# Keep the repository LF on every machine, whatever core.autocrlf says.
+# Prettier and .editorconfig expect LF; Visual Studio reads LF project files.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
+*.wav binary
+*.mid binary
+*.mp4 binary

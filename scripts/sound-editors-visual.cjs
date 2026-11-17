@@ -15,6 +15,25 @@ app
         contextIsolation: true,
       },
     });
+    // Name the failing step: Electron only reports that a script threw.
+    const run = w.webContents.executeJavaScript.bind(w.webContents);
+    w.webContents.executeJavaScript = (code, ...rest) =>
+      run(code, ...rest).catch((error) => {
+        throw new Error(`${error.message}\n  in: ${code.trim().slice(0, 300)}`);
+      });
+    // Chromium can reject a capture while a freshly loaded page has no frame
+    // yet (UnknownVizError); give the compositor a moment and try again.
+    const capture = w.webContents.capturePage.bind(w.webContents);
+    w.webContents.capturePage = async (...args) => {
+      for (let attempt = 1; ; ++attempt) {
+        try {
+          return await capture(...args);
+        } catch (error) {
+          if (attempt === 5) throw error;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+    };
     await w.loadFile(path.join(__dirname, "../dist/index.html"));
     w.showInactive();
     await new Promise((r) => setTimeout(r, 1100));
@@ -48,7 +67,7 @@ app
     w.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
     for (const [label, dx, dy] of [
       ["Track sidebar width", 80, 0],
-      ["Properties panel height", 0, -60],
+      ["Properties panel height", 0, 60],
     ]) {
       await w.webContents.executeJavaScript(
         `document.querySelector('[aria-label="${label}"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`,
@@ -115,7 +134,7 @@ app
       (await w.webContents.capturePage()).toPNG(),
     );
     await w.webContents.executeJavaScript(
-      `document.querySelector('[aria-label="Restore MIDI editor"]').click()`,
+      `document.querySelector('[aria-label="Restore editor"]').click()`,
     );
     const count = await w.webContents.executeJavaScript(
       `document.querySelectorAll('.piano-note').length`,
@@ -306,7 +325,7 @@ app
     await new Promise((r) => setTimeout(r, 200));
     if (
       !(await w.webContents.executeJavaScript(
-        `document.querySelector('.help-modal').textContent.includes('@nfmynster') && !!document.querySelector('.help-modal a[href="https://footstomp.studio/"]')`,
+        `document.querySelector('.help-modal').textContent.includes('@nfmynster') && [...document.querySelectorAll('.help-links button')].some((b) => b.textContent.includes('footstomp.studio'))`,
       ))
     )
       throw new Error("Missing guide credit or website");

@@ -101,11 +101,6 @@
   justify-content: space-between;
   font-size: 11px;
 }
-.subtle {
-  font-size: 9px;
-  color: #747782;
-  margin-top: -4px;
-}
 .level-block {
   width: 220px;
 }
@@ -119,16 +114,6 @@
 }
 .pan-row input {
   width: 110px;
-}
-.gain-value {
-  margin-left: auto;
-  white-space: nowrap;
-  font-family: Consolas, monospace;
-}
-.plugin-note {
-  font-size: 11px;
-  color: #8b8d98;
-  line-height: 1.8;
 }
 .plugin-slot {
   border: 1px dashed #53565f;
@@ -160,7 +145,4 @@
 }
 .plugin-slot > button:last-child {
   font-size: 11px;
-}
-.plugin-note {
-  margin-left: auto;
 }

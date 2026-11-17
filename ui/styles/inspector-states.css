@@ -66,14 +66,6 @@
 .track-menu .danger {
   color: #f19a9a;
 }
-.export-result,
-.export-error {
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-.export-error {
-  color: #f19a9a;
-}
 .modal {
   animation: surface-in 140ms ease-out;
 }
@@ -144,11 +136,6 @@ body:has(.modal-backdrop) {
   z-index: 2;
   background: #292b31;
   border-radius: 6px;
-}
-.plugin-note {
-  line-height: 1.8;
-  max-width: none;
-  margin: 10px 0 0;
 }
 .plugin-details {
   min-width: 0;
