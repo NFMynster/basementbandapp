@@ -59,6 +59,8 @@ Output goes to `release/`. The app bundles Electron and JUCE, but no .NET runtim
 
 Windows packages are released unsigned, so users may see Unknown publisher or Microsoft Defender SmartScreen warnings. macOS public releases require Developer ID signing, hardened runtime, notarization, and stapling. Clean-machine release testing covers macOS microphone permissions and plug-in editor behavior, plus Windows trust-warning behavior and Visual C++ runtime dependencies.
 
+Packaged Windows builds update themselves with `electron-updater` (`desktop/updates.cjs`): they read `latest.yml` from the newest published GitHub release of the public repository, download the installer in the background, and install silently on quit or through the footer's **restart to update** (the session is flushed to recovery first). The NSIS installer is named `Basement-Band-Setup-<version>.exe` so the uploaded file matches `latest.yml`; the Windows release script uploads `latest.yml` and the blockmap alongside it. Drafts are invisible to the updater, so testers only receive a release once it is published. macOS and development builds keep the notice that opens the release page.
+
 For a release, set the version in `package.json`, commit it, and push an exact
 matching tag such as `v0.1.0`. From a clean checkout of that tag, authenticate
 GitHub CLI with `gh auth login` and run the platform release command above. On

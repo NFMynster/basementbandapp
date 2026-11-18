@@ -5,21 +5,31 @@ import { ChevronDown } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
 import { desktop as api } from "../services/desktop";
+import type { UpdateStatus } from "../models";
 export function StatusBar({ controller }: { controller: WorkspaceController }) {
   const { s, armed } = controller;
   const [diagnostics, setDiagnostics] = useState(false);
-  const [updateVersion, setUpdateVersion] = useState<string>();
+  const [update, setUpdate] = useState<UpdateStatus>({ available: false });
   const audioLoad = useAudioLoad(s.audioCpu);
+  // Self-updating builds download in the background; poll until the
+  // download is ready or has failed.
   useEffect(() => {
     let active = true;
-    void api
-      .checkForUpdate()
-      .then((update) => {
-        if (active && update.available) setUpdateVersion(update.version);
-      })
-      .catch(() => undefined);
+    let timer: number | undefined;
+    const poll = () =>
+      void api
+        .checkForUpdate()
+        .then((next) => {
+          if (!active) return;
+          setUpdate(next);
+          if (next.state !== "ready" && next.state !== "failed")
+            timer = window.setTimeout(poll, 30000);
+        })
+        .catch(() => undefined);
+    poll();
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
   }, []);
   const openSetup = () => {
@@ -51,15 +61,32 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
             </span>
           </button>
         )}
-        {updateVersion && (
-          <button
-            className="update-available"
-            title={`Basement Band ${updateVersion} is available on GitHub`}
-            onClick={() => void api.openRelease()}
-          >
-            update available
-          </button>
-        )}
+        {update.available &&
+          (update.state === "ready" ? (
+            <button
+              className="update-available"
+              title={`Basement Band ${update.version} is downloaded. Restart to install it; your session is kept. It also installs when you close the app.`}
+              disabled={s.recording}
+              onClick={() => void api.installUpdate()}
+            >
+              restart to update
+            </button>
+          ) : update.state === "downloading" ? (
+            <span
+              className="update-available"
+              title={`Downloading Basement Band ${update.version}`}
+            >
+              downloading update
+            </span>
+          ) : (
+            <button
+              className="update-available"
+              title={`Basement Band ${update.version} is available on GitHub`}
+              onClick={() => void api.openRelease()}
+            >
+              update available
+            </button>
+          ))}
         <div className="footer-right">
           {s.recording ? (
             <>

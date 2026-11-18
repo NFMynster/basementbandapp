@@ -61,6 +61,7 @@ const ENGINE_COMMANDS = {
   metronome: renderer("transport", edit),
   countIn: renderer("transport", edit),
   metronomeVolume: renderer("transport", { ...edit, gesture: true }),
+  metronomeSound: renderer("transport", edit),
   master: renderer("transport", { ...edit, gesture: true }),
   limiter: renderer("transport", edit),
 

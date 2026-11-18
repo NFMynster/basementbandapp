@@ -4,6 +4,14 @@
 #include <map>
 
 namespace basement {
+inline constexpr const char *metronomeSounds[] = {"beep", "woodblock", "stick"};
+/** Index of a metronome sound name, or -1 when the value is not a known sound. */
+inline int metronomeSoundIndex(const var &value) {
+  if (!value.isString()) return -1;
+  for (int i = 0; i < (int)std::size(metronomeSounds); ++i)
+    if (value.toString() == metronomeSounds[i]) return i;
+  return -1;
+}
 class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   AudioDeviceManager devices;
   AudioFormatManager formats;
@@ -22,6 +30,10 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::atomic<bool> exporting{false}, monitoringActive{false};
   float masterGain = 1.0f;
   float metronomeGain = 1.0f;
+  // Index into metronomeSounds; the click noise state only feeds the stick sound.
+  int metronomeSound = 0;
+  uint32 clickNoise = 0x9e3779b9u;
+  float clickNoiseLast = 0;
   std::atomic<float> masterPeak{0};
   bool limiterEnabled = true;
   OutputProtection outputProtection;

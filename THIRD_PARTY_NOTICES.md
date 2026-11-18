@@ -21,6 +21,7 @@ No proprietary ASIO or commercial JUCE license is asserted.
 - Electron: MIT, plus Chromium/Node and other notices supplied in Electron's distribution.
 - React and React DOM: MIT, Copyright Meta Platforms, Inc. and affiliates.
 - Lucide: ISC, with Feather-derived icons under MIT; preserve its full license.
+- electron-updater and its runtime dependencies (builder-util-runtime, js-yaml, semver, fs-extra and others): MIT, ISC and Python-2.0 (argparse). Their notices are collected under `licenses/npm/`.
 - Other transitive dependencies retain the licenses in their respective packages.
 
 Packaging includes a licenses directory generated from the installed

@@ -1,6 +1,7 @@
 const fs = require("node:fs/promises");
 const { randomUUID } = require("node:crypto");
 const CURRENT_SESSION_VERSION = 4;
+const METRONOME_SOUNDS = ["beep", "woodblock", "stick"];
 
 /** @param {import("./types").Snapshot} session */
 const sessionClips = (session) =>
@@ -68,6 +69,11 @@ function validate(session) {
   number(session.tempo, 40, 240);
   number(session.masterGain, 0, 2);
   number(session.metronomeGain, 0, 4);
+  assertValid(
+    session.metronomeSound === undefined ||
+      METRONOME_SOUNDS.includes(session.metronomeSound),
+    "Invalid metronome sound",
+  );
   assertValid(
     typeof session.limiterEnabled === "boolean",
     "Invalid output protection switch",

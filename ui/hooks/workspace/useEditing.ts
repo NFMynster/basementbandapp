@@ -54,7 +54,7 @@ export function useEditing({
           ? { track: regionTrack.id, clip: clipId }
           : null;
     if (target)
-      run({
+      return run({
         op: "editClip",
         ...target,
         action,
@@ -70,7 +70,15 @@ export function useEditing({
       action: "delete",
       regions: selectedRegions,
     });
-    if (result) selectRegions([]);
+    if (result) {
+      selectRegions([]);
+      setNotice(
+        selectedRegions.length === 1
+          ? "Deleted the region."
+          : `Deleted ${selectedRegions.length} regions.`,
+        "warning",
+      );
+    }
   }
   async function moveRegions(delta: number) {
     try {

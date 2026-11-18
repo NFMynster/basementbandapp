@@ -11,6 +11,7 @@ export const desktop: DesktopApi = {
   openLicenses: () => bridge().openLicenses(),
   openWebsite: () => bridge().openWebsite(),
   checkForUpdate: () => bridge().checkForUpdate(),
+  installUpdate: () => bridge().installUpdate(),
   openRelease: () => bridge().openRelease(),
   openFeedback: () => bridge().openFeedback(),
   waitUntilVisible: () => bridge().waitUntilVisible?.() ?? Promise.resolve(),

@@ -21,6 +21,13 @@ var Engine::handleTransportCommand(const var &c) {
     metronomeGain = (float)gain;
     return state();
   }
+  if (op == "metronomeSound") {
+    const int sound = metronomeSoundIndex(c["value"]);
+    require(sound >= 0, "Invalid metronome sound");
+    const ScopedLock lock(guard);
+    metronomeSound = sound;
+    return state();
+  }
   if (op == "metronome" || op == "countIn") {
     const ScopedLock lock(guard);
     if (op == "metronome")

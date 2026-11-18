@@ -79,8 +79,42 @@ async function checkForUpdate(fetchRelease, currentVersion) {
   }
 }
 
+/**
+ * Downloads newer GitHub releases in the background and installs them on the
+ * next quit (or immediately through `install`). Only packaged Windows builds
+ * use this: the NSIS installer updates per-user installs without signing,
+ * while macOS updates require a signed app and keep the release-page notice.
+ */
+function startAutoUpdate() {
+  const { autoUpdater } = require("electron-updater");
+  /** @type {import("../ui/models").UpdateStatus} */
+  let status = { available: false };
+  autoUpdater.logger = console;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-available", (info) => {
+    status = { available: true, version: info.version, state: "downloading" };
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    status = { available: true, version: info.version, state: "ready" };
+  });
+  autoUpdater.on("error", (error) => {
+    console.warn("Basement Band update failed", error);
+    if (status.available) status = { ...status, state: "failed" };
+  });
+  autoUpdater.checkForUpdates().catch((/** @type {unknown} */ error) => {
+    console.warn("Could not check for a Basement Band update", error);
+  });
+  return {
+    status: () => status,
+    // Silent install, then start the updated app again.
+    install: () => autoUpdater.quitAndInstall(true, true),
+  };
+}
+
 module.exports = {
   RELEASE_PAGE,
   checkForUpdate,
   isNewerVersion,
+  startAutoUpdate,
 };

@@ -18,6 +18,9 @@ runTool(
     platform === "win" ? "--win" : "--mac",
     platform === "win" ? "nsis" : "dmg",
     platform === "win" ? "--x64" : "--arm64",
+    // Release scripts upload with the GitHub CLI; never publish from here.
+    "--publish",
+    "never",
   ],
   env,
 );

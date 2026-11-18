@@ -15,7 +15,11 @@ const { startBackend } = require("./backend.cjs");
 const { assertSender, registerIpc } = require("./ipc.cjs");
 const { initializeLogging } = require("./logging.cjs");
 const { microphoneAccess } = require("./permissions.cjs");
-const { RELEASE_PAGE, checkForUpdate } = require("./updates.cjs");
+const {
+  RELEASE_PAGE,
+  checkForUpdate,
+  startAutoUpdate,
+} = require("./updates.cjs");
 const smoke = process.env.BASEMENT_SMOKE === "1";
 if (smoke) {
   const data = path.resolve("artifacts/smoke-user");
@@ -30,6 +34,8 @@ let startupError;
 /** @type {Promise<void>} */
 let backendReady;
 let updateCheck;
+/** @type {ReturnType<typeof startAutoUpdate> | undefined} */
+let autoUpdate;
 /** @type {import("./types").Request} */
 const request = (command) =>
   backendReady.then(() =>
@@ -128,11 +134,26 @@ app.whenReady().then(() => {
   ipcMain.handle("check-update", (event) => {
     assertSender(event, win);
     if (smoke) return { available: false };
+    if (app.isPackaged && process.platform === "win32") {
+      autoUpdate ??= startAutoUpdate();
+      return autoUpdate.status();
+    }
     updateCheck ??= checkForUpdate(
       (url, options) => net.fetch(url, options),
       app.getVersion(),
     );
     return updateCheck;
+  });
+  ipcMain.handle("install-update", async (event) => {
+    assertSender(event, win);
+    if (autoUpdate?.status().state !== "ready") return;
+    // Preserve the session through recovery first, exactly like a normal
+    // quit, so the installer never interrupts the engine mid-write.
+    if (backend && !recoveryFlushed) {
+      await backend.close();
+      recoveryFlushed = true;
+    }
+    autoUpdate.install();
   });
   ipcMain.handle("open-release", (event) => {
     assertSender(event, win);

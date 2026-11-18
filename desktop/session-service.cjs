@@ -422,6 +422,7 @@ class SessionService {
             command.op === "loop" ||
             command.op === "metronome" ||
             command.op === "metronomeVolume" ||
+            command.op === "metronomeSound" ||
             command.op === "countIn" ||
             command.op === "bypass" ||
             (command.op === "track" &&

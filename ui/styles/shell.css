@@ -248,6 +248,13 @@ footer .live-dot {
   color: #e4bd84;
   white-space: nowrap;
 }
+span.update-available {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--text-muted);
+}
 .update-available::before {
   content: "";
   width: 5px;
@@ -340,22 +347,74 @@ footer .live-dot {
 .metronome-control {
   position: relative;
 }
-.metronome-volume {
+.metronome-menu {
   position: absolute;
   top: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 40;
-  width: 58px;
-  padding: 14px 8px 10px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  gap: 10px;
+  padding: 12px 12px 10px 6px;
   background: #27292e;
   border: 1px solid var(--tint-18);
   border-radius: 12px;
   box-shadow: 0 8px 24px #0005;
+}
+.metronome-volume {
+  width: 44px;
+  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border-right: 1px solid var(--tint-10);
+}
+.metronome-options {
+  width: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tap-tempo {
+  flex-direction: column;
+  gap: 2px;
+  height: 64px;
+  padding: 6px;
+  background: var(--tint-08);
+  border: 1px solid var(--tint-12);
+  border-radius: 8px;
+}
+.tap-tempo strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.tap-tempo small {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.tap-tempo.tapping {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tap-tempo:active:not(:disabled) {
+  background: var(--tint-18);
+}
+.metronome-sounds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metronome-sounds button {
+  justify-content: flex-start;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #c7cbbf;
+}
+.metronome-sounds button[aria-checked="true"] {
+  background: var(--tint-10);
+  color: var(--accent);
 }
 .metronome-volume input {
   writing-mode: vertical-lr;

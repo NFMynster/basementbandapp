@@ -29,6 +29,7 @@ var Engine::command(const var &c) {
       {"metronome", &Engine::handleTransportCommand},
       {"countIn", &Engine::handleTransportCommand},
       {"metronomeVolume", &Engine::handleTransportCommand},
+      {"metronomeSound", &Engine::handleTransportCommand},
       {"master", &Engine::handleTransportCommand},
       {"limiter", &Engine::handleTransportCommand},
       {"audition", &Engine::handleRegionCommand},

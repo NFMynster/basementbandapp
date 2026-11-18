@@ -93,6 +93,7 @@ const GLOBAL_EDITS = {
   rename: "title",
   metronome: "metronome",
   metronomeVolume: "metronomeGain",
+  metronomeSound: "metronomeSound",
   countIn: "countIn",
 };
 /** @param {import("./types").Snapshot} s */
@@ -113,6 +114,7 @@ function historyFingerprint(s) {
     limiterEnabled: s.limiterEnabled,
     metronome: s.metronome,
     metronomeGain: s.metronomeGain,
+    metronomeSound: s.metronomeSound,
     countIn: s.countIn,
     tracks: s.tracks.map((t) => ({
       settings: keys.map((k) => t[k]),
@@ -157,6 +159,7 @@ function editDescription(command) {
     if ("name" in command) return "rename track";
     return "change track settings";
   }
+  if (command.op === "metronomeSound") return "change metronome sound";
   if (GLOBAL_EDITS[command.op])
     return `change ${command.op === "master" ? "output volume" : command.op}`;
   if (command.op === "reorderTrack") return "reorder tracks";

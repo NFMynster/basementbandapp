@@ -40,6 +40,16 @@ export type RecordingPreview =
       kind: "midi";
       notes: { start: number; duration: number; note: number }[];
     });
+/**
+ * Update state from the desktop shell. `state` is set only where the app
+ * updates itself (packaged Windows); elsewhere an update opens the release page.
+ */
+export type UpdateStatus = {
+  available: boolean;
+  version?: string;
+  state?: "downloading" | "ready" | "failed";
+};
+export type MetronomeSound = "beep" | "woodblock" | "stick";
 export type AmpCharacter = "none" | "clean" | "crunch" | "lead" | "bass";
 
 export type Track = {
@@ -110,6 +120,7 @@ export type Session = {
   deviceDropouts?: number;
   metronome?: boolean;
   metronomeGain?: number;
+  metronomeSound?: MetronomeSound;
   countIn?: boolean;
   countdown?: number;
   title: string;
@@ -204,6 +215,7 @@ export type SessionCommand =
   | ({ op: "addTrack"; kind?: "audio" | "midi" } & TrackPatch)
   | { op: "metronome" | "countIn" | "limiter"; value: boolean }
   | { op: "metronomeVolume"; value: number; historyGroup?: string }
+  | { op: "metronomeSound"; value: MetronomeSound }
   | { op: "master"; value: number; historyGroup?: string }
   | {
       op: "editClip";
@@ -317,7 +329,8 @@ export interface DesktopApi {
   openLicenses(): Promise<string>;
   openLogs(): Promise<string>;
   openWebsite(): Promise<void>;
-  checkForUpdate(): Promise<{ available: boolean; version?: string }>;
+  checkForUpdate(): Promise<UpdateStatus>;
+  installUpdate(): Promise<void>;
   openRelease(): Promise<void>;
   openFeedback(): Promise<void>;
   waitUntilVisible?(): Promise<void>;

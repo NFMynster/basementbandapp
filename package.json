@@ -1,6 +1,6 @@
 {
   "name": "basement-band",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A small, local recording room for playing together",
   "main": "desktop/main.cjs",
@@ -25,6 +25,7 @@
     "build:licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
+    "electron-updater": "6.8.12",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
@@ -100,8 +101,17 @@
     "icon": "desktop/assets/icon.png",
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Basement-Band-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "NFMynster",
+        "repo": "basementbandapp",
+        "releaseType": "release"
+      }
+    ]
   },
   "license": "AGPL-3.0-only"
 }

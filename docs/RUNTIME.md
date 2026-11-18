@@ -28,7 +28,7 @@ During capture, the arrangement shows live audio peaks and MIDI notes from the i
 
 Loop recording always starts at loopStart. Native capture stays continuous across passes while arrangement playback wraps. On Stop, each pass becomes a take window over the source; partial final passes are retained, and the latest is selected. The Take selector changes playback/export without discarding alternatives. There is no automatic comping.
 
-Count-in is four beats (4, 3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Time signature is fixed at 4/4.
+Count-in is four beats (4, 3, 2, 1) at the current tempo. JUCE generates its clicks and starts capture at the sample boundary; UI polling only displays progress. The metronome runs while transport is playing/recording and is not included in exported stems. Right-clicking the metronome button opens its menu: click volume, tap tempo (button or T; up to five taps are averaged and the tempo applies 1.5 seconds after the last tap, going through the usual tempo dialog when regions exist) and the click sound (`beep`, `woodblock` or `stick`, synthesized in the callback without allocation). The sound also drives count-in clicks; `metronomeSound` is optional in version 4 sessions and defaults to `beep`. Time signature is fixed at 4/4.
 
 ## Latency compensation
 

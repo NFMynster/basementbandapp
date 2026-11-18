@@ -23,7 +23,7 @@ Good for: basement rehearsals, demos, songwriting, capturing an idea before it e
 
 - **Not a glorified asset browser.** No sample store, no loop marketplace, no carousel of things to buy on the landing screen. It's a recorder.
 - **Not a professional mixing and mastering suite.** There is no surround panner, no spectral repair, no 40-band linear-phase anything. Mix the record somewhere else if that's what the record needs.
-- **Not a login.** No account, no activation server, no online check, no subscription that lapses and takes your session with it. It runs fully offline.
+- **Not a login.** No account, no activation server, no licence check, no subscription that lapses and takes your session with it. It runs fully offline; the only network use is checking GitHub for a newer version, which the Windows app downloads and installs when you close it.
 - **Not a dongle host.** Nothing is licensed to a USB stick you'll leave at the rehearsal space.
 
 ## Build and run
@@ -60,6 +60,4 @@ own signing and notarization credentials. [Build, release and troubleshooting de
 
 Copyright © 2026 Basement Band contributors. Released under **AGPL-3.0-only**, without warranty. JUCE 8 is used under its **AGPLv3** option. Third-party code retains its own licenses.
 
-You may sell precompiled binaries, but recipients retain source, modification and redistribution rights. Provide the matching complete source and build instructions alongside every download. See [LICENSE](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) and the [release licensing checklist](docs/LICENSING.md) before distributing.
-
-New audio tracks offer starter sounds (clean, crunch and lead guitar, bass) in **Plug-ins** until you add your own VST3s. Built-in compressor and room reverb live in **EQ & Effects**; the audio-track **Recording** tab has a noise gate. Original recordings stay dry. Click the footer **Audio** readout for monitoring-delay estimates, interruption counts and output protection. Right-click a MIDI track and choose **Export track** for instrument audio or editable MIDI; set your preferred default in **Settings ? Export**.
+See [LICENSE](LICENSE) and the [third-party notices](THIRD_PARTY_NOTICES.md).

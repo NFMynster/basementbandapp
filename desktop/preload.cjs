@@ -8,6 +8,7 @@ const api = {
   openLicenses: () => invoke("licenses"),
   openWebsite: () => invoke("website"),
   checkForUpdate: () => invoke("check-update"),
+  installUpdate: () => invoke("install-update"),
   openRelease: () => invoke("open-release"),
   openFeedback: () => invoke("feedback"),
   waitUntilVisible: () => invoke("window-visible"),

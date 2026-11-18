@@ -174,6 +174,7 @@ async function mockCommand(c) {
   }
   if (c.op === "devices") return devices;
   if (c.op === "metronomeVolume") state.metronomeGain = c.value;
+  if (c.op === "metronomeSound") state.metronomeSound = c.value;
   if (c.op === "testAudioLoad") {
     state.audioCpu = c.value;
     state.processingDropouts = 2;
@@ -226,6 +227,7 @@ const api = {
   importAudio: async () => null,
   exportAudio: async () => null,
   checkForUpdate: async () => ({ available: true, version: "0.2.0" }),
+  installUpdate: async () => undefined,
   openRelease: async () => undefined,
   openFeedback: async () => undefined,
   openLicenses: async () => "",

@@ -33,6 +33,9 @@ void Engine::restoreSession(const var &c) {
   auto session = c["session"];
   const auto clickGain = number(session, "metronomeGain");
   require(std::isfinite(clickGain) && clickGain >= 0 && clickGain <= 4, "Invalid metronome volume");
+  // Optional in version 4 sessions; older files keep the original beep.
+  const int clickSound = session.hasProperty("metronomeSound") ? metronomeSoundIndex(session["metronomeSound"]) : 0;
+  require(clickSound >= 0, "Invalid metronome sound");
   const bool preserve = flag(c, "preservePlugins");
   auto replacePlugins = [&](const String &id) {
     if (c["replacePlugins"].isArray()) for (auto &v : *c["replacePlugins"].getArray()) if (v.toString() == id) return true;
@@ -154,6 +157,7 @@ void Engine::restoreSession(const var &c) {
   looping = flag(session, "looping");
   metronome = flag(session, "metronome");
   metronomeGain = (float)clickGain;
+  metronomeSound = clickSound;
   countIn = flag(session, "countIn");
   preparePlayback(position, looping);
 }

@@ -240,6 +240,7 @@ var Engine::state(bool full, bool pluginState) {
        {"audioCpu", devices.getCpuUsage() * 100.0},
        {"metronome", metronome},
        {"metronomeGain", metronomeGain},
+       {"metronomeSound", metronomeSounds[metronomeSound]},
        {"countIn", countIn},
        {"countdown", countdown},
        {"sampleRate", snapshotRate},

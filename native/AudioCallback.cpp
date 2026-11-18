@@ -15,14 +15,30 @@ void Engine::click(float *const *outputs, int channels, int samples, double time
   for (int i = 0; i < samples; ++i) {
     const double at = time + i / rate;
     const double phase = std::fmod(at, beatLength);
-    if (phase < 0.025) {
-      const double frequency = ((int)std::floor(at / beatLength + 1e-8) % 4 == 0) ? 1500 : 1100;
-      const float value = (float)(0.2 * metronomeGain * std::sin(MathConstants<double>::twoPi * frequency * phase) *
-                                  std::exp(-phase * 170));
-      for (int ch = 0; ch < jmin(2, channels); ++ch)
-        if (outputs[ch])
-          outputs[ch][i] += value;
+    if (phase >= 0.025)
+      continue;
+    const bool accent = (int)std::floor(at / beatLength + 1e-8) % 4 == 0;
+    constexpr double twoPi = MathConstants<double>::twoPi;
+    double value;
+    if (metronomeSound == 1) {
+      // Wood block: two inharmonic partials with a fast decay.
+      const double frequency = accent ? 1250 : 950;
+      value = 0.17 * (std::sin(twoPi * frequency * phase) + 0.45 * std::sin(twoPi * frequency * 2.76 * phase)) *
+              std::exp(-phase * 320);
+    } else if (metronomeSound == 2) {
+      // Stick: a short, brightened noise burst.
+      clickNoise = clickNoise * 1664525u + 1013904223u;
+      const float noise = (float)(clickNoise >> 8) / 8388608.0f - 1.0f;
+      value = (accent ? 0.17 : 0.11) * (noise - clickNoiseLast) * std::exp(-phase * 600);
+      clickNoiseLast = noise;
+    } else {
+      const double frequency = accent ? 1500 : 1100;
+      value = 0.2 * std::sin(twoPi * frequency * phase) * std::exp(-phase * 170);
     }
+    const auto sample = (float)(value * metronomeGain);
+    for (int ch = 0; ch < jmin(2, channels); ++ch)
+      if (outputs[ch])
+        outputs[ch][i] += sample;
   }
 }
 void Engine::audioDeviceAboutToStart(AudioIODevice *d) {

@@ -5,8 +5,10 @@ import {
   readFileSync,
   readdirSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // Keep the upstream text intact, including notices embedded in source headers.
 // This collects notices, not the corresponding source required for distribution.
@@ -34,22 +36,49 @@ for (const match of upstream.matchAll(/\]\((modules\/[^)]+)\)/g)) {
   if (existsSync(source) && statSync(source).isFile())
     copy(source, join(destination, "JUCE", relative));
 }
-// Renderer dependencies and Electron's own/Chromium notices.
-for (const packageName of [
-  "react",
-  "react-dom",
-  "scheduler",
-  "lucide-react",
-  "electron",
-]) {
-  const root = resolve("node_modules", packageName);
-  for (const name of readdirSync(root)) {
-    if (
+// Every shipped npm package (the production dependency tree, which includes
+// the auto-updater) plus Electron itself, with its own and Chromium notices.
+// `npm run` provides npm's own script path, which avoids spawning npm.cmd
+// through a shell on Windows.
+const npmArgs = ["ls", "--omit=dev", "--all", "--parseable"];
+const listed = process.env.npm_execpath
+  ? spawnSync(process.execPath, [process.env.npm_execpath, ...npmArgs], {
+      encoding: "utf8",
+    })
+  : spawnSync("npm", npmArgs, { encoding: "utf8" });
+if (listed.status !== 0)
+  throw new Error(`npm ls failed: ${listed.stderr || listed.stdout}`);
+const packageRoots = [
+  ...new Set(
+    listed.stdout
+      .split(/\r?\n/)
+      .filter((line) => line.includes("node_modules")),
+  ),
+  resolve("node_modules", "electron"),
+];
+for (const root of packageRoots) {
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const notices = readdirSync(root).filter(
+    (name) =>
       /^(licen[cs]e|copying|notice)/i.test(name) &&
-      statSync(join(root, name)).isFile()
-    )
-      copy(join(root, name), join(destination, "npm", packageName, name));
+      statSync(join(root, name)).isFile(),
+  );
+  if (!notices.length) {
+    // A few packages publish only a license field; record what they declare.
+    if (typeof manifest.license !== "string")
+      throw new Error(`${manifest.name} declares no license`);
+    const author =
+      typeof manifest.author === "string"
+        ? manifest.author
+        : manifest.author?.name || "its authors";
+    mkdirSync(join(destination, "npm", manifest.name), { recursive: true });
+    writeFileSync(
+      join(destination, "npm", manifest.name, "LICENSE-DECLARED.txt"),
+      `${manifest.name} ${manifest.version}\nLicense: ${manifest.license}\nCopyright ${author}\n\nThe package ships no license file; this records the license declared in its package.json.\n`,
+    );
   }
+  for (const name of notices)
+    copy(join(root, name), join(destination, "npm", manifest.name, name));
 }
 const electronDist = resolve("node_modules/electron/dist");
 for (const name of ["LICENSE", "LICENSES.chromium.html"])

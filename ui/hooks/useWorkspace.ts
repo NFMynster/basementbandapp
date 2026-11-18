@@ -90,22 +90,45 @@ export function useWorkspace() {
     },
     play: () => run({ op: s.playing ? "stop" : "play" }, false),
     record: () => run({ op: s.recording ? "stop" : "record" }),
-    loop: () =>
-      run({
-        op: "loop",
-        start: s.loopStart,
-        end: s.loopEnd,
-        enabled: !s.looping,
-      }),
-    metronome: () => run({ op: "metronome", value: !s.metronome }),
+    loop: async () => {
+      const enabled = !s.looping;
+      if (
+        await run({
+          op: "loop",
+          start: s.loopStart,
+          end: s.loopEnd,
+          enabled,
+        })
+      )
+        setNotice(enabled ? "Loop on." : "Loop off.");
+    },
+    metronome: async () => {
+      const value = !s.metronome;
+      if (await run({ op: "metronome", value }))
+        setNotice(value ? "Metronome on." : "Metronome off.");
+    },
     start: () => run({ op: "seek", position: 0 }, false),
     save: () => task(() => api.save(), true),
-    split: () => editing.editSelected("split"),
+    split: async () => {
+      if (!trackContainingClip(s.tracks, clipId)) {
+        setNotice("Select a region to split at the playhead.", "warning");
+        return;
+      }
+      if (await editing.editSelected("split"))
+        setNotice("Split region at playhead.");
+    },
     copy: () => {
       const t = trackContainingClip(s.tracks, clipId);
       if (t) editing.copyRegion(t.id, clipId);
     },
-    paste: () => editing.editSelected("copy"),
+    paste: async () => {
+      if (!editing.clipboard) {
+        setNotice("Copy a region first, then paste it.", "warning");
+        return;
+      }
+      if (await editing.editSelected("copy"))
+        setNotice("Pasted region at playhead.");
+    },
     undo: () => {
       if (!s.playing) run({ op: "undo" });
     },

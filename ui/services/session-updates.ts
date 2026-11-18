@@ -20,6 +20,8 @@ export function optimisticSession(
       return { ...s, limiterEnabled: command.value };
     case "metronome":
       return { ...s, metronome: command.value };
+    case "metronomeSound":
+      return { ...s, metronomeSound: command.value };
     case "countIn":
       return { ...s, countIn: command.value };
     case "tempo":

@@ -166,6 +166,27 @@ function verifyWindows(version) {
   return installer;
 }
 
+/**
+ * Files electron-updater reads from the release: the update manifest and the
+ * blockmap for differential downloads. The manifest must name the installer
+ * exactly as uploaded.
+ * @param {string} installer
+ * @param {string} version
+ */
+function windowsUpdateFiles(installer, version) {
+  const manifest = resolve(root, "release", "latest.yml");
+  const blockmap = `${installer}.blockmap`;
+  for (const file of [manifest, blockmap])
+    if (!existsSync(file)) fail(`Update file not found: ${file}`);
+  const text = readFileSync(manifest, "utf8");
+  if (
+    !text.includes(`version: ${version}`) ||
+    !text.includes(`path: ${basename(installer)}`)
+  )
+    fail("latest.yml does not describe this installer.");
+  return [manifest, blockmap];
+}
+
 function copyDependency(source, destination) {
   if (!existsSync(source))
     fail(`Required dependency source is missing: ${source}`);
@@ -256,12 +277,16 @@ function ensureDraftRelease(tag, version) {
     );
 }
 
-function uploadNewAssets(tag, platformArtifact, sourceArchive) {
+function uploadNewAssets(tag, platformArtifact, sourceArchive, extraFiles) {
   const assetJson = output("gh", ["release", "view", tag, "--json", "assets"]);
   const existing = new Set(
     JSON.parse(assetJson).assets.map((asset) => asset.name),
   );
-  const platformFiles = [platformArtifact, checksum(platformArtifact)];
+  const platformFiles = [
+    platformArtifact,
+    checksum(platformArtifact),
+    ...extraFiles,
+  ];
   for (const file of platformFiles)
     if (existing.has(basename(file)))
       fail(
@@ -327,7 +352,14 @@ export function release(platform, tag) {
       : verifyWindows(manifest.version);
   const sourceArchive = createSourceArchive(tag, manifest.version);
   ensureDraftRelease(tag, manifest.version);
-  uploadNewAssets(tag, platformArtifact, sourceArchive);
+  uploadNewAssets(
+    tag,
+    platformArtifact,
+    sourceArchive,
+    platform === "win"
+      ? windowsUpdateFiles(platformArtifact, manifest.version)
+      : [],
+  );
   const url = output("gh", [
     "release",
     "view",

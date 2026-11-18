@@ -58,6 +58,16 @@ app
       )) !== "105%"
     )
       throw new Error("Click volume did not increase");
+    await w.webContents.executeJavaScript(
+      `[...document.querySelectorAll('.metronome-sounds [role="radio"]')].find(b=>b.textContent==='Wood block').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    if (
+      (await w.webContents.executeJavaScript(
+        `(() => {const tap=document.querySelector('.metronome-menu .tap-tempo'); const picked=document.querySelector('.metronome-sounds [aria-checked="true"]'); const menu=document.querySelector('.metronome-menu').getBoundingClientRect(); return !!tap && !tap.disabled && picked?.textContent === 'Wood block' && menu.right <= innerWidth && menu.left >= 0;})()`,
+      )) !== true
+    )
+      throw new Error("Metronome menu lacks tap tempo or sound choice");
     mkdirSync("artifacts/screenshots", { recursive: true });
     writeFileSync(
       "artifacts/screenshots/metronome-volume.png",

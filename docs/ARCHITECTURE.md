@@ -27,7 +27,7 @@ The desktop layer stays plain CommonJS that Electron runs directly, but `tsconfi
 
 ## Renderer coordination
 
-`useWorkspace` only composes the workspace domains in `ui/hooks/workspace/` and wires the cross-domain workflows (new project, shortcuts, recovery notice):
+`useWorkspace` only composes the workspace domains in `ui/hooks/workspace/` and wires the cross-domain workflows (new project, shortcuts, recovery notice). Shortcuts that edit or toggle something (split, paste, delete, loop, metronome, undo/redo, save) confirm with a footer notice, and warn when there is nothing to act on:
 
 | Domain hook      | Owns                                                                         |
 | ---------------- | ---------------------------------------------------------------------------- |

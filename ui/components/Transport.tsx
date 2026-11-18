@@ -13,12 +13,47 @@ import {
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { keyLabel } from "../hooks/useShortcuts";
+import type { MetronomeSound } from "../models";
+const metronomeSounds: [MetronomeSound, string][] = [
+  ["beep", "Beep"],
+  ["woodblock", "Wood block"],
+  ["stick", "Stick"],
+];
 export function Transport({ controller }: { controller: WorkspaceController }) {
   const { s, run, busy, bar, beat, openSetup, showHelp, setHelp } = controller;
   const [tempoDraft, setTempoDraft] = useState<string | null>(null);
   const [clickVolumeOpen, setClickVolumeOpen] = useState(false);
   const clickVolume = useRef<HTMLDivElement>(null);
   const volumeGesture = useRef<string | undefined>(undefined);
+  const taps = useRef<number[]>([]);
+  const tapApply = useRef<number | undefined>(undefined);
+  const [tapBpm, setTapBpm] = useState<number | null>(null);
+  useEffect(() => () => window.clearTimeout(tapApply.current), []);
+  // Averages up to five taps; a pause longer than two seconds starts over.
+  // The tempo applies once tapping stops, so a session with regions asks how
+  // they should follow only once.
+  function tapTempo() {
+    if (s.recording || busy) return;
+    const now = performance.now(),
+      last = taps.current.at(-1);
+    taps.current = [
+      ...(last !== undefined && now - last > 2000 ? [] : taps.current),
+      now,
+    ].slice(-5);
+    window.clearTimeout(tapApply.current);
+    if (taps.current.length < 2) {
+      setTapBpm(null);
+      return;
+    }
+    const interval = (now - taps.current[0]) / (taps.current.length - 1);
+    const bpm = Math.max(40, Math.min(240, Math.round(60000 / interval)));
+    setTapBpm(bpm);
+    tapApply.current = window.setTimeout(() => {
+      taps.current = [];
+      setTapBpm(null);
+      void controller.requestTempo(bpm);
+    }, 1500);
+  }
   useEffect(() => {
     if (!clickVolumeOpen) return;
     clickVolume.current?.querySelector("input")?.focus();
@@ -150,7 +185,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
           <div className="metronome-control" ref={clickVolume}>
             <button
               className={"icon-button " + (s.metronome ? "loop-active" : "")}
-              title={`Metronome · ${keyLabel(controller.bindings.metronome)} · Right-click for volume`}
+              title={`Metronome · ${keyLabel(controller.bindings.metronome)} · Right-click for volume, tap tempo and sound`}
               aria-pressed={!!s.metronome}
               aria-haspopup="dialog"
               aria-expanded={clickVolumeOpen}
@@ -164,43 +199,91 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
             </button>
             {clickVolumeOpen && (
               <div
-                className="metronome-volume"
+                className="metronome-menu"
                 role="dialog"
-                aria-label="Metronome volume"
+                aria-label="Metronome settings"
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  if (e.key === "Escape" || e.key === "Tab")
+                  if (e.key === "Escape") setClickVolumeOpen(false);
+                  if (
+                    e.code === "KeyT" &&
+                    !e.repeat &&
+                    !e.ctrlKey &&
+                    !e.metaKey &&
+                    !e.altKey
+                  ) {
+                    e.preventDefault();
+                    tapTempo();
+                  }
+                }}
+                onBlur={(e) => {
+                  // Tabbing out closes the menu; clicks are handled above.
+                  if (
+                    e.relatedTarget &&
+                    !e.currentTarget.contains(e.relatedTarget as Node)
+                  )
                     setClickVolumeOpen(false);
                 }}
               >
-                <Volume2 size={15} aria-hidden="true" />
-                <input
-                  type="range"
-                  aria-label="Metronome volume"
-                  aria-orientation="vertical"
-                  min={0}
-                  max={400}
-                  step={5}
-                  value={Math.round((s.metronomeGain ?? 1) * 100)}
-                  aria-valuetext={`${Math.round((s.metronomeGain ?? 1) * 100)} percent`}
-                  onPointerDown={() => {
-                    volumeGesture.current = crypto.randomUUID();
-                  }}
-                  onPointerUp={() => {
-                    volumeGesture.current = undefined;
-                  }}
-                  onBlur={() => {
-                    volumeGesture.current = undefined;
-                  }}
-                  onChange={(e) =>
-                    void run({
-                      op: "metronomeVolume",
-                      value: +e.target.value / 100,
-                      historyGroup: volumeGesture.current,
-                    })
-                  }
-                />
-                <output>{Math.round((s.metronomeGain ?? 1) * 100)}%</output>
+                <div className="metronome-volume">
+                  <Volume2 size={15} aria-hidden="true" />
+                  <input
+                    type="range"
+                    aria-label="Metronome volume"
+                    aria-orientation="vertical"
+                    min={0}
+                    max={400}
+                    step={5}
+                    value={Math.round((s.metronomeGain ?? 1) * 100)}
+                    aria-valuetext={`${Math.round((s.metronomeGain ?? 1) * 100)} percent`}
+                    onPointerDown={() => {
+                      volumeGesture.current = crypto.randomUUID();
+                    }}
+                    onPointerUp={() => {
+                      volumeGesture.current = undefined;
+                    }}
+                    onBlur={() => {
+                      volumeGesture.current = undefined;
+                    }}
+                    onChange={(e) =>
+                      void run({
+                        op: "metronomeVolume",
+                        value: +e.target.value / 100,
+                        historyGroup: volumeGesture.current,
+                      })
+                    }
+                  />
+                  <output>{Math.round((s.metronomeGain ?? 1) * 100)}%</output>
+                </div>
+                <div className="metronome-options">
+                  <button
+                    className={"tap-tempo " + (tapBpm ? "tapping" : "")}
+                    title="Tap in time to set the tempo (or press T)"
+                    disabled={s.recording || busy}
+                    onClick={tapTempo}
+                  >
+                    <strong>{tapBpm ?? s.tempo}</strong>
+                    <small>{tapBpm ? "BPM · keep tapping" : "Tap tempo"}</small>
+                  </button>
+                  <div
+                    className="metronome-sounds"
+                    role="radiogroup"
+                    aria-label="Metronome sound"
+                  >
+                    {metronomeSounds.map(([value, label]) => (
+                      <button
+                        key={value}
+                        role="radio"
+                        aria-checked={(s.metronomeSound ?? "beep") === value}
+                        onClick={() =>
+                          void run({ op: "metronomeSound", value })
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
