@@ -17,6 +17,12 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 // Node refuses to spawn npm.cmd without a shell on Windows, so run npm's own
 // script (provided by `npm run`) through Node instead.
 const npmScript = process.env.npm_execpath;
+// Git Bash puts GNU tar first on PATH, which reads C:\ paths as remote hosts;
+// Windows' bsdtar handles drive paths.
+const tar =
+  process.platform === "win32"
+    ? resolve(process.env.SystemRoot || "C:/Windows", "System32", "tar.exe")
+    : "tar";
 const expectedAppId = "com.footstompstudios.basementband";
 
 function fail(message) {
@@ -222,7 +228,7 @@ function createSourceArchive(tag, version) {
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(packageDirectory, { recursive: true });
   execute("git", ["archive", "--format=tar", `--output=${repositoryTar}`, tag]);
-  execute("tar", ["-xf", repositoryTar, "-C", packageDirectory]);
+  execute(tar, ["-xf", repositoryTar, "-C", packageDirectory]);
   unlinkSync(repositoryTar);
 
   const dependencies = resolve(root, "build", "native", "_deps");
@@ -249,7 +255,7 @@ function createSourceArchive(tag, version) {
   );
 
   rmSync(archive, { force: true });
-  execute("tar", ["-czf", archive, "-C", staging, packageName]);
+  execute(tar, ["-czf", archive, "-C", staging, packageName]);
   rmSync(staging, { recursive: true, force: true });
   return archive;
 }
