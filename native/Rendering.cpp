@@ -9,6 +9,31 @@ static void panicMidi(MidiBuffer &buffer, int sample) {
     buffer.addEvent(MidiMessage::allSoundOff(ch), sample);
   }
 }
+// One plug-in emitting NaN/inf would otherwise poison the EQ filter state and
+// the whole mix (metronome included). Silence the block, reset the stage that
+// produced it plus everything downstream, and leave a flag for the log.
+bool Engine::silenceInvalidAudio(Track &t, int n, int stage) {
+  for (int ch = 0; ch < 2; ++ch) {
+    const float *data = t.scratch.getReadPointer(ch);
+    for (int i = 0; i < n; ++i)
+      if (!std::isfinite(data[i])) {
+        t.scratch.clear(0, n);
+        // Hosted VST3 reset() deactivates and reactivates the plug-in, which is
+        // not real-time safe. Do it at most once per timer report (1 s): the
+        // flag stays set until timerCallback logs and clears it.
+        if (t.invalidStage.load(std::memory_order_relaxed) == Track::invalidNone) {
+          if (stage == -1 && t.plugin) t.plugin->reset();
+          if (stage >= 0 && stage < (int)t.effects.size()) t.effects[(size_t)stage].plugin->reset();
+        }
+        for (auto &channel : t.eqFilters) for (auto &filter : channel) filter.reset();
+        t.sound.reset();
+        t.invalidStage.store(stage, std::memory_order_relaxed);
+        return true;
+      }
+  }
+  return false;
+}
+
 // Shared sample interpolation and plug-in processing for playback and export.
 void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float *liveInput) {
   double transportTime = start < 0 ? position.load() : start;
@@ -107,6 +132,8 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
   if (!t.isMidi) {
     t.sound.processGate(t.scratch, n);
     t.sound.processAmp(t.scratch, n);
+    // Check before the plug-ins so a bad input is not blamed on them.
+    silenceInvalidAudio(t, n, Track::invalidBuiltIn);
   }
   if (t.plugin && !t.bypass) {
     midi.addEvents(t.auditionMidi, 0, n, 0);
@@ -122,12 +149,15 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
       midi.addEvents(t.liveMidi, 0, n, 0);
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     t.plugin->processBlock(view, midi);
+    silenceInvalidAudio(t, n, -1);
   }
-  for (auto &effect : t.effects) {
+  for (size_t e = 0; e < t.effects.size(); ++e) {
+    auto &effect = t.effects[e];
     if (effect.bypass) continue;
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     midi.clear();
     effect.plugin->processBlock(view, midi);
+    silenceInvalidAudio(t, n, (int)e);
   }
   const std::array<float, 8> gains{t.eqBass, t.eqMid, t.eqTreble, t.eqBassFrequency, t.eqMidFrequency, t.eqTrebleFrequency, t.eqMidQ, t.eqLowCut};
   if (t.eqRate != rate || t.eqApplied != gains) {
@@ -148,5 +178,6 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
       if (t.eqEnabled) filter.processSamples(t.scratch.getWritePointer(ch), n);
       else filter.reset();
   t.sound.processSound(t.scratch, n);
+  silenceInvalidAudio(t, n, Track::invalidBuiltIn);
 }
 } // namespace basement

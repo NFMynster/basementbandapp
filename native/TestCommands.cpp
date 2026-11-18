@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include <cmath>
+#include <limits>
 
 namespace basement {
 var Engine::handleTestCommand(const var &c) {
@@ -22,9 +23,11 @@ var Engine::handleTestCommand(const var &c) {
   if (op == "pump" && testDevice) {
     int n = jlimit(1, 8192, (int)number(c, "frames", 512));
     AudioBuffer<float> in(2, n), out(2, n);
+    // `invalid` feeds NaN, which JSON cannot carry, to exercise the guards.
+    const bool invalid = c["invalid"].isBool() && (bool)c["invalid"];
     for (int ch = 0; ch < 2; ++ch)
       for (int i = 0; i < n; ++i)
-        in.setSample(ch, i, (float)(number(c, "frequency") > 0
+        in.setSample(ch, i, invalid ? std::numeric_limits<float>::quiet_NaN() : (float)(number(c, "frequency") > 0
             ? 0.25 * std::sin(MathConstants<double>::twoPi * number(c, "frequency") * (i + number(c, "sampleOffset")) / rate)
             : number(c, ch == 0 ? "left" : "right")));
     // A test pump may span many hardware blocks. Respect the maximum block

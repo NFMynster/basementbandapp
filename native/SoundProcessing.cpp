@@ -249,7 +249,11 @@ bool OutputProtection::process(float *const *channels, int count, int samples, f
   for (int i = 0; i < samples; ++i) {
     float peak = 0;
     for (int ch = 0; ch < count; ++ch)
-      if (channels[ch]) peak = jmax(peak, std::abs(channels[ch][i] * level));
+      if (channels[ch]) {
+        // NaN/inf passes jlimit and can silence the OS mixer; never send it.
+        if (!std::isfinite(channels[ch][i])) { channels[ch][i] = 0; invalid = true; }
+        peak = jmax(peak, std::abs(channels[ch][i] * level));
+      }
     overloaded |= peak > 1;
     const float target = peak > 0.98f ? 0.98f / peak : 1;
     gain = enabled ? jmin(target, 1 - (1 - gain) * release) : 1;

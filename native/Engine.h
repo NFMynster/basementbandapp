@@ -12,7 +12,7 @@ inline int metronomeSoundIndex(const var &value) {
     if (value.toString() == metronomeSounds[i]) return i;
   return -1;
 }
-class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
+class Engine final : public AudioIODeviceCallback, public MidiInputCallback, private Timer {
   AudioDeviceManager devices;
   AudioFormatManager formats;
   AudioPluginFormatManager plugins;
@@ -40,6 +40,19 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback {
   std::atomic<bool> outputClipped{false};
   std::atomic<int> processingDropouts{0}, recordingDropouts{0};
   std::atomic<int> deviceXRunBaseline{0};
+  // Device health. The callback only bumps counters and flags; the message
+  // thread timer logs them and reopens a device that stopped calling back.
+  std::atomic<uint32> callbackCount{0};
+  uint32 lastCallbackCount = 0;
+  int stalledTicks = 0;
+  bool stallRecoveryTried = false;
+  int invalidReports = 0;
+  std::atomic<bool> outputInvalid{false};
+  CriticalSection deviceErrorLock;
+  String pendingDeviceError;
+  void timerCallback() override;
+  void describeDevice(const char *event);
+  bool silenceInvalidAudio(Track &track, int samples, int stage);
   bool metronome = false, countIn = false, cycleRecording = false;
   bool countInMidiPrepared = false;
   int64 countRemaining = 0, countTotal = 0;
@@ -70,6 +83,7 @@ public:
   void handleIncomingMidiMessage(MidiInput *source, const MidiMessage &message) override;
   void audioDeviceAboutToStart(AudioIODevice *device) override;
   void audioDeviceStopped() override;
+  void audioDeviceError(const String &message) override;
   void audioDeviceIOCallbackWithContext(const float *const *inputs, int inputChannels,
                                         float *const *outputs, int outputChannels, int samples,
                                         const AudioIODeviceCallbackContext &context) override;

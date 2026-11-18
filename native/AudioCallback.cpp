@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include <cmath>
+#include <iostream>
 
 namespace basement {
 void appendRecordingPreviewNote(Track &track, double start, double duration, int note) {
@@ -61,11 +62,83 @@ void Engine::audioDeviceAboutToStart(AudioIODevice *d) {
   preparePlayback(position, looping);
 }
 
-void Engine::audioDeviceStopped() {}
+void Engine::audioDeviceStopped() { std::cerr << "Audio device stopped" << std::endl; }
+
+void Engine::audioDeviceError(const String &message) {
+  // May arrive on a driver thread; the timer logs it on the message thread.
+  const ScopedLock l(deviceErrorLock);
+  pendingDeviceError = message.isNotEmpty() ? message : String("unknown error");
+}
+
+void Engine::describeDevice(const char *event) {
+  if (testDevice) return;
+  auto *d = devices.getCurrentAudioDevice();
+  if (!d) {
+    std::cerr << "Audio device " << event << ": no device open" << (deviceError.isNotEmpty() ? " - " : "")
+              << deviceError << std::endl;
+    return;
+  }
+  const auto setup = devices.getAudioDeviceSetup();
+  std::cerr << "Audio device " << event << ": " << d->getTypeName() << " | output \"" << setup.outputDeviceName
+            << "\" | input \"" << setup.inputDeviceName << "\" | " << d->getCurrentSampleRate() << " Hz, "
+            << d->getCurrentBufferSizeSamples() << " samples | channels in "
+            << d->getActiveInputChannels().countNumberOfSetBits() << " out "
+            << d->getActiveOutputChannels().countNumberOfSetBits() << " | latency in "
+            << d->getInputLatencyInSamples() << " out " << d->getOutputLatencyInSamples()
+            << (d->isPlaying() ? "" : " | not running") << std::endl;
+}
+
+void Engine::timerCallback() {
+  String error;
+  { const ScopedLock l(deviceErrorLock); error.swapWith(pendingDeviceError); }
+  if (error.isNotEmpty()) std::cerr << "Audio device error: " << error << std::endl;
+
+  // Cap the log: a broken plug-in can produce invalid audio on every block.
+  const auto report = [&](const String &line) {
+    if (invalidReports < 20) std::cerr << line << std::endl;
+    else if (invalidReports == 20) std::cerr << "Further invalid audio reports suppressed" << std::endl;
+    ++invalidReports;
+  };
+  if (outputInvalid.exchange(false)) report("Invalid audio (NaN/inf) reached the output and was silenced");
+  for (auto &t : tracks) {
+    const int stage = t->invalidStage.exchange(Track::invalidNone);
+    if (stage == Track::invalidNone) continue;
+    const String source = stage == -1 ? "instrument plug-in \"" + t->pluginName + "\""
+                          : stage == Track::invalidBuiltIn ? String("built-in sound")
+                          : stage < (int)t->effects.size() ? "plug-in \"" + t->effects[(size_t)stage].name + "\""
+                                                           : String("a plug-in");
+    report("Track \"" + t->name + "\": " + source + " produced invalid audio (NaN/inf); silenced and reset");
+  }
+
+  // Watchdog: an open, running device must keep calling back. WASAPI can stop
+  // (for example after a session goes inactive) without reporting an error.
+  auto *d = devices.getCurrentAudioDevice();
+  const auto count = callbackCount.load(std::memory_order_relaxed);
+  if (!d || !d->isPlaying() || count != lastCallbackCount) {
+    if (stalledTicks >= 2) std::cerr << "Audio callbacks resumed" << std::endl;
+    if (count != lastCallbackCount) stallRecoveryTried = false;
+    stalledTicks = 0;
+    lastCallbackCount = count;
+    return;
+  }
+  if (++stalledTicks != 2) return;
+  describeDevice("stopped calling back for 2 s");
+  if (stallRecoveryTried) return;
+  stallRecoveryTried = true;
+  std::cerr << "Reopening the audio device" << std::endl;
+  devices.closeAudioDevice();
+  devices.restartLastAudioDevice();
+  if (auto *reopened = devices.getCurrentAudioDevice())
+    audioInputActive = !reopened->getActiveInputChannels().isZero();
+  describeDevice("reopened");
+  stalledTicks = 0;
+  lastCallbackCount = callbackCount.load(std::memory_order_relaxed);
+}
 
 void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni,
                                               float *const *outputs, int no, int n,
                                               const AudioIODeviceCallbackContext &) {
+  callbackCount.fetch_add(1, std::memory_order_relaxed);
   for (int ch = 0; ch < no; ++ch)
     if (outputs[ch])
       FloatVectorOperations::clear(outputs[ch], n);
@@ -104,6 +177,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
       }
     click(outputs, no, prefix, (countTotal - countRemaining) / rate);
     if (outputProtection.process(outputs, no, prefix, masterGain, limiterEnabled)) outputClipped = true;
+    if (outputProtection.takeInvalid()) outputInvalid = true;
     countRemaining -= prefix;
     // Split the crossing block exactly on the native sample clock.
     if (prefix < n) {
@@ -225,6 +299,7 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
     }
   }
   if (outputProtection.process(outputs, no, n, masterGain, limiterEnabled)) outputClipped = true;
+  if (outputProtection.takeInvalid()) outputInvalid = true;
   float outputPeak = masterPeak.load() * (float)std::exp(-n / (rate * 0.12));
   for (int ch = 0; ch < no; ++ch)
     if (outputs[ch])

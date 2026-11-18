@@ -101,9 +101,12 @@ void Engine::initializeAudio(bool inputAllowed) {
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
   std::cerr << "Audio device initialization finished: " << deviceError << std::endl;
+  describeDevice("opened");
+  startTimer(1000);
 }
 
 Engine::~Engine() {
+  stopTimer();
   devices.removeMidiInputDeviceCallback({}, this);
   devices.removeAudioCallback(this);
   editor.reset();

@@ -27,6 +27,7 @@ void Engine::syncAudioInput() {
   deviceError = devices.setAudioDeviceSetup(setup, false);
   auto *d = devices.getCurrentAudioDevice();
   audioInputActive = d && !d->getActiveInputChannels().isZero();
+  describeDevice(needed ? "input opened" : "input closed");
   if (audioInputActive) inputChannelNames = d->getInputChannelNames();
   if (deviceError.isNotEmpty()) throw std::runtime_error(deviceError.toStdString());
 }
@@ -92,6 +93,7 @@ var Engine::configureDevice(const var &c) {
   deviceError = devices.setAudioDeviceSetup(setup, true);
   auto *device = devices.getCurrentAudioDevice();
   audioInputActive = device && !device->getActiveInputChannels().isZero();
+  describeDevice("configured");
   if (deviceError.isNotEmpty())
     throw std::runtime_error(deviceError.toStdString());
   return listDevices();

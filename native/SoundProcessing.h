@@ -45,7 +45,10 @@ struct OutputProtection {
   void prepare(double rate);
   void reset() { gain = 1; }
   bool process(float *const *channels, int channelCount, int samples, float level, bool enabled);
+  // True once since the last call if NaN/inf reached the output and was zeroed.
+  bool takeInvalid() { return std::exchange(invalid, false); }
 private:
   float gain = 1, release = 0;
+  bool invalid = false;
 };
 } // namespace basement

@@ -137,6 +137,10 @@ struct Track {
   std::array<float, 8> eqApplied{};
   IIRFilter eqFilters[2][4];
   std::atomic<float> peak{0};
+  // Set by the audio thread when a stage produced NaN/inf and was silenced:
+  // -1 instrument, 0.. effect index, invalidBuiltIn for the built-in chain.
+  static constexpr int invalidNone = -2, invalidBuiltIn = 1000;
+  std::atomic<int> invalidStage{invalidNone};
   std::vector<std::unique_ptr<Clip>> clips;
   std::unique_ptr<AudioFormatWriter::ThreadedWriter> writer;
   String recordingPath;
