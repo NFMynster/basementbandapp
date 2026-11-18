@@ -62,12 +62,25 @@ Windows packages are released unsigned, so users may see Unknown publisher or Mi
 Packaged Windows builds update themselves with `electron-updater` (`desktop/updates.cjs`): they read `latest.yml` from the newest published GitHub release of the public repository, download the installer in the background, and install silently on quit or through the footer's **restart to update** (the session is flushed to recovery first). The NSIS installer is named `Basement-Band-Setup-<version>.exe` so the uploaded file matches `latest.yml`; the Windows release script uploads `latest.yml` and the blockmap alongside it. Drafts are invisible to the updater, so testers only receive a release once it is published. macOS and development builds keep the notice that opens the release page.
 
 For a release, set the version in `package.json`, commit it, and push an exact
-matching tag such as `v0.1.0`. From a clean checkout of that tag, authenticate
-GitHub CLI with `gh auth login` and run the platform release command above. On
-macOS, provide notarization credentials such as
-`APPLE_KEYCHAIN_PROFILE=basement-band-notary`. The scripts run checks and tests,
-create checksums and complete source, and upload everything to a GitHub draft;
-review the draft and test both packages before publishing it.
+matching tag such as `v0.1.0`. Pushing the tag starts
+`.github/workflows/release.yml` on GitHub Actions:
+
+It runs `npm run release:win` for the tag: it checks that the tag matches
+`package.json`, runs `npm ci`, check, package and test, and creates the draft
+with the installer, `latest.yml`, blockmap, checksums and complete source.
+
+Add the signed macOS build from an Apple Silicon Mac: from a clean checkout of
+the same tag, with GitHub CLI authenticated (`gh auth login`) and notarization
+credentials such as `APPLE_KEYCHAIN_PROFILE=basement-band-notary`, run
+`npm run release:mac -- <tag>`. It verifies Developer ID signing, hardened
+runtime and notarization, and adds the DMG to the same draft (it keeps the
+source archive already there). Run it before publishing: the scripts refuse to
+add files to a published release.
+
+Review the draft and test both packages before publishing it. Re-running the
+workflow for a tag fails while the draft already holds the Windows files;
+delete the draft (or those files) first. Do not also run `release:win` locally
+for a tag the workflow handles.
 
 ## Verification
 

@@ -1,0 +1,34 @@
+# Pushing a version tag (v1.2.3 or v1.2.3-beta.1) builds, checks and tests the
+# Windows app and uploads it to a draft GitHub release. The signed macOS build
+# is added from a Mac with `npm run release:mac -- <tag>`. Publishing the draft
+# stays a manual step: only published releases reach testers' auto-updates.
+name: Release draft
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows installer and draft release
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # The same script as a local release: verifies the tag matches
+      # package.json, runs npm ci, check, package and test, then creates the
+      # draft with the installer, latest.yml, blockmap, checksums and source.
+      - name: Build, test and upload
+        run: npm run release:win -- "${{ github.ref_name }}"

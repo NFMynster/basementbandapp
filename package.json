@@ -87,7 +87,8 @@
       "entitlementsInherit": "desktop/entitlements.mac.plist",
       "binaries": [
         "Contents/Resources/artifacts/native/BasementAudio"
-      ]
+      ],
+      "artifactName": "Basement-Band-${version}-${arch}.${ext}"
     },
     "win": {
       "signAndEditExecutable": true,
