@@ -1,4 +1,5 @@
 import {
+  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -211,6 +212,21 @@ function windowsUpdateFiles(installer, version) {
   return [manifest, blockmap];
 }
 
+/**
+ * Version-free copy of the installer or DMG, so the website can link to
+ * releases/latest/download/<name> and always get the newest published build.
+ * The updater keeps using the versioned file that latest.yml names.
+ * @param {"mac" | "win"} platform
+ * @param {string} artifact
+ */
+function stableDownload(platform, artifact) {
+  const name =
+    platform === "mac" ? "Basement-Band-arm64.dmg" : "Basement-Band-Setup.exe";
+  const destination = resolve(root, "release", name);
+  copyFileSync(artifact, destination);
+  return destination;
+}
+
 function copyDependency(source, destination) {
   if (!existsSync(source))
     fail(`Required dependency source is missing: ${source}`);
@@ -376,14 +392,12 @@ export function release(platform, tag) {
       : verifyWindows(manifest.version);
   const sourceArchive = createSourceArchive(tag, manifest.version);
   ensureDraftRelease(tag, manifest.version);
-  uploadNewAssets(
-    tag,
-    platformArtifact,
-    sourceArchive,
-    platform === "win"
+  uploadNewAssets(tag, platformArtifact, sourceArchive, [
+    stableDownload(platform, platformArtifact),
+    ...(platform === "win"
       ? windowsUpdateFiles(platformArtifact, manifest.version)
-      : [],
-  );
+      : []),
+  ]);
   const url = output("gh", [
     "release",
     "view",

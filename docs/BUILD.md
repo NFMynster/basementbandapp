@@ -61,6 +61,8 @@ Windows packages are released unsigned, so users may see Unknown publisher or Mi
 
 Packaged Windows builds update themselves with `electron-updater` (`desktop/updates.cjs`): they read `latest.yml` from the newest published GitHub release of the public repository, download the installer in the background, and install silently on quit or through the footer's **restart to update** (the session is flushed to recovery first). The NSIS installer is named `Basement-Band-Setup-<version>.exe` so the uploaded file matches `latest.yml`; the Windows release script uploads `latest.yml` and the blockmap alongside it. Drafts are invisible to the updater, so testers only receive a release once it is published. macOS and development builds keep the notice that opens the release page.
 
+Each release also carries version-free copies, `Basement-Band-Setup.exe` and `Basement-Band-arm64.dmg`, so the website (separate `basementband-site` repository) can link to `https://github.com/NFMynster/basementbandapp/releases/latest/download/<name>` and always serve the newest published build. Keep these names stable; the site depends on them.
+
 For a release, set the version in `package.json`, commit it, and push an exact
 matching tag such as `v0.1.0`. Pushing the tag starts
 `.github/workflows/release.yml` on GitHub Actions:
