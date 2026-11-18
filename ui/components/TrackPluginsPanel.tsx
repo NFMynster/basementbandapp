@@ -55,6 +55,16 @@ export function TrackPluginsPanel({
         </button>
       </div>
       <div className="plugin-details">
+        {track.kind === "midi" && !track.pluginName && (
+          <div className="instrument-hint" role="note">
+            <strong>This track has no sound yet</strong>
+            <span>
+              MIDI tracks play through an instrument plug-in. Add any VST3
+              instrument (piano, synth, drums, strings) and play it from your
+              keyboard. Plenty of good ones are free.
+            </span>
+          </div>
+        )}
         {emptyChain && (
           <div
             className="starter-sounds"

@@ -247,10 +247,34 @@ app
     })()`);
     if (chain !== 3)
       throw new Error("Instrument and both effect slots must render");
+    if (
+      await win.webContents.executeJavaScript(
+        "!!document.querySelector('.instrument-hint')",
+      )
+    )
+      throw new Error(
+        "The instrument hint must hide once an instrument is loaded",
+      );
     win.showInactive();
     await new Promise((r) => setTimeout(r, 250));
     writeFileSync(
       "artifacts/screenshots/plugin-chain.png",
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    // Without an instrument, a MIDI track explains why it is silent.
+    await win.webContents.executeJavaScript(
+      `document.querySelector('.plugin-slot button[title="Remove plug-in"]').click()`,
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const hint = await win.webContents.executeJavaScript(`(() => {
+      const hint = document.querySelector('.instrument-hint');
+      const add = [...document.querySelectorAll('.plugin-slot button')].find(b => b.textContent.includes('Add VST3 instrument'));
+      return hint && add ? hint.textContent : "";
+    })()`);
+    if (!hint.includes("no sound yet"))
+      throw new Error("An empty MIDI track must show the instrument hint");
+    writeFileSync(
+      "artifacts/screenshots/midi-instrument-hint.png",
       (await win.webContents.capturePage()).toPNG(),
     );
     win.destroy();

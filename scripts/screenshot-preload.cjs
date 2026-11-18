@@ -175,6 +175,8 @@ async function mockCommand(c) {
   if (c.op === "devices") return devices;
   if (c.op === "metronomeVolume") state.metronomeGain = c.value;
   if (c.op === "metronomeSound") state.metronomeSound = c.value;
+  if (c.op === "removePlugin" && !c.effect)
+    Object.assign(fixtureTrack(c.track), { pluginName: "", effects: [] });
   if (c.op === "testAudioLoad") {
     state.audioCpu = c.value;
     state.processingDropouts = 2;
