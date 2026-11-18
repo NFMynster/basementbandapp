@@ -75,29 +75,31 @@ Engine::Engine(bool testing) : testDevice(testing) {
 void Engine::initializeAudio(bool inputAllowed) {
   if (testDevice)
     return;
-  std::cerr << "Opening audio device (inputs " << (inputAllowed ? 2 : 0) << ")" << std::endl;
+  // Open the output only. The default input is remembered by name and opened
+  // by syncAudioInput once a track is armed or monitored or the tuner runs, so
+  // launching never turns on the OS microphone indicator.
+  std::cerr << "Opening audio device (output only, input " << (inputAllowed ? "on demand" : "not allowed") << ")"
+            << std::endl;
   AudioDeviceManager::AudioDeviceSetup preferred;
   preferred.bufferSize = 64;
   preferred.sampleRate = 48000;
-  // Pin the OS defaults explicitly. Otherwise JUCE may substitute another
-  // input/output pair while searching for a shared sample rate.
+  // Pin the OS default output explicitly. Otherwise JUCE may substitute
+  // another device while searching for a supported sample rate.
 #if JUCE_WINDOWS
   for (auto *type : devices.getAvailableDeviceTypes())
     if (type->getTypeName() == "Windows Audio") {
       type->scanForDevices();
       preferred.outputDeviceName = type->getDeviceNames(false)[type->getDefaultDeviceIndex(false)];
-      if (inputAllowed)
-        preferred.inputDeviceName = type->getDeviceNames(true)[type->getDefaultDeviceIndex(true)];
       devices.setCurrentAudioDeviceType(type->getTypeName(), false);
       break;
     }
 #endif
-  deviceError = devices.initialise(inputAllowed ? 2 : 0, 2, nullptr, true, {}, &preferred);
-  configuredInput = devices.getAudioDeviceSetup().inputDeviceName;
-  if (auto *device = devices.getCurrentAudioDevice()) {
-    inputChannelNames = device->getInputChannelNames();
-    audioInputActive = !device->getActiveInputChannels().isZero();
+  deviceError = devices.initialise(0, 2, nullptr, true, {}, &preferred);
+  if (auto *type = devices.getCurrentDeviceTypeObject(); type && inputAllowed) {
+    const auto inputs = type->getDeviceNames(true);
+    configuredInput = inputs[jmax(0, type->getDefaultDeviceIndex(true))];
   }
+  audioInputActive = false;
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
   std::cerr << "Audio device initialization finished: " << deviceError << std::endl;

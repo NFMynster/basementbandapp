@@ -68,6 +68,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback, pri
   StringArray inputChannelNames;
   bool audioInputActive = false;
   bool needsAudioInput() const;
+  bool inputSharesDriver() const;
   void syncAudioInput();
 
   Track &track(const var &command);

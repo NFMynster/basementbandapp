@@ -2,8 +2,18 @@
 #include <cmath>
 
 namespace basement {
+// ASIO drives input and output through one driver instance. Changing its input
+// channels reopens the whole driver, and probing it loads a second instance of
+// a driver that is usually single-instance, which can stop the running one.
+bool Engine::inputSharesDriver() const {
+  auto *type = devices.getCurrentDeviceTypeObject();
+  return type && !type->hasSeparateInputsAndOutputs();
+}
+
 bool Engine::needsAudioInput() const {
-  return configuredInput.isNotEmpty() && (tunerTrack.isNotEmpty() || std::any_of(tracks.begin(), tracks.end(), [](const auto &t) {
+  // Shared-driver inputs stay open; elsewhere the input (and the OS microphone
+  // indicator) is used only while something listens to it.
+  return configuredInput.isNotEmpty() && (inputSharesDriver() || tunerTrack.isNotEmpty() || std::any_of(tracks.begin(), tracks.end(), [](const auto &t) {
     return !t->isMidi && (t->armed || t->monitor);
   }));
 }
@@ -53,7 +63,8 @@ var Engine::listDevices() {
       buffers.add(b);
   }
   // Query channel capabilities even when the selected input is idle/unarmed.
-  if (!audioInputActive && configuredInput.isNotEmpty())
+  // Never for a shared driver: its input is open whenever one is configured.
+  if (!audioInputActive && configuredInput.isNotEmpty() && !inputSharesDriver())
     if (auto *type = devices.getCurrentDeviceTypeObject()) {
       std::unique_ptr<AudioIODevice> probe(type->createDevice({}, configuredInput));
       if (probe) inputChannelNames = probe->getInputChannelNames();
