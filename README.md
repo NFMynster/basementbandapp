@@ -2,6 +2,8 @@
 
 **A small, local recording room for jamming together.**
 
+https://github.com/user-attachments/assets/befb47b2-9217-4558-a7aa-6ea6bee592dd
+
 Plug in, hit record, play. Multi-track audio and MIDI, loop takes, your own VST3 instruments and effects. React + Electron for the desktop UI, C++/JUCE for the audio engine. No cloud, no logins, no subscription.
 
 Grab a precompiled release - or build it yourself for completely free
