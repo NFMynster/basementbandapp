@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+// Node refuses to spawn npm.cmd without a shell on Windows, so run npm's own
+// script (provided by `npm run`) through Node instead.
+const npmScript = process.env.npm_execpath;
 const expectedAppId = "com.footstompstudios.basementband";
 
 function fail(message) {
@@ -47,6 +49,13 @@ function execute(
     );
   }
   return result;
+}
+
+/** @param {string[]} args */
+function runNpm(args) {
+  if (!npmScript)
+    fail("Run the release through npm run release:win or release:mac.");
+  return execute(process.execPath, [npmScript, ...args]);
 }
 
 function output(executable, args, options) {
@@ -341,10 +350,10 @@ export function release(platform, tag) {
   execute("gh", ["auth", "status"]);
   if (platform === "mac") requireMacCredentials();
 
-  execute(npm, ["ci"]);
-  execute(npm, ["run", "check"]);
-  execute(npm, ["run", platform === "mac" ? "package:mac" : "package:win"]);
-  execute(npm, ["test"]);
+  runNpm(["ci"]);
+  runNpm(["run", "check"]);
+  runNpm(["run", platform === "mac" ? "package:mac" : "package:win"]);
+  runNpm(["test"]);
 
   const platformArtifact =
     platform === "mac"
