@@ -40,6 +40,9 @@ if(APPLE)
     set_source_files_properties(Main.cpp PROPERTIES LANGUAGE OBJCXX)
     set_target_properties(BasementAudio PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED YES)
     target_link_options(BasementAudio PRIVATE "-Wl,-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/Info.plist")
+    # Clang fuses a*b+c by default on ARM; MSVC does not. Fused rounding makes a
+    # flat EQ band slightly non-transparent, so keep Windows' arithmetic.
+    target_compile_options(BasementAudio PRIVATE -ffp-contract=off)
 endif()
 target_compile_definitions(BasementAudio PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_PLUGINHOST_VST3=1 JUCE_MODAL_LOOPS_PERMITTED=1)
 if(WIN32)

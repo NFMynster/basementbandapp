@@ -36,6 +36,9 @@ bool Engine::silenceInvalidAudio(Track &t, int n, int stage) {
 
 // Shared sample interpolation and plug-in processing for playback and export.
 void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float *liveInput) {
+  // JUCE snaps filter and reverb state to zero only on Intel; on ARM it relies
+  // on flush-to-zero, so decaying tails stay as slow denormals otherwise.
+  const ScopedNoDenormals noDenormals;
   double transportTime = start < 0 ? position.load() : start;
   if (cycle && loopEnd > loopStart && transportTime >= loopEnd)
     transportTime = loopStart + std::fmod(transportTime - loopStart, loopEnd - loopStart);
