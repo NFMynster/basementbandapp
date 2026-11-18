@@ -576,6 +576,14 @@
 .clip.trimming {
   cursor: ew-resize;
 }
+/* Loop drag preview: the source keeps its size and each repeat is a copy. */
+.clip.repeating .trim-handle.right,
+.clip.repeat-copy .trim-handle.right:not(.repeat) {
+  display: none;
+}
+.clip.repeat-copy {
+  pointer-events: none;
+}
 .lane:has(.clip.moving) {
   z-index: 8;
 }

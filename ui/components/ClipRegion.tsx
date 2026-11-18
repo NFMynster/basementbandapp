@@ -113,83 +113,65 @@ export function ClipRegion({
   const cutStart =
     preview?.duration === undefined ? 0 : preview.position - c.start;
   const previewDuration = preview?.duration ?? c.duration;
+  // A loop drag keeps the source region as is and previews each repeat as
+  // its own region, matching the separate copies the engine creates.
+  const shownDuration = preview?.repeat ? c.duration : previewDuration;
+  const repeatCopies: { start: number; duration: number }[] = [];
+  if (preview?.repeat)
+    for (
+      let at = c.duration;
+      at < previewDuration - 1e-6 && repeatCopies.length < 2048;
+      at += c.duration
+    )
+      repeatCopies.push({
+        start: c.start + at,
+        duration: Math.min(c.duration, previewDuration - at),
+      });
   const displayedClip =
-    preview?.duration === undefined
+    preview?.duration === undefined || preview.repeat
       ? c
-      : preview.repeat
-        ? {
-            ...c,
-            duration: previewDuration,
-            peaks: Array.from(
-              { length: 400 },
-              (_, i) =>
-                c.peaks[
-                  Math.min(
-                    c.peaks.length - 1,
-                    Math.floor(
-                      ((((i / 400) * previewDuration) % c.duration) /
-                        c.duration) *
-                        c.peaks.length,
-                    ),
-                  )
-                ] ?? 0,
-            ),
-            notes: Array.from(
-              {
-                length: Math.min(2048, Math.ceil(previewDuration / c.duration)),
-              },
-              (_, i) =>
-                (c.notes ?? []).map((n) => ({
-                  ...n,
-                  start: n.start + i * c.duration,
-                })),
-            )
-              .flat()
-              .filter((n) => n.start < previewDuration)
-              .slice(0, 2048),
-          }
-        : {
-            ...c,
-            duration: preview.duration,
-            peaks: c.peaks.slice(
-              Math.max(0, Math.floor((cutStart / c.duration) * c.peaks.length)),
-              Math.max(
-                1,
-                Math.ceil(
-                  ((cutStart + previewDuration) / c.duration) * c.peaks.length,
-                ),
+      : {
+          ...c,
+          duration: preview.duration,
+          peaks: c.peaks.slice(
+            Math.max(0, Math.floor((cutStart / c.duration) * c.peaks.length)),
+            Math.max(
+              1,
+              Math.ceil(
+                ((cutStart + previewDuration) / c.duration) * c.peaks.length,
               ),
             ),
-            notes: c.notes
-              ?.filter(
-                (note) =>
-                  note.start + note.duration > cutStart &&
-                  note.start < cutStart + previewDuration,
-              )
-              .map((note) => ({
-                ...note,
-                start: Math.max(0, note.start - cutStart),
-                duration:
-                  Math.min(
-                    note.start + note.duration,
-                    cutStart + previewDuration,
-                  ) - Math.max(note.start, cutStart),
-              })),
-          };
+          ),
+          notes: c.notes
+            ?.filter(
+              (note) =>
+                note.start + note.duration > cutStart &&
+                note.start < cutStart + previewDuration,
+            )
+            .map((note) => ({
+              ...note,
+              start: Math.max(0, note.start - cutStart),
+              duration:
+                Math.min(
+                  note.start + note.duration,
+                  cutStart + previewDuration,
+                ) - Math.max(note.start, cutStart),
+            })),
+        };
   return (
     <>
       <div
         data-clip={c.id}
         className={
           "clip " +
-          ((preview?.duration ?? c.duration) * w.pxPerSecond < 72
-            ? "compact "
-            : "") +
+          (shownDuration * w.pxPerSecond < 72 ? "compact " : "") +
           (w.regionIds.includes(c.id) ? "chosen " : "") +
           (preview !== null
             ? preview.duration === undefined
               ? "moving"
-              : "trimming"
+              : preview.repeat
+                ? "trimming repeating"
+                : "trimming"
             : "")
         }
         style={
@@ -199,10 +181,7 @@ export function ClipRegion({
                 ? c.start + w.regionMove
                 : (preview?.position ?? c.start)) * w.pxPerSecond,
             transform: preview ? `translateY(${preview.y}px)` : undefined,
-            width: Math.max(
-              1,
-              (preview?.duration ?? c.duration) * w.pxPerSecond,
-            ),
+            width: Math.max(1, shownDuration * w.pxPerSecond),
             "--clip-color": t.color,
           } as CSSProperties
         }
@@ -461,6 +440,52 @@ export function ClipRegion({
           <Waveform peaks={displayedClip.peaks} />
         )}
       </div>
+      {repeatCopies.map((copy, i) => {
+        const fraction = copy.duration / c.duration,
+          last = i === repeatCopies.length - 1;
+        return (
+          <div
+            key={i}
+            className={
+              "clip repeat-copy" +
+              (copy.duration * w.pxPerSecond < 72 ? " compact" : "")
+            }
+            aria-hidden="true"
+            style={
+              {
+                left: copy.start * w.pxPerSecond,
+                width: Math.max(1, copy.duration * w.pxPerSecond),
+                "--clip-color": t.color,
+                "--trim-right": last ? 1 : 0,
+              } as CSSProperties
+            }
+          >
+            {last && (
+              <span className="trim-handle right repeat">
+                <Repeat2 size={14} />
+              </span>
+            )}
+            <div className="clip-title">
+              <span>{c.name}</span>
+            </div>
+            {c.kind === "midi" ? (
+              <MidiNotes
+                clip={{
+                  duration: copy.duration,
+                  notes: c.notes?.filter((n) => n.start < copy.duration),
+                }}
+              />
+            ) : (
+              <Waveform
+                peaks={c.peaks.slice(
+                  0,
+                  Math.max(1, Math.ceil(fraction * c.peaks.length)),
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
       {menu && (
         <ContextMenu
           label="Region edits"
