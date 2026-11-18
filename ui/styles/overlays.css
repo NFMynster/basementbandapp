@@ -65,6 +65,12 @@
   letter-spacing: 4px;
   font-size: 11px;
 }
+.count-in-overlay strong {
+  font-size: 120px;
+  font-weight: 300;
+  line-height: 1.5;
+  animation: count-beat 450ms ease-out;
+}
 @keyframes count-beat {
   from {
     opacity: 0.2;
@@ -132,6 +138,24 @@
     box-shadow: inset 0 0 0 transparent;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .count-in-overlay,
+  .count-in-overlay strong,
+  .toast.notice,
+  .toast.notice.warning,
+  .toast.error {
+    animation: none;
+  }
+}
+
+.startup-overlay {
+  text-align: center;
+  opacity: 0;
+  animation: none;
+  transition:
+    opacity 360ms ease-in-out,
+    backdrop-filter 360ms ease-in-out;
+}
 .startup-pending [data-track-header],
 .startup-pending [data-lane] {
   visibility: hidden;
@@ -170,6 +194,13 @@
   max-width: min(640px, 90vw);
   white-space: pre-wrap;
   font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-overlay,
+  .startup-content {
+    transition: none;
+    transform: none;
+  }
 }
 @keyframes properties-ping {
   from {

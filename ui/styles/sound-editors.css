@@ -12,6 +12,10 @@
   flex-direction: column;
   gap: 8px;
 }
+.eq-summary strong {
+  font-size: 16px;
+  font-weight: 500;
+}
 .eq-summary > span {
   color: #a1a4af;
   font-size: 11px;
@@ -100,6 +104,10 @@
   justify-content: space-between;
   gap: 10px;
 }
+.effect-heading strong {
+  font-size: 12px;
+  font-weight: 500;
+}
 .effect-power {
   width: 28px;
   height: 28px;
@@ -144,6 +152,10 @@
   background: #486c9228;
   border-color: #9dbad580;
 }
+.export-choices strong {
+  font-size: 13px;
+  font-weight: 500;
+}
 .export-choices span {
   font-size: 11px;
   color: #a4aab7;
@@ -163,6 +175,15 @@
 .simple-switch > span {
   display: grid;
   gap: 6px;
+}
+.simple-switch strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.simple-switch small {
+  color: #a0a5b1;
+  font-size: 11px;
+  font-weight: 400;
 }
 .simple-switch input[type="checkbox"] {
   appearance: none;
@@ -202,6 +223,11 @@
 .diagnostic-summary > div {
   display: grid;
   gap: 8px;
+}
+.diagnostic-summary strong {
+  font-size: 26px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .diagnostic-summary span {
   color: #a0a5b1;
@@ -277,6 +303,10 @@
 }
 .midi-tools select {
   width: auto;
+}
+.midi-tools button[aria-pressed="true"] {
+  background: #a9cbea1c;
+  color: #c5def2;
 }
 .midi-mode {
   padding: 2px;
@@ -535,15 +565,6 @@
 .eq-actions select {
   padding-right: 30px;
 }
-/* inspector.css rule, kept here to load after ".piano-note.selected" */
-
-.inspector.midi-expanded {
-  position: fixed;
-  inset: 144px 0 34px;
-  height: auto !important;
-  z-index: 9;
-  box-shadow: 0 -12px 36px var(--shadow);
-}
 .midi-playhead {
   position: absolute;
   top: 0;
@@ -608,6 +629,11 @@
   background: var(--tint-03);
   font-size: 10px;
 }
+.region-takes select {
+  width: 160px;
+  max-width: 100%;
+  font-size: 11px;
+}
 
 /* Compact effect cards: grid spacing owns every control's position. */
 .track-built-ins {
@@ -642,23 +668,6 @@
   display: block;
   height: 16px;
   margin: 4px 0 0;
-}
-/* inspector.css rule, kept here to load after ".eq-summary > span" */
-.inspector .effect-amount > span,
-.recording-volume > span {
-  min-height: 14px;
-  line-height: 14px;
-  font-size: 10px;
-  align-items: center;
-}
-/* inspector.css rule, kept here to load after ".simple-switch input[type="checkbox"]" */
-.inspector .effect-amount input,
-.recording-controls .pan-row input {
-  display: block;
-  height: 16px;
-  margin: 4px 0 0;
-  background: linear-gradient(var(--control), var(--control)) center / 100% 3px
-    no-repeat;
 }
 .region-controls input {
   display: block;
@@ -749,6 +758,25 @@
   display: flex;
   gap: 6px;
 }
+.eq-band-tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: transparent;
+  color: #a5a9b2;
+  border: 1px solid transparent;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.eq-band-tabs button[aria-pressed="true"] {
+  background: var(--tint-08);
+  border-color: var(--tint-12);
+  color: #edf0f5;
+}
 .eq-band-tabs i {
   width: 6px;
   height: 6px;
@@ -765,6 +793,16 @@
   flex-direction: column;
   gap: 5px;
   margin-bottom: 14px;
+}
+.eq-description strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.eq-description span,
+.eq-more p {
+  font-size: 11px;
+  color: #8e95a2;
+  line-height: 1.5;
 }
 .eq-selected {
   min-height: 110px;
@@ -817,6 +855,9 @@
   }
 }
 @media (max-width: 650px) {
+  .eq-band-tabs button {
+    flex-wrap: wrap;
+  }
   .eq-band-tabs span {
     width: 100%;
     margin: 0;
@@ -891,14 +932,6 @@
 .eq-preview-hint {
   color: #9098a6;
   font-size: 11px;
-}
-/* inspector.css rule, kept here to load after ".piano-note.selected" */
-.inspector.eq-expanded {
-  position: fixed;
-  inset: 144px 0 0;
-  height: auto !important;
-  z-index: 9;
-  box-shadow: 0 -12px 36px var(--shadow);
 }
 .eq-expanded .inspector-content {
   height: calc(100% - 42px);
@@ -1056,8 +1089,4 @@
 }
 .eq-compact .eq-preview-hint {
   display: none;
-}
-/* inspector.css rule, kept here to load after ".inspector.midi-expanded" */
-.inspector.midi-expanded {
-  inset: 144px 0 0;
 }

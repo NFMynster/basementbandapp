@@ -58,7 +58,7 @@ MidiEditor composes these pieces. Editing actions stay in the hook; the toolbar 
 
 ## Stylesheets
 
-Each file in `ui/styles/` covers one area: `base` (element defaults and the shared palette tokens), `arrangement`, `shell` (title bar, transport, footer), `dialogs`, `overlays` (toasts, count-in, startup, keyframes), `inspector`, `sound-editors` (EQ, effects, MIDI, region) and `plugins` (chain and starter sounds). `ui/main.tsx` imports them in cascade order. A few rules sit in a later file than their component because they must load after a rule there; each carries a "kept here to load after" comment. Use the `:root` tokens in `base.css` (`--accent`, `--tint-NN`, `--shadow`...) for new styles.
+Each file in `ui/styles/` covers one area: `base` (element defaults and the shared palette tokens), `arrangement`, `shell` (title bar, transport, footer), `dialogs`, `overlays` (toasts, count-in, startup, keyframes), `inspector`, `sound-editors` (EQ, effects, MIDI, region) and `plugins` (chain and starter sounds). Every rule lives in its component's file, and no file relies on loading after another: where two components style the same element (dialog labels over the inspector's routing labels), the winner is expressed with selector specificity, not import order. Use the `:root` tokens in `base.css` (`--accent`, `--tint-NN`, `--shadow`...) for new styles.
 
 ## Native command routing
 

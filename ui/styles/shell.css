@@ -357,6 +357,13 @@ footer .live-dot {
   border-radius: 12px;
   box-shadow: 0 8px 24px #0005;
 }
+.metronome-volume input {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 24px;
+  height: 120px;
+  accent-color: var(--accent);
+}
 .metronome-volume output {
   font-size: 10px;
   color: #c7cbbf;
@@ -399,4 +406,7 @@ footer .audio-cpu {
 }
 footer .audio-cpu {
   margin-left: 0;
+}
+footer .audio-cpu.needs-attention {
+  color: #e4bd84;
 }

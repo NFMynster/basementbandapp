@@ -36,6 +36,16 @@
   line-height: 1.8;
   margin-bottom: 23px;
 }
+/* Also wins over the inspector’s .routing > label inside dialogs, whatever the load order. */
+.modal label,
+.modal .routing > label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  color: #adb0ba;
+  margin-top: 17px;
+}
 .modal select {
   font-size: 12px;
   width: 100%;
@@ -44,6 +54,10 @@
 .form-row {
   display: flex;
   gap: 18px;
+}
+.form-row > label {
+  flex: 1;
+  min-width: 0;
 }
 .apply-device {
   margin-top: 19px;
@@ -216,6 +230,10 @@
   align-items: center;
   gap: 9px;
 }
+.check-row input {
+  width: 16px;
+  height: 16px;
+}
 
 .tuner-reading {
   display: flex;
@@ -325,6 +343,11 @@
 }
 .buffer-help p {
   line-height: 1.6;
+}
+.effect-amount small {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #969ba8;
 }
 
 .effect-amount + .effect-amount {
