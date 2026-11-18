@@ -163,12 +163,21 @@ function verifyMac(version) {
 function verifyWindows(version) {
   const installer = findArtifact(".exe", version, "Windows installer");
   const escaped = installer.replaceAll("'", "''");
-  const status = output("powershell.exe", [
-    "-NoProfile",
-    "-NonInteractive",
-    "-Command",
-    `(Get-AuthenticodeSignature -LiteralPath '${escaped}').Status`,
-  ]);
+  // Started from PowerShell 7 (as on GitHub Actions), Windows PowerShell
+  // inherits PS7's PSModulePath and cannot load its own Security module.
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^psmodulepath$/i.test(key)),
+  );
+  const status = output(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `(Get-AuthenticodeSignature -LiteralPath '${escaped}').Status`,
+    ],
+    { env },
+  );
   if (status === "NotSigned") {
     console.warn(
       "Windows installer is unsigned. Users may see an Unknown publisher or SmartScreen warning.",
