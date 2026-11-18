@@ -168,6 +168,17 @@ async function mockCommand(c) {
       active: false,
     });
   }
+  // A marker region lets the visual test see that a loop drag reached the engine.
+  if (c.op === "editClip" && c.action === "repeat") {
+    const t = fixtureTrack(c.track);
+    const source = t.clips.find((clip) => clip.id === c.clip);
+    if (source)
+      t.clips.push({
+        ...source,
+        id: "loop-marker",
+        start: source.start + source.duration,
+      });
+  }
   if (c.op === "editClip" && c.action === "take") {
     const t = fixtureTrack(c.track);
     for (const clip of t.clips) clip.active = clip.id === c.clip;

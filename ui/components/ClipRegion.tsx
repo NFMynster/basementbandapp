@@ -61,21 +61,25 @@ export function ClipRegion({
         (w.timelineScroll.current?.scrollLeft ?? 0) -
         drag.current!.scrollX) /
       w.pxPerSecond;
-    if (drag.current!.mode === "repeat")
+    if (drag.current!.mode === "repeat") {
+      // Near a whole number of copies the loop end snaps there instead of to
+      // the beat, so dragging back to the region's own end adds nothing even
+      // when the region doesn't end on a beat.
+      const dragged = c.duration + delta;
+      const copies = Math.max(1, Math.round(dragged / c.duration));
+      const length =
+        Math.abs(dragged - copies * c.duration) * w.pxPerSecond <= 12
+          ? copies * c.duration
+          : Math.round((c.start + dragged) / (60 / w.s.tempo)) *
+              (60 / w.s.tempo) -
+            c.start;
       return {
         position: c.start,
-        duration: Math.max(
-          c.duration,
-          Math.min(
-            1200,
-            Math.round((c.start + c.duration + delta) / (60 / w.s.tempo)) *
-              (60 / w.s.tempo) -
-              c.start,
-          ),
-        ),
+        duration: Math.max(c.duration, Math.min(1200, length)),
         y: 0,
         repeat: true,
       };
+    }
     const minimum = Math.min(c.duration, 12 / w.pxPerSecond);
     const shortest = Math.min(
       c.duration,
@@ -330,7 +334,11 @@ export function ClipRegion({
           if (drag.current.mode !== "move") {
             const trim = trimAt(e.clientX),
               action = drag.current.mode === "repeat" ? "repeat" : "trim",
-              moved = drag.current.moved;
+              // A loop drag released at the region's own end is a change of
+              // mind, not a loop.
+              moved =
+                drag.current.moved &&
+                (action !== "repeat" || trim.duration > c.duration + 1e-6);
             drag.current = null;
             if (e.currentTarget.hasPointerCapture(e.pointerId))
               e.currentTarget.releasePointerCapture(e.pointerId);

@@ -247,6 +247,49 @@ app
       "artifacts/screenshots/region-redesign.png",
       (await w.webContents.capturePage()).toPNG(),
     );
+    // Dragging the loop handle out and back to where it started is a change
+    // of mind: the preview shows copies on the way, but no loop is created.
+    const loopHandle = await w.webContents.executeJavaScript(`(() => {
+      const r = document.querySelector('[data-clip="clipg"]').getBoundingClientRect();
+      return {x: Math.round(r.right - 3), y: Math.round(r.top + 5)};
+    })()`);
+    const mouse = (type, x) =>
+      w.webContents.sendInputEvent({
+        type,
+        x,
+        y: loopHandle.y,
+        button: "left",
+        clickCount: 1,
+      });
+    mouse("mouseDown", loopHandle.x);
+    for (const step of [40, 120, 200]) {
+      mouse("mouseMove", loopHandle.x + step);
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    if (
+      !(await w.webContents.executeJavaScript(
+        `document.querySelectorAll('.clip.repeat-copy').length > 0`,
+      ))
+    )
+      throw new Error("Loop drag shows no repeat preview");
+    for (const step of [120, 40, 0]) {
+      mouse("mouseMove", loopHandle.x + step);
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    if (
+      await w.webContents.executeJavaScript(
+        `document.querySelectorAll('.clip.repeat-copy').length > 0`,
+      )
+    )
+      throw new Error("Loop preview remains after dragging back");
+    mouse("mouseUp", loopHandle.x);
+    await new Promise((r) => setTimeout(r, 200));
+    if (
+      await w.webContents.executeJavaScript(
+        `!!document.querySelector('[data-clip="loop-marker"]')`,
+      )
+    )
+      throw new Error("Loop drag back to the start still created a loop");
     const load = await w.webContents.executeJavaScript(`(async () => {
       const output = document.querySelector('.audio-cpu output');
       let changes = 0;
