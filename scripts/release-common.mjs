@@ -1,11 +1,10 @@
 import {
-  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -125,23 +124,25 @@ function requireMacCredentials() {
     fail('Keychain has no valid "Developer ID Application" certificate.');
 }
 
-function findArtifact(extension, version, description) {
-  const matches = readdirSync(resolve(root, "release"), { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isFile() &&
-        entry.name.endsWith(extension) &&
-        entry.name.includes(version),
-    )
-    .map((entry) => resolve(root, "release", entry.name));
-  if (matches.length !== 1)
+/**
+ * Installers carry no version in their names (the website links to
+ * releases/latest/download/<name>), so a leftover file from an earlier build
+ * would look the same. Only accept one written by this run's packaging.
+ * @param {string} name
+ * @param {number} builtAfter
+ */
+function findArtifact(name, builtAfter) {
+  const artifact = resolve(root, "release", name);
+  if (!existsSync(artifact)) fail(`Packaged file not found: ${artifact}`);
+  if (statSync(artifact).mtimeMs < builtAfter)
     fail(
-      `Expected one ${description} for version ${version}; found ${matches.length}.`,
+      `${name} is older than this release run; packaging did not replace it.`,
     );
-  return matches[0];
+  return artifact;
 }
 
-function verifyMac(version) {
+/** @param {number} builtAfter */
+function verifyMac(builtAfter) {
   const app = resolve(root, "release", "mac-arm64", "Basement Band.app");
   if (!existsSync(app)) fail(`Packaged app not found at ${app}.`);
   execute("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
@@ -158,11 +159,12 @@ function verifyMac(version) {
     fail("Hardened runtime is not enabled.");
   execute("spctl", ["--assess", "--verbose=4", "--type", "exec", app]);
   execute("xcrun", ["stapler", "validate", app]);
-  return findArtifact(".dmg", version, "macOS DMG");
+  return findArtifact("Basement-Band-arm64.dmg", builtAfter);
 }
 
-function verifyWindows(version) {
-  const installer = findArtifact(".exe", version, "Windows installer");
+/** @param {number} builtAfter */
+function verifyWindows(builtAfter) {
+  const installer = findArtifact("Basement-Band-Setup.exe", builtAfter);
   const escaped = installer.replaceAll("'", "''");
   // Started from PowerShell 7 (as on GitHub Actions), Windows PowerShell
   // inherits PS7's PSModulePath and cannot load its own Security module.
@@ -197,12 +199,11 @@ function verifyWindows(version) {
  * exactly as uploaded.
  * @param {string} installer
  * @param {string} version
+ * @param {number} builtAfter
  */
-function windowsUpdateFiles(installer, version) {
-  const manifest = resolve(root, "release", "latest.yml");
-  const blockmap = `${installer}.blockmap`;
-  for (const file of [manifest, blockmap])
-    if (!existsSync(file)) fail(`Update file not found: ${file}`);
+function windowsUpdateFiles(installer, version, builtAfter) {
+  const manifest = findArtifact("latest.yml", builtAfter);
+  const blockmap = findArtifact(`${basename(installer)}.blockmap`, builtAfter);
   const text = readFileSync(manifest, "utf8");
   if (
     !text.includes(`version: ${version}`) ||
@@ -210,21 +211,6 @@ function windowsUpdateFiles(installer, version) {
   )
     fail("latest.yml does not describe this installer.");
   return [manifest, blockmap];
-}
-
-/**
- * Version-free copy of the installer or DMG, so the website can link to
- * releases/latest/download/<name> and always get the newest published build.
- * The updater keeps using the versioned file that latest.yml names.
- * @param {"mac" | "win"} platform
- * @param {string} artifact
- */
-function stableDownload(platform, artifact) {
-  const name =
-    platform === "mac" ? "Basement-Band-arm64.dmg" : "Basement-Band-Setup.exe";
-  const destination = resolve(root, "release", name);
-  copyFileSync(artifact, destination);
-  return destination;
 }
 
 function copyDependency(source, destination) {
@@ -383,21 +369,25 @@ export function release(platform, tag) {
 
   runNpm(["ci"]);
   runNpm(["run", "check"]);
+  // Whole seconds: some file systems store coarse modification times.
+  const packagedAfter = Math.floor(Date.now() / 1000) * 1000;
   runNpm(["run", platform === "mac" ? "package:mac" : "package:win"]);
   runNpm(["test"]);
 
   const platformArtifact =
     platform === "mac"
-      ? verifyMac(manifest.version)
-      : verifyWindows(manifest.version);
+      ? verifyMac(packagedAfter)
+      : verifyWindows(packagedAfter);
   const sourceArchive = createSourceArchive(tag, manifest.version);
   ensureDraftRelease(tag, manifest.version);
-  uploadNewAssets(tag, platformArtifact, sourceArchive, [
-    stableDownload(platform, platformArtifact),
-    ...(platform === "win"
-      ? windowsUpdateFiles(platformArtifact, manifest.version)
-      : []),
-  ]);
+  uploadNewAssets(
+    tag,
+    platformArtifact,
+    sourceArchive,
+    platform === "win"
+      ? windowsUpdateFiles(platformArtifact, manifest.version, packagedAfter)
+      : [],
+  );
   const url = output("gh", [
     "release",
     "view",

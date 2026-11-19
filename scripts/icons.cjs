@@ -9,6 +9,7 @@ app
       width: 1024,
       height: 1024,
       useContentSize: true,
+      enableLargerThanScreen: true,
       transparent: true,
       webPreferences: {
         sandbox: true,
@@ -32,6 +33,13 @@ app
         "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
       );
       const image = await win.webContents.capturePage();
+      // A window clamped to a small screen captures a cropped, non-square
+      // image; resizing that would stretch the icon instead of failing.
+      const captured = image.getSize();
+      if (captured.width !== captured.height || captured.width < 1024)
+        throw new Error(
+          `Icon render is ${captured.width}x${captured.height}, expected a square of at least 1024 px. Run this on a larger display.`,
+        );
       fs.writeFileSync(
         "desktop/assets/icon.png",
         image.resize({ width: 1024, height: 1024 }).toPNG(),

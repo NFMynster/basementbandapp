@@ -32,7 +32,9 @@ export function runTool(
 
 export function buildDesktop(env = process.env) {
   run(process.execPath, ["scripts/licenses.mjs"], env);
-  run(require("electron"), ["scripts/icons.cjs"], env);
+  // The icons are checked in. Regenerating them here rendered them through a
+  // window clamped to CI's small screen, which shipped a stretched app icon.
+  // `npm run build:icons` updates them after the SVG changes.
   runTool("typescript", ["--noEmit"], env, "tsc");
   runTool("vite", ["build"], env);
 }
