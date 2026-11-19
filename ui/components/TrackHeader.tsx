@@ -5,6 +5,34 @@ import type { WorkspaceController } from "../hooks/useWorkspace";
 import { LevelSlider } from "./LevelSlider";
 import { TrackIcon } from "./TrackIcon";
 
+/** Removes the drop-position gap shown while a track is dragged. */
+function clearReorderMarks() {
+  document
+    .querySelectorAll(".reorder-target")
+    .forEach((node) =>
+      node.classList.remove("reorder-target", "reorder-after"),
+    );
+}
+
+/**
+ * The dragged header's own dragend/drop do not always arrive: switching
+ * windows (Alt+Tab) mid-drag cancels the drag at the OS level. Clear the gap
+ * on whichever ending comes first, including the first plain mouse move,
+ * which only happens once no drag is in progress.
+ */
+function watchReorderEnd() {
+  const end = (event: Event) => {
+    if (event.type === "mousemove" && (event as MouseEvent).buttons) return;
+    clearReorderMarks();
+    window.removeEventListener("blur", end);
+    for (const type of ["dragend", "drop", "mousemove"])
+      document.removeEventListener(type, end, true);
+  };
+  window.addEventListener("blur", end);
+  for (const type of ["dragend", "drop", "mousemove"])
+    document.addEventListener(type, end, true);
+}
+
 export function TrackHeader({
   track,
   index,
@@ -35,6 +63,7 @@ export function TrackHeader({
         e.stopPropagation();
         e.dataTransfer.setData("application/x-basement-track", track.id);
         e.dataTransfer.effectAllowed = "move";
+        watchReorderEnd();
         const bounds = e.currentTarget.getBoundingClientRect();
         e.dataTransfer.setDragImage(
           e.currentTarget,
@@ -42,13 +71,7 @@ export function TrackHeader({
           e.clientY - bounds.top,
         );
       }}
-      onDragEnd={() =>
-        document
-          .querySelectorAll(".reorder-target")
-          .forEach((node) =>
-            node.classList.remove("reorder-target", "reorder-after"),
-          )
-      }
+      onDragEnd={clearReorderMarks}
       onDragOver={(e) => {
         if (
           e.dataTransfer.types.includes("application/x-basement-track") &&
@@ -67,7 +90,7 @@ export function TrackHeader({
       }}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node))
-          e.currentTarget.classList.remove("reorder-target");
+          e.currentTarget.classList.remove("reorder-target", "reorder-after");
       }}
       onDrop={(e) => {
         e.currentTarget.classList.remove("reorder-target");

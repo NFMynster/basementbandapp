@@ -1,4 +1,10 @@
-import { useRef, useState, useCallback, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { Clip, Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { Waveform } from "./Waveform";
@@ -6,6 +12,41 @@ import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
 import { ArrowLeftToLine, ArrowRightToLine, Repeat2 } from "lucide-react";
 const loopCursor = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>')}") 12 12, crosshair`;
+
+/**
+ * One edge-scroll step for a drag held near the timeline's edge: up to 18 px
+ * sideways (and 12 px vertically when `vertical`), faster nearer the edge.
+ * With `grow`, the timeline gains temporary room at its end (cleared by the
+ * region once its preview is gone). Returns whether anything scrolled.
+ */
+function scrollTowardsEdge(
+  view: HTMLElement,
+  at: { x: number; y: number },
+  vertical: boolean,
+  grow: boolean,
+) {
+  const bounds = view.getBoundingClientRect(),
+    zone = 48;
+  const speed = (towardsStart: number, towardsEnd: number) =>
+    towardsEnd > 0
+      ? Math.min(1, towardsEnd / zone)
+      : towardsStart > 0
+        ? -Math.min(1, towardsStart / zone)
+        : 0;
+  const dx = speed(bounds.left + zone - at.x, at.x - (bounds.right - zone));
+  const dy = vertical
+    ? speed(bounds.top + zone - at.y, at.y - (bounds.bottom - zone))
+    : 0;
+  const left = view.scrollLeft,
+    top = view.scrollTop;
+  if (grow && dx > 0 && left >= view.scrollWidth - view.clientWidth - 1)
+    view
+      .querySelector<HTMLElement>(".timeline")
+      ?.style.setProperty("min-width", `${view.scrollWidth + 240}px`);
+  view.scrollLeft += Math.round(dx * 18);
+  view.scrollTop += Math.round(dy * 12);
+  return view.scrollLeft !== left || view.scrollTop !== top;
+}
 
 export function ClipRegion({
   clip: c,
@@ -33,6 +74,30 @@ export function ClipRegion({
     moved: boolean;
     mode: "move" | "left" | "right" | "repeat";
   } | null>(null);
+  // Last pointer position of the active drag, and the edge-scroll frame.
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const edgeScroll = useRef<number | null>(null);
+  const stopEdgeScroll = () => {
+    if (edgeScroll.current !== null) cancelAnimationFrame(edgeScroll.current);
+    edgeScroll.current = null;
+  };
+  useEffect(() => stopEdgeScroll, []);
+  // Room added while edge-scrolling is dropped once the drag preview is gone:
+  // after a commit the timeline has grown to fit the edited region itself.
+  useEffect(() => {
+    if (!preview)
+      w.timelineScroll.current
+        ?.querySelector<HTMLElement>(".timeline")
+        ?.style.removeProperty("min-width");
+  }, [preview, w.timelineScroll]);
+  // Abandons an unfinished drag: nothing is committed, previews disappear.
+  const cancelDrag = () => {
+    stopEdgeScroll();
+    if (!drag.current) return;
+    drag.current = null;
+    w.setRegionMove(null);
+    setPreview(null);
+  };
   const select = () => {
     w.setSelected(t.id);
     w.setClipId(c.id);
@@ -113,6 +178,55 @@ export function ClipRegion({
     return drag.current!.mode === "left"
       ? { position: c.start + cut, duration: c.duration - cut, y: 0 }
       : { position: c.start, duration: c.duration + cut, y: 0 };
+  };
+  // Draws the drag at a pointer position; position() and trimAt() already
+  // account for how far the timeline scrolled since the drag began.
+  const showDrag = (x: number, y: number) => {
+    if (!drag.current?.moved) return;
+    if (drag.current.mode === "move" && w.selectedRegions.length > 1) {
+      w.setRegionMove(
+        Math.max(
+          -Math.min(...w.selectedRegions.map((c) => c.start)),
+          position(x) - c.start,
+        ),
+      );
+      return;
+    }
+    setPreview(
+      drag.current.mode !== "move"
+        ? trimAt(x)
+        : {
+            position: position(x),
+            y:
+              y -
+              drag.current.y +
+              (w.timelineScroll.current?.scrollTop ?? 0) -
+              drag.current.scrollY,
+          },
+    );
+  };
+  // Holding a drag near the timeline's edge scrolls it, faster the closer
+  // the pointer is, so handles and regions can go past the visible area.
+  // Moving a region also scrolls vertically towards other tracks.
+  const scrollAtEdge = () => {
+    edgeScroll.current = null;
+    const view = w.timelineScroll.current,
+      at = pointer.current;
+    if (!drag.current || !view || !at) return;
+    const moving = drag.current.mode === "move";
+    // A single-region drag may push the timeline past its end; several
+    // regions move by a shared delta and stay within it.
+    if (
+      !scrollTowardsEdge(
+        view,
+        at,
+        moving,
+        !(moving && w.selectedRegions.length > 1),
+      )
+    )
+      return;
+    showDrag(at.x, at.y);
+    edgeScroll.current = requestAnimationFrame(scrollAtEdge);
   };
   const cutStart =
     preview?.duration === undefined ? 0 : preview.position - c.start;
@@ -291,33 +405,24 @@ export function ClipRegion({
                 : "";
             return;
           }
+          // No button held means the release never reached us (focus moved
+          // away mid-drag); treat it as cancelled rather than keep dragging.
+          if (e.buttons === 0) {
+            cancelDrag();
+            return;
+          }
           if (
             Math.hypot(e.clientX - drag.current.x, e.clientY - drag.current.y) >
             4
           )
             drag.current.moved = true;
-          if (drag.current.moved)
-            if (drag.current.mode === "move" && w.selectedRegions.length > 1) {
-              const delta = Math.max(
-                -Math.min(...w.selectedRegions.map((c) => c.start)),
-                position(e.clientX) - c.start,
-              );
-              w.setRegionMove(delta);
-            } else
-              setPreview(
-                drag.current.mode !== "move"
-                  ? trimAt(e.clientX)
-                  : {
-                      position: position(e.clientX),
-                      y:
-                        e.clientY -
-                        drag.current.y +
-                        (w.timelineScroll.current?.scrollTop ?? 0) -
-                        drag.current.scrollY,
-                    },
-              );
+          pointer.current = { x: e.clientX, y: e.clientY };
+          showDrag(e.clientX, e.clientY);
+          if (drag.current.moved && edgeScroll.current === null)
+            edgeScroll.current = requestAnimationFrame(scrollAtEdge);
         }}
         onPointerUp={async (e) => {
+          stopEdgeScroll();
           if (!drag.current) return;
           if (drag.current.mode === "move" && w.selectedRegions.length > 1) {
             const moved = drag.current.moved;
@@ -395,11 +500,11 @@ export function ClipRegion({
             })
             .finally(() => setPreview(null));
         }}
-        onPointerCancel={() => {
-          w.setRegionMove(null);
-          drag.current = null;
-          setPreview(null);
-        }}
+        onPointerCancel={cancelDrag}
+        // Alt+Tab or another window taking the mouse mid-drag ends capture
+        // without a pointerup; the region goes back where it was. After a
+        // normal release drag.current is already cleared, so this is a no-op.
+        onLostPointerCapture={cancelDrag}
         onPointerLeave={(e) => {
           e.currentTarget.style.setProperty("--trim-left", "0");
           e.currentTarget.style.setProperty("--trim-right", "0");

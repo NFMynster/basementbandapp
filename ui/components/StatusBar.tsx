@@ -38,9 +38,9 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
   return (
     <>
       <footer>
-        <button onClick={openSetup}>
+        <button onClick={openSetup} title={s.device}>
           <span className={"live-dot " + (s.deviceError ? "warning" : "")} />
-          {s.device}
+          <span className="footer-device">{s.device}</span>
           <ChevronDown size={12} />
         </button>
         <button aria-label="Audio timing settings" onClick={openSetup}>
@@ -100,12 +100,15 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           ) : (
             "Mark a track to get started"
           )}
-          <span className="key">{keyLabel(controller.bindings.record)}</span>
-          record / stop
-          <span className="key">{keyLabel(controller.bindings.play)}</span>
-          play / stop
-          <span className="key">{keyLabel(controller.bindings.start)}</span>
-          back to start
+          {/* Reminders only; hidden when the window is narrow. */}
+          <span className="footer-keys">
+            <span className="key">{keyLabel(controller.bindings.record)}</span>
+            record / stop
+            <span className="key">{keyLabel(controller.bindings.play)}</span>
+            play / stop
+            <span className="key">{keyLabel(controller.bindings.start)}</span>
+            back to start
+          </span>
         </div>
       </footer>
       {diagnostics && (

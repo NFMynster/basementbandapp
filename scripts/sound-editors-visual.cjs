@@ -195,6 +195,28 @@ app
     );
     w.showInactive();
     await new Promise((r) => setTimeout(r, 250));
+    // The transport counter stays clear of the buttons beside it down to the
+    // minimum window width (1050 px in desktop/main.cjs).
+    for (const width of [1440, 1200, 1050]) {
+      w.setSize(width, 800);
+      await new Promise((r) => setTimeout(r, 120));
+      const clash = await w.webContents.executeJavaScript(`(() => {
+        const box = (s) => document.querySelector(s).getBoundingClientRect();
+        const lcd = box('.lcd'), left = box('.transport-left'), right = box('.transport-right'), bar = box('.transport');
+        if (lcd.left < left.right || lcd.right > right.left) return 'counter overlaps the buttons';
+        if (right.right > bar.right || left.left < bar.left) return 'controls overflow the bar';
+        const footer = document.querySelector('footer');
+        if (footer.scrollWidth > footer.clientWidth) return 'footer overflows';
+        if ([...footer.children].some((item) => item.getBoundingClientRect().height > 24)) return 'footer text wraps';
+        return '';
+      })()`);
+      if (clash) throw new Error(`Transport at ${width}px: ${clash}`);
+      if (width === 1050)
+        writeFileSync(
+          "artifacts/screenshots/transport-1050.png",
+          (await w.webContents.capturePage()).toPNG(),
+        );
+    }
     for (const width of [1440, 1100]) {
       w.setSize(width, 800);
       await w.webContents.executeJavaScript(
@@ -249,10 +271,19 @@ app
     );
     // Dragging the loop handle out and back to where it started is a change
     // of mind: the preview shows copies on the way, but no loop is created.
+    // Dragging near the timeline's right edge scrolls it, so first bring the
+    // region's end to the middle of the view and stay clear of that edge.
     const loopHandle = await w.webContents.executeJavaScript(`(() => {
-      const r = document.querySelector('[data-clip="clipg"]').getBoundingClientRect();
-      return {x: Math.round(r.right - 3), y: Math.round(r.top + 5)};
+      const view = document.querySelector('.timeline-scroll');
+      const clip = document.querySelector('[data-clip="clipg"]');
+      const v = view.getBoundingClientRect();
+      view.scrollLeft += clip.getBoundingClientRect().right - (v.left + v.width / 2);
+      const r = clip.getBoundingClientRect();
+      return {x: Math.round(r.right - 3), y: Math.round(r.top + 5), room: Math.round(v.right - 80 - r.right)};
     })()`);
+    await new Promise((r) => setTimeout(r, 100));
+    // Moves carry the held button, as real drags do; a move without it is
+    // treated as a drag whose release was lost.
     const mouse = (type, x) =>
       w.webContents.sendInputEvent({
         type,
@@ -260,6 +291,7 @@ app
         y: loopHandle.y,
         button: "left",
         clickCount: 1,
+        ...(type === "mouseMove" && { modifiers: ["leftButtonDown"] }),
       });
     // Input events and React renders land asynchronously; wait for the
     // preview to reach the expected state instead of a fixed delay.
@@ -274,13 +306,17 @@ app
       return false;
     };
     mouse("mouseDown", loopHandle.x);
-    for (const step of [40, 120, 200]) {
+    for (const step of [0.25, 0.6, 1].map((f) =>
+      Math.round(f * loopHandle.room),
+    )) {
       mouse("mouseMove", loopHandle.x + step);
       await new Promise((r) => setTimeout(r, 30));
     }
     if (!(await previewShown(true)))
       throw new Error("Loop drag shows no repeat preview");
-    for (const step of [120, 40, 0]) {
+    for (const step of [0.6, 0.25, 0].map((f) =>
+      Math.round(f * loopHandle.room),
+    )) {
       mouse("mouseMove", loopHandle.x + step);
       await new Promise((r) => setTimeout(r, 30));
     }
@@ -324,6 +360,110 @@ app
       "artifacts/screenshots/plugins-redesign.png",
       (await w.webContents.capturePage()).toPNG(),
     );
+    // Holding a loop drag at the timeline's right edge scrolls the timeline
+    // and keeps extending the loop past what was visible.
+    const edge = await w.webContents.executeJavaScript(`(() => {
+      // Same scroll as above, so loopHandle still points at the handle.
+      const view = document.querySelector('.timeline-scroll');
+      const r = view.getBoundingClientRect();
+      return {x: Math.round(r.right - 8), start: view.scrollLeft};
+    })()`);
+    mouse("mouseDown", loopHandle.x);
+    for (const x of [loopHandle.x + 40, edge.x])
+      (mouse("mouseMove", x), await new Promise((r) => setTimeout(r, 30)));
+    await new Promise((r) => setTimeout(r, 600));
+    const edgeScrolled = await w.webContents.executeJavaScript(
+      `({left: document.querySelector('.timeline-scroll').scrollLeft, copies: document.querySelectorAll('.clip.repeat-copy').length})`,
+    );
+    // Cancel the drag (button up elsewhere) and put the view back.
+    w.webContents.sendInputEvent({
+      type: "mouseMove",
+      x: edge.x - 1,
+      y: loopHandle.y,
+    });
+    mouse("mouseUp", edge.x - 1);
+    await new Promise((r) => setTimeout(r, 150));
+    await w.webContents.executeJavaScript(
+      `document.querySelector('.timeline-scroll').scrollLeft = 0`,
+    );
+    if (edgeScrolled.left - edge.start < 100 || edgeScrolled.copies < 2)
+      throw new Error(
+        "Loop drag at the edge does not scroll the timeline: " +
+          JSON.stringify(edgeScrolled),
+      );
+    // A region drag whose release never arrives (Alt+Tab, then letting go in
+    // another window) must not leave the region floating between lanes.
+    const region = await w.webContents.executeJavaScript(`(() => {
+      const r = document.querySelector('[data-clip="clipg"]').getBoundingClientRect();
+      return {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), left: r.left, top: r.top};
+    })()`);
+    const regionRect = () =>
+      w.webContents.executeJavaScript(
+        `(() => { const r = document.querySelector('[data-clip="clipg"]').getBoundingClientRect(); return {left: r.left, top: r.top}; })()`,
+      );
+    w.webContents.sendInputEvent({
+      type: "mouseDown",
+      x: region.x,
+      y: region.y,
+      button: "left",
+      clickCount: 1,
+    });
+    for (const step of [20, 60, 120]) {
+      w.webContents.sendInputEvent({
+        type: "mouseMove",
+        x: region.x + step,
+        y: region.y, // sideways only: no vertical edge scroll
+        modifiers: ["leftButtonDown"],
+      });
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    let regionDragged = false;
+    for (let attempt = 0; attempt < 40 && !regionDragged; ++attempt) {
+      const now = await regionRect();
+      regionDragged = now.left !== region.left || now.top !== region.top;
+      if (!regionDragged) await new Promise((r) => setTimeout(r, 25));
+    }
+    if (!regionDragged) throw new Error("Region drag shows no preview");
+    // The button is no longer held: the release happened elsewhere.
+    w.webContents.sendInputEvent({
+      type: "mouseMove",
+      x: region.x + 130,
+      y: region.y,
+    });
+    let regionRestored = false;
+    for (let attempt = 0; attempt < 40 && !regionRestored; ++attempt) {
+      const now = await regionRect();
+      regionRestored = now.left === region.left && now.top === region.top;
+      if (!regionRestored) await new Promise((r) => setTimeout(r, 25));
+    }
+    // Let Chromium's own button state go too, or later clicks in this script
+    // would be read as a continuing drag.
+    w.webContents.sendInputEvent({
+      type: "mouseUp",
+      x: region.x + 130,
+      y: region.y,
+      button: "left",
+      clickCount: 1,
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    if (!regionRestored)
+      throw new Error("Region stays stuck after its drag release was lost");
+    const regionAfter = await regionRect();
+    if (regionAfter.left !== region.left || regionAfter.top !== region.top)
+      throw new Error("A cancelled region drag must not move the region");
+    // Switching windows mid-drag cancels the drag without a dragend on the
+    // page; the drop gap must not stay behind.
+    await w.webContents.executeJavaScript(`(() => {
+      const data = new DataTransfer();
+      const source = document.querySelector('[data-track-header="g"]');
+      const target = document.querySelector('[data-track-header="m"]');
+      source.dispatchEvent(new DragEvent('dragstart', {bubbles: true, dataTransfer: data}));
+      const r = target.getBoundingClientRect();
+      target.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: data, clientX: r.left + 20, clientY: r.bottom - 4}));
+      if (!target.classList.contains('reorder-target')) throw new Error('Track drag shows no drop position');
+      window.dispatchEvent(new Event('blur'));
+      if (document.querySelector('.reorder-target')) throw new Error('Track drop gap stays after the window loses focus mid-drag');
+    })()`);
     // MIDI tracks are always live: no monitor button in the header and no
     // monitor switch in the Recording tab.
     const midiHeader = await w.webContents.executeJavaScript(`(() => {
