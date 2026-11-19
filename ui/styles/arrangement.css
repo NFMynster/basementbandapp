@@ -396,7 +396,7 @@
 }
 .ruler-loop {
   top: 0;
-  cursor: crosshair;
+  cursor: ew-resize;
   border-bottom: 1px solid var(--tint-18);
 }
 .ruler,
@@ -514,7 +514,15 @@
 }
 .ruler-seek {
   bottom: 0;
+  cursor: crosshair;
+}
+.ruler[data-ruler-drag="loop"],
+.ruler[data-ruler-drag="loop"] * {
   cursor: ew-resize;
+}
+.ruler[data-ruler-drag="seek"],
+.ruler[data-ruler-drag="seek"] * {
+  cursor: crosshair;
 }
 .ruler-zone:hover {
   background-color: var(--tint-06);

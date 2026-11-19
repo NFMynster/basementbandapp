@@ -194,9 +194,10 @@ export function useMidiEditor(w: Options) {
   function deleteSelected() {
     return edit(selected.map((note) => ({ event: note.event, delete: true })));
   }
-  function applyVelocity() {
+  /** Applies the toolbar velocity (or a typed one) to the selected notes. */
+  function applyVelocity(value = velocity) {
     if (selected.length)
-      return edit(selected.map((note) => ({ ...note, velocity })));
+      return edit(selected.map((note) => ({ ...note, velocity: value })));
   }
   function editorKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const mod = e.ctrlKey || e.metaKey;

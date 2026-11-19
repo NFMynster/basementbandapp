@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Power } from "lucide-react";
 import type { Track, TrackPatch } from "../models";
+import { ValueEntry, useValueEntry } from "./ValueEntry";
 
 const effects = {
   compressor: {
@@ -50,6 +51,7 @@ export function TrackEffect({
   const gesture = useRef<{ id: string; released: boolean } | undefined>(
     undefined,
   );
+  const entry = useValueEntry();
   const config = effects[effect];
   const enabled = !!track[config.toggle];
   const extras = {
@@ -134,7 +136,8 @@ export function TrackEffect({
         {controls.map((control) => {
           const key = control.value as keyof Track;
           const value = (track[key] as number | undefined) ?? control.initial;
-          const display = `${control.unit === "%" ? Math.round(value * 100) : value}${control.unit}`;
+          const percent = control.unit === "%";
+          const display = `${percent ? Math.round(value * 100) : value}${control.unit}`;
           return (
             <label className="effect-amount" key={key} title={control.hint}>
               <span>
@@ -150,6 +153,8 @@ export function TrackEffect({
                 step={control.step}
                 value={value}
                 disabled={!enabled}
+                title={`${control.hint} Double-click to reset, right-click to type a value.`}
+                onContextMenu={entry.open(key)}
                 onPointerDown={() => {
                   gesture.current = {
                     id: crypto.randomUUID(),
@@ -176,6 +181,22 @@ export function TrackEffect({
                   });
                 }}
                 onDoubleClick={() => update(track, { [key]: control.initial })}
+              />
+              <ValueEntry
+                label={`${config.title} ${control.label.toLowerCase()}`}
+                value={percent ? Math.round(value * 100) : value}
+                unit={control.unit.trim()}
+                min={percent ? control.min * 100 : control.min}
+                max={percent ? control.max * 100 : control.max}
+                step={percent ? 1 : control.step}
+                reset={
+                  percent ? Math.round(control.initial * 100) : control.initial
+                }
+                anchor={entry.anchor(key)}
+                onCommit={(typed) =>
+                  update(track, { [key]: percent ? typed / 100 : typed })
+                }
+                onClose={entry.close}
               />
             </label>
           );

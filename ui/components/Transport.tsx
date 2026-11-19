@@ -1,5 +1,6 @@
 import { Tuner } from "./Tuner";
 import { LevelSlider } from "./LevelSlider";
+import { VALUE_ENTRY_LAYER, ValueEntry, useValueEntry } from "./ValueEntry";
 import { useEffect, useRef, useState } from "react";
 import {
   HelpCircle,
@@ -73,6 +74,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
   const [clickVolumeOpen, setClickVolumeOpen] = useState(false);
   const clickVolume = useRef<HTMLDivElement>(null);
   const volumeGesture = useRef<string | undefined>(undefined);
+  const clickVolumeEntry = useValueEntry();
   const taps = useRef<number[]>([]);
   const tapApply = useRef<number | undefined>(undefined);
   const [tapBpm, setTapBpm] = useState<number | null>(null);
@@ -106,7 +108,11 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
     if (!clickVolumeOpen) return;
     clickVolume.current?.querySelector("input")?.focus();
     const dismiss = (event: PointerEvent) => {
-      if (!clickVolume.current?.contains(event.target as Node))
+      const target = event.target as Element;
+      if (
+        !clickVolume.current?.contains(target) &&
+        !target.closest?.(VALUE_ENTRY_LAYER)
+      )
         setClickVolumeOpen(false);
     };
     document.addEventListener("pointerdown", dismiss);
@@ -238,9 +244,11 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
                 }}
                 onBlur={(e) => {
                   // Tabbing out closes the menu; clicks are handled above.
+                  // The typed-volume popover is portalled outside the menu.
                   if (
                     e.relatedTarget &&
-                    !e.currentTarget.contains(e.relatedTarget as Node)
+                    !e.currentTarget.contains(e.relatedTarget as Node) &&
+                    !(e.relatedTarget as Element).closest(VALUE_ENTRY_LAYER)
                   )
                     setClickVolumeOpen(false);
                 }}
@@ -265,6 +273,8 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
                     onBlur={() => {
                       volumeGesture.current = undefined;
                     }}
+                    title="Metronome volume - right-click to type a value"
+                    onContextMenu={clickVolumeEntry.open("volume")}
                     onChange={(e) =>
                       void run({
                         op: "metronomeVolume",
@@ -274,6 +284,19 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
                     }
                   />
                   <output>{Math.round((s.metronomeGain ?? 1) * 100)}%</output>
+                  <ValueEntry
+                    label="Metronome volume"
+                    value={Math.round((s.metronomeGain ?? 1) * 100)}
+                    unit="%"
+                    min={0}
+                    max={400}
+                    reset={100}
+                    anchor={clickVolumeEntry.anchor("volume")}
+                    onCommit={(percent) =>
+                      void run({ op: "metronomeVolume", value: percent / 100 })
+                    }
+                    onClose={clickVolumeEntry.close}
+                  />
                 </div>
                 <div className="metronome-options">
                   <div

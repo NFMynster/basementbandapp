@@ -101,6 +101,7 @@
     <None Include="ui\components\TrackRoutingPanel.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Transport.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Tuner.tsx"><Filter>React interface\components</Filter></None>
+    <None Include="ui\components\ValueEntry.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\Waveform.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\components\WelcomeDialog.tsx"><Filter>React interface\components</Filter></None>
     <None Include="ui\hooks\useAnimatedPlayhead.ts"><Filter>React interface\hooks</Filter></None>

@@ -10,6 +10,7 @@ import type { WorkspaceController } from "../hooks/useWorkspace";
 import type { Track } from "../models";
 import { desktop as api } from "../services/desktop";
 import { LevelSlider } from "./LevelSlider";
+import { ValueEntry, useValueEntry } from "./ValueEntry";
 import { TrackEffect } from "./TrackEffects";
 import { TrackAppearance } from "./TrackAppearance";
 export function TrackRecordingPanel({
@@ -20,6 +21,7 @@ export function TrackRecordingPanel({
   track: Track;
 }) {
   const { s, update, openSetup, busy, task } = controller;
+  const panEntry = useValueEntry();
   const panGesture = useRef<{ id: string; released: boolean } | undefined>(
     undefined,
   );
@@ -110,7 +112,8 @@ export function TrackRecordingPanel({
           <span>L</span>
           <input
             aria-label="Track pan"
-            title="Pan - double-click to center"
+            title="Pan - double-click to center, right-click to type a value"
+            onContextMenu={panEntry.open("pan")}
             onDoubleClick={() => update(track, { pan: 0 })}
             type="range"
             min="-1"
@@ -148,6 +151,20 @@ export function TrackRecordingPanel({
             }}
           />
           <span>R</span>
+          <ValueEntry
+            label="Track pan"
+            value={Math.round(track.pan * 100)}
+            unit=""
+            min={-100}
+            max={100}
+            format={formatPan}
+            parse={parsePan}
+            reset={0}
+            resetLabel="center"
+            anchor={panEntry.anchor("pan")}
+            onCommit={(pan) => update(track, { pan: pan / 100 })}
+            onClose={panEntry.close}
+          />
         </div>
       </div>
       {track.kind === "audio" && (
@@ -160,4 +177,19 @@ export function TrackRecordingPanel({
       )}
     </div>
   );
+}
+
+/** Pan as mixers write it: L30, C, R30 (from -100 to 100). */
+function formatPan(pan: number) {
+  return pan < 0 ? `L${-pan}` : pan > 0 ? `R${pan}` : "C";
+}
+
+/** Accepts "L30", "R 30", "C", "center" or a plain number from -100 to 100. */
+function parsePan(text: string): number | undefined {
+  const t = text.trim().toLowerCase().replace("−", "-").replace(",", ".");
+  if (t === "c" || t === "center" || t === "centre") return 0;
+  const match = /^([lr])?\s*([+-]?\d+\.?\d*)\s*%?$/.exec(t);
+  if (!match) return undefined;
+  const n = Math.round(Number(match[2]));
+  return match[1] === "l" ? -Math.abs(n) : match[1] === "r" ? Math.abs(n) : n;
 }

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Maximize2, Power, RotateCcw } from "lucide-react";
 import type { Track, TrackPatch } from "../models";
+import { ValueEntry, useValueEntry } from "./ValueEntry";
 
 const bands = [
   {
@@ -144,6 +145,7 @@ export function TrackEqualizer({
       Math.abs((track.eqMidQ ?? 0.7) - 0.7) < 0.0001 &&
       (track.eqLowCut ?? 20) === 20,
   );
+  const entry = useValueEntry<keyof typeof defaults>();
   const change = (patch: TrackPatch) =>
     update(track, { ...patch, historyGroup: gesture.current });
   const curve = Array.from({ length: 220 }, (_, i) => {
@@ -163,6 +165,8 @@ export function TrackEqualizer({
     display: string,
   ) {
     const logarithmic = key.endsWith("Frequency");
+    const unit =
+      logarithmic || key === "eqLowCut" ? "Hz" : key === "eqMidQ" ? "Q" : "dB";
     return (
       <label className="eq-detail">
         <span>
@@ -184,6 +188,8 @@ export function TrackEqualizer({
               : (track[key] ?? defaults[key])
           }
           disabled={!enabled}
+          title="Right-click to type a value"
+          onContextMenu={entry.open(key)}
           onPointerDown={() => {
             gesture.current = crypto.randomUUID();
           }}
@@ -200,6 +206,22 @@ export function TrackEqualizer({
                 : +e.target.value,
             })
           }
+        />
+        <ValueEntry
+          label={
+            key === "eqLowCut" ? label : `${band.name} ${label.toLowerCase()}`
+          }
+          value={track[key] ?? defaults[key]}
+          unit={unit}
+          min={min}
+          max={max}
+          decimals={step < 1 ? 1 : 0}
+          step={unit === "Hz" ? 10 : step}
+          reset={defaults[key]}
+          resetLabel={key === "eqLowCut" ? "off" : undefined}
+          anchor={entry.anchor(key)}
+          onCommit={(value) => update(track, { [key]: value })}
+          onClose={entry.close}
         />
       </label>
     );

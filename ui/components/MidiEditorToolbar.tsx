@@ -10,6 +10,7 @@ import {
   Pencil,
 } from "lucide-react";
 import type { MidiEditorController } from "../hooks/useMidiEditor";
+import { ValueEntry, useValueEntry } from "./ValueEntry";
 export function MidiEditorToolbar({
   editor,
 }: {
@@ -42,6 +43,7 @@ export function MidiEditorToolbar({
     paste,
     createRegion,
   } = editor;
+  const velocityEntry = useValueEntry();
   if (!clip) return null;
   return (
     <div className="midi-tools" role="group" aria-label="MIDI editor tools">
@@ -142,12 +144,28 @@ export function MidiEditorToolbar({
             value={velocity}
             disabled={unavailable}
             onChange={(e) => setVelocity(+e.target.value)}
-            onPointerUp={applyVelocity}
+            onPointerUp={() => void applyVelocity()}
+            title="Right-click to type a value"
+            onContextMenu={velocityEntry.open("velocity")}
             onKeyUp={(e) => {
               if (e.key.startsWith("Arrow")) void applyVelocity();
             }}
           />
           <output>{velocity}</output>
+          <ValueEntry
+            label="Note velocity"
+            value={velocity}
+            unit=""
+            min={1}
+            max={127}
+            reset={100}
+            anchor={velocityEntry.anchor("velocity")}
+            onCommit={(value) => {
+              setVelocity(value);
+              void applyVelocity(value);
+            }}
+            onClose={velocityEntry.close}
+          />
         </label>
         <button
           aria-label="Show full keyboard"

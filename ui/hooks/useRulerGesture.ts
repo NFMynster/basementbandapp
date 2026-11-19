@@ -43,7 +43,14 @@ export function useRulerGesture({
     start: number;
     x: number;
     inside: boolean;
+    ruler: HTMLElement;
   } | null>(null);
+  // The ruler captures the pointer, so mark it with the drag mode to keep
+  // that mode's cursor while the pointer leaves its half of the ruler.
+  function endGesture() {
+    delete rulerGesture.current?.ruler.dataset.rulerDrag;
+    rulerGesture.current = null;
+  }
   function rulerDown(e: PointerEvent) {
     if (s.recording || e.button !== 0) return;
     ++rulerRevision.current;
@@ -61,7 +68,9 @@ export function useRulerGesture({
       start,
       x: e.clientX,
       inside: raw >= s.loopStart && raw <= s.loopEnd,
+      ruler: e.currentTarget as HTMLElement,
     };
+    (e.currentTarget as HTMLElement).dataset.rulerDrag = mode;
     if (mode === "seek") {
       setSelection(null);
       setDragPosition(start);
@@ -82,7 +91,7 @@ export function useRulerGesture({
     if (!gesture) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const end = rulerPosition(e.clientX, rect, zoom, secondsPerBar);
-    rulerGesture.current = null;
+    endGesture();
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
     const a = Math.min(gesture.start, end),
@@ -113,7 +122,7 @@ export function useRulerGesture({
   }
   function rulerCancel() {
     ++rulerRevision.current;
-    rulerGesture.current = null;
+    endGesture();
     setSelection(null);
     setDragPosition(null);
   }

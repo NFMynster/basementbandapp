@@ -108,6 +108,7 @@
     <None Include="ui\components\TrackRoutingPanel.tsx" />
     <None Include="ui\components\Transport.tsx" />
     <None Include="ui\components\Tuner.tsx" />
+    <None Include="ui\components\ValueEntry.tsx" />
     <None Include="ui\components\Waveform.tsx" />
     <None Include="ui\components\WelcomeDialog.tsx" />
     <None Include="ui\hooks\useAnimatedPlayhead.ts" />

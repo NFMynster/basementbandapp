@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { ValueEntry, useValueEntry } from "./ValueEntry";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 
 export function ClipSound({
@@ -8,6 +9,7 @@ export function ClipSound({
 }) {
   const clip = w.track?.clips.find((c) => c.id === w.clipId);
   const gesture = useRef<string | undefined>(undefined);
+  const entry = useValueEntry<"gain" | "fadeIn" | "fadeOut">();
   if (!clip)
     return (
       <p className="notes-empty">Select a region to adjust its settings.</p>
@@ -78,6 +80,8 @@ export function ClipSound({
                     onPointerDown={() => {
                       gesture.current = crypto.randomUUID();
                     }}
+                    title="Right-click to type a value"
+                    onContextMenu={entry.open(key)}
                     onKeyDown={() => {
                       gesture.current = undefined;
                     }}
@@ -109,6 +113,50 @@ export function ClipSound({
                 </label>
               ))}
             </div>
+            <ValueEntry
+              label="Clip volume"
+              value={Math.max(-48, 20 * Math.log10(clip.gain ?? 1))}
+              unit="dB"
+              min={-48}
+              max={12}
+              decimals={1}
+              reset={0}
+              anchor={entry.anchor("gain")}
+              onCommit={(db) =>
+                void w.run({
+                  op: "editClip",
+                  action: "sound",
+                  track: w.track.id,
+                  clip: clip.id,
+                  gain: 10 ** (db / 20),
+                })
+              }
+              onClose={entry.close}
+            />
+            {(["fadeIn", "fadeOut"] as const).map((key) => (
+              <ValueEntry
+                key={key}
+                label={key === "fadeIn" ? "Fade in" : "Fade out"}
+                value={Math.min(clip.duration, clip[key] ?? 0)}
+                unit="s"
+                min={0}
+                max={clip.duration}
+                decimals={2}
+                step={0.1}
+                reset={0}
+                anchor={entry.anchor(key)}
+                onCommit={(seconds) =>
+                  void w.run({
+                    op: "editClip",
+                    action: "sound",
+                    track: w.track.id,
+                    clip: clip.id,
+                    [key]: seconds,
+                  })
+                }
+                onClose={entry.close}
+              />
+            ))}
             <button
               className="region-reset"
               disabled={w.s.recording || w.busy}

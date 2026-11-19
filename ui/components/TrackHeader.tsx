@@ -1,9 +1,12 @@
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { Volume2, GripVertical } from "lucide-react";
 import type { Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { LevelSlider } from "./LevelSlider";
 import { TrackIcon } from "./TrackIcon";
+
+/** Controls inside a header that must not start a track drag. */
+const NO_DRAG = "button:not(.track-reorder), input, select, textarea";
 
 /** Removes the drop-position gap shown while a track is dragged. */
 function clearReorderMarks() {
@@ -47,15 +50,20 @@ export function TrackHeader({
   onMenu: (track: Track, anchor: { x: number; y: number }) => void;
 }) {
   const { s, update, setSelected, openProperties, trackPing } = controller;
+  // Chromium reports the draggable header, not the control, as the dragstart
+  // target, so remember where the press began (e.g. on the volume slider).
+  const pressedControl = useRef(false);
   return (
     <div
       data-track-header={track.id}
       draggable={!s.playing && !controller.busy}
+      onPointerDownCapture={(e) => {
+        pressedControl.current = !!(e.target as HTMLElement).closest(NO_DRAG);
+      }}
       onDragStart={(e) => {
         if (
-          (e.target as HTMLElement).closest(
-            "button:not(.track-reorder), input, select, textarea",
-          )
+          pressedControl.current ||
+          (e.target as HTMLElement).closest(NO_DRAG)
         ) {
           e.preventDefault();
           return;
