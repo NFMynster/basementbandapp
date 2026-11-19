@@ -1,6 +1,6 @@
 {
   "name": "basement-band",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "description": "A small, local recording room for playing together",
   "main": "desktop/main.cjs",
