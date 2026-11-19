@@ -55,6 +55,7 @@ app.whenReady().then(() => {
         app.isPackaged ? process.resourcesPath : path.join(__dirname, ".."),
         path.join(app.getPath("userData"), "Sessions"),
         inputAllowed,
+        path.join(app.getPath("userData"), "audio-device.json"),
       );
     } catch (error) {
       startupError = error;

@@ -23,6 +23,7 @@ target_sources(BasementAudio PRIVATE
     Export.cpp
     Recording.cpp
     PluginHost.cpp
+    WindowFocus.cpp
     DeviceCommands.cpp
     SessionCommands.cpp
     Commands.cpp

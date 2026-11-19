@@ -38,7 +38,9 @@
     <ClInclude Include="native\Model.h" />
     <ClInclude Include="native\SoundProcessing.h" />
     <ClCompile Include="native\PluginHost.cpp" />
+    <ClCompile Include="native\WindowFocus.cpp" />
     <ClInclude Include="native\PluginWindow.h" />
+    <ClInclude Include="native\WindowFocus.h" />
     <ClCompile Include="native\Recording.cpp" />
     <ClCompile Include="native\Rendering.cpp" />
     <ClCompile Include="native\SessionCommands.cpp" />

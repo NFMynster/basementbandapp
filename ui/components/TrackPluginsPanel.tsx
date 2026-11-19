@@ -1,5 +1,12 @@
-import { useRef } from "react";
-import { ArrowLeft, ArrowRight, Plus, Power, Trash2 } from "lucide-react";
+import { useRef, type MouseEvent } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  KeyboardMusic,
+  Plus,
+  Power,
+  Trash2,
+} from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import type { AmpCharacter, Track } from "../models";
 import { desktop as api } from "../services/desktop";
@@ -11,6 +18,11 @@ export const STARTER_SOUNDS: Record<Exclude<AmpCharacter, "none">, string> = {
   lead: "Lead guitar",
   bass: "Bass",
 };
+
+// Double-clicking a plug-in card opens its editor; double-clicks on the card's
+// own buttons (bypass, move, remove) keep their meaning.
+const onButton = (e: MouseEvent<HTMLElement>) =>
+  !!(e.target as HTMLElement).closest("button");
 
 export function TrackPluginsPanel({
   controller,
@@ -42,29 +54,8 @@ export function TrackPluginsPanel({
     <div className="plugins-panel">
       <div className="plugin-toolbar">
         <h3>Plug-ins</h3>
-        <button
-          disabled={s.playing || busy}
-          onClick={() =>
-            controller.setSoundBrowser({
-              track: track.id,
-              presets: true,
-            })
-          }
-        >
-          Track presets
-        </button>
       </div>
       <div className="plugin-details">
-        {track.kind === "midi" && !track.pluginName && (
-          <div className="instrument-hint" role="note">
-            <strong>This track has no sound yet</strong>
-            <span>
-              MIDI tracks play through an instrument plug-in. Add any VST3
-              instrument (piano, synth, drums, strings) and play it from your
-              keyboard. Plenty of good ones are free.
-            </span>
-          </div>
-        )}
         {emptyChain && (
           <div
             className="starter-sounds"
@@ -119,7 +110,12 @@ export function TrackPluginsPanel({
             </div>
           )}
           <div
-            className="plugin-slot"
+            className={
+              "plugin-slot" +
+              (track.kind === "midi" && !track.pluginName
+                ? " instrument-empty"
+                : "")
+            }
             draggable={
               track.kind === "audio" &&
               !!track.pluginName &&
@@ -132,6 +128,10 @@ export function TrackPluginsPanel({
             }}
             onDragEnd={() => {
               effectDrag.current = null;
+            }}
+            onDoubleClick={(e) => {
+              if (track.pluginName && !onButton(e))
+                void run({ op: "editor", track: track.id }, false);
             }}
             onDragOver={(e) => {
               if (track.kind === "audio" && effectDrag.current) {
@@ -222,6 +222,31 @@ export function TrackPluginsPanel({
                   <Trash2 size={15} />
                 </button>
               </>
+            ) : track.kind === "midi" ? (
+              // An empty MIDI track is silent until it has an instrument, so
+              // the slot itself explains that instead of a separate banner.
+              <>
+                <span className="instrument-empty-icon" aria-hidden="true">
+                  <KeyboardMusic size={20} />
+                </span>
+                <div>
+                  <strong>This track has no sound yet</strong>
+                  <p>
+                    MIDI tracks play through a VST3 instrument: piano, synth,
+                    drums or strings. Plenty of good ones are free.
+                  </p>
+                  <button
+                    className="instrument-empty-add"
+                    disabled={s.playing || busy}
+                    onClick={() =>
+                      controller.setSoundBrowser({ track: track.id })
+                    }
+                  >
+                    <Plus size={15} /> Add VST3 instrument
+                  </button>
+                  <small>or drop a .vst3 file here</small>
+                </div>
+              </>
             ) : (
               <button
                 disabled={s.playing || busy}
@@ -229,9 +254,7 @@ export function TrackPluginsPanel({
               >
                 <Plus size={20} />
                 <span>
-                  {track.kind === "midi"
-                    ? "Add VST3 instrument"
-                    : "Add VST3 plug-in"}
+                  Add VST3 plug-in
                   <small>Choose from your library or drop a VST3 here</small>
                 </span>
               </button>
@@ -249,6 +272,13 @@ export function TrackPluginsPanel({
               }}
               onDragEnd={() => {
                 effectDrag.current = null;
+              }}
+              onDoubleClick={(e) => {
+                if (!onButton(e))
+                  void run(
+                    { op: "editor", track: track.id, effect: effect.id },
+                    false,
+                  );
               }}
               onDragOver={(e) => {
                 if (effectDrag.current) {

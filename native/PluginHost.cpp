@@ -21,6 +21,17 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state, bool 
   auto p = plugins.createPluginInstance(*description, rate, block, error);
   if (!p)
     throw std::runtime_error(error.toStdString());
+  // Bus layouts explain most "loads but makes no sound" reports.
+  auto describeBuses = [&](const char *when) {
+    String text = "Plug-in " + description->name + " buses " + when + ":";
+    for (const bool input : {true, false})
+      for (int i = 0; i < p->getBusCount(input); ++i)
+        if (auto *bus = p->getBus(input, i))
+          text << (input ? " in" : " out") << i << "[" << bus->getName() << " "
+               << bus->getCurrentLayout().getDescription() << (bus->isEnabled() ? "" : " off") << "]";
+    std::cerr << text << std::endl;
+  };
+  describeBuses("offered");
   p->disableNonMainBuses();
   auto layout = p->getBusesLayout();
   require(layout.outputBuses.size() > 0, "Plug-in needs an audio output");
@@ -33,6 +44,7 @@ void Engine::loadPlugin(Track &t, const String &path, const String &state, bool 
   layout.outputBuses.set(0, AudioChannelSet::stereo());
   require(p->setBusesLayout(layout),
           "This version requires a stereo-compatible instrument or effect");
+  describeBuses("used");
   p->setPlayHead(&t.playHead);
   p->setRateAndBufferSizeDetails(rate, block);
   p->prepareToPlay(rate, block);

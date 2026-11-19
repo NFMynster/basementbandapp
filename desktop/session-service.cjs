@@ -1,5 +1,10 @@
 const { saveSession, readSession } = require("./session-storage.cjs");
 const {
+  deviceConfiguration,
+  loadAudioDevice,
+  saveAudioDevice,
+} = require("./audio-device.cjs");
+const {
   UNDOABLE_TRACK_SETTINGS,
   PLUGIN_SETTINGS,
   PRESET_SOUND_SETTINGS,
@@ -36,11 +41,14 @@ class SessionService {
   /**
    * @param {import("./native-client.cjs").NativeClient} engine
    * @param {string} directory
+   * @param {{ recover?: boolean, deviceFile?: string }} [options]
+   *   `deviceFile` remembers the audio device chosen in Settings.
    */
-  constructor(engine, directory, { recover = true } = {}) {
+  constructor(engine, directory, { recover = true, deviceFile } = {}) {
     this.engine = engine;
     this.directory = directory;
     this.recover = recover;
+    this.deviceFile = deviceFile;
     /** @type {HistoryEntry[]} */
     this.undoStack = [];
     /** @type {HistoryEntry[]} */
@@ -62,9 +70,43 @@ class SessionService {
     this.ready.catch(() => {});
     this.queue = Promise.resolve();
   }
+  /**
+   * Reapplies the device chosen last time. A device that is gone (unplugged
+   * interface, renamed driver) is retried without its input, then left at
+   * the engine's default, exactly as on a first launch.
+   */
+  async restoreAudioDevice() {
+    if (!this.deviceFile) return;
+    const saved = await loadAudioDevice(this.deviceFile);
+    if (!saved) return;
+    // A failed configure can leave the device closed; keep the launch default.
+    const fallback = deviceConfiguration(
+      await this.engine.request({ op: "devices" }).catch(() => null),
+    );
+    for (const attempt of [saved, { ...saved, input: "" }]) {
+      try {
+        await this.engine.request({ op: "configure", ...attempt });
+        console.log("Restored audio device", attempt.type, attempt.output);
+        return;
+      } catch (error) {
+        console.error(
+          "Remembered audio device unavailable:",
+          /** @type {Error} */ (error).message,
+        );
+        if (!attempt.input) break;
+      }
+    }
+    if (fallback)
+      await this.engine
+        .request({ op: "configure", ...fallback })
+        .catch((error) =>
+          console.error("Default audio device could not be reopened", error),
+        );
+  }
   async initialize() {
     this.folder = await this.workingDirectory();
     let state = await this.engine.request({ op: "init", folder: this.folder });
+    await this.restoreAudioDevice();
     if (this.recover) {
       let recoveryRead = false;
       try {
@@ -326,6 +368,10 @@ class SessionService {
       }
     }
     const result = await this.executeRaw(command);
+    if (command.op === "configure" && this.deviceFile)
+      await saveAudioDevice(this.deviceFile, result).catch((error) =>
+        console.error("Audio device could not be remembered", error),
+      );
     if (historyGroup) this.lastHistoryGroup = historyGroup;
     if (before) {
       const after = await this.engine.request({

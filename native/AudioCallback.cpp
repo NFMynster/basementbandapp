@@ -22,15 +22,18 @@ void Engine::click(float *const *outputs, int channels, int samples, double time
     constexpr double twoPi = MathConstants<double>::twoPi;
     double value;
     if (metronomeSound == 1) {
-      // Wood block: two inharmonic partials with a fast decay.
+      // Wood block: two inharmonic partials with a fast decay. The short
+      // clicks carry less energy than the beep, so their levels are set to
+      // sound at least as loud at the same metronome volume (measured over
+      // 50 ms: wood +1.5 dB, stick +0.4 dB relative to the beep).
       const double frequency = accent ? 1250 : 950;
-      value = 0.17 * (std::sin(twoPi * frequency * phase) + 0.45 * std::sin(twoPi * frequency * 2.76 * phase)) *
+      value = 0.3 * (std::sin(twoPi * frequency * phase) + 0.45 * std::sin(twoPi * frequency * 2.76 * phase)) *
               std::exp(-phase * 320);
     } else if (metronomeSound == 2) {
       // Stick: a short, brightened noise burst.
       clickNoise = clickNoise * 1664525u + 1013904223u;
       const float noise = (float)(clickNoise >> 8) / 8388608.0f - 1.0f;
-      value = (accent ? 0.17 : 0.11) * (noise - clickNoiseLast) * std::exp(-phase * 600);
+      value = (accent ? 0.42 : 0.32) * (noise - clickNoiseLast) * std::exp(-phase * 600);
       clickNoiseLast = noise;
     } else {
       const double frequency = accent ? 1500 : 1100;
@@ -267,7 +270,10 @@ void Engine::audioDeviceIOCallbackWithContext(const float *const *inputs, int ni
         }
       }
     }
-    if ((!playing && !t->monitor && t->auditionSamples == 0 && t->auditionTail == 0 && t->auditionMidi.isEmpty()) || n > t->scratch.getNumSamples())
+    // MIDI instruments always run, so live notes, the plug-in's own pads and
+    // preview buttons are heard without a monitor switch. Audio tracks only
+    // process while playing or monitoring their input.
+    if ((!playing && !t->isMidi && !t->monitor && t->auditionSamples == 0 && t->auditionTail == 0 && t->auditionMidi.isEmpty()) || n > t->scratch.getNumSamples())
       continue;
     const float *liveInput =
         !t->isMidi && t->monitor && t->input >= 0 && t->input < ni ? inputs[t->input] : nullptr;

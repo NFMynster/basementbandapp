@@ -5,8 +5,10 @@ void Engine::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &mes
   if (message.getRawDataSize() > 3 || message.getChannel() == 0)
     return;
   const ScopedLock lock(guard);
+  // Every MIDI track listening to this device and channel plays live input;
+  // mute a track to stop hearing it. Several armed tracks record at once.
   for (auto &t : tracks)
-    if (t->isMidi && (t->armed || t->monitor) && source &&
+    if (t->isMidi && source &&
         t->midiDevice == source->getIdentifier() &&
         (t->midiChannel == 0 || t->midiChannel == message.getChannel()))
       t->collector.addMessageToQueue(message);

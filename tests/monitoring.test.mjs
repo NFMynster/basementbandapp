@@ -107,7 +107,7 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     await send({ op: "track", track: midi, gain: 1 });
     await send({ op: "testMidi", track: midi, note: 36 });
     await output(0.125, 0);
-    s = await send({ op: "track", track: midi, monitor: false, armed: true });
+    s = await send({ op: "track", track: midi, armed: true });
     assert.equal(
       s.audioInputActive,
       false,
@@ -116,17 +116,12 @@ test("monitoring is independent of capture; master volume, no-device MIDI and po
     await send({ op: "seek", position: 1 });
     await send({ op: "record" }); // No MIDI device required.
     await send({ op: "testMidi", track: midi, note: 36 });
-    await output(0, 0);
+    await output(0.125, 0); // MIDI tracks have no monitor switch: you hear what you record.
     s = await send({ op: "stop" });
-    assert.equal(
-      s.tracks.at(-1).clips[0].notes[0].note,
-      36,
-      "Capture continues with monitoring off",
-    );
+    assert.equal(s.tracks.at(-1).clips[0].notes[0].note, 36);
     const snapshot = await send({ op: "snapshot" });
     s = await send({ op: "restore", session: snapshot, folder });
     assert.equal(s.masterGain, 0.5);
-    assert.equal(s.tracks.at(-1).monitor, false);
     await send({ op: "seek", position: 1 });
     await send({ op: "play" });
     await output(0.125, 0);

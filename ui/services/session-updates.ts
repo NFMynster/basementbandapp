@@ -20,6 +20,10 @@ export function optimisticSession(
       return { ...s, limiterEnabled: command.value };
     case "metronome":
       return { ...s, metronome: command.value };
+    // Opening the tuner opens the audio input, which restarts the device.
+    // Show (or close) the dialog at once instead of after the restart.
+    case "tuner":
+      return { ...s, tunerTrack: command.track ?? "", tunerFrequency: 0 };
     case "metronomeSound":
       return { ...s, metronomeSound: command.value };
     case "countIn":

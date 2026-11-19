@@ -168,15 +168,18 @@ export function TrackHeader({
           >
             S
           </button>
-          <button
-            title="Monitor live input · use headphones to avoid feedback"
-            aria-label={`Monitor ${track.name}`}
-            aria-pressed={!!track.monitor}
-            className={track.monitor ? "solo" : ""}
-            onClick={() => update(track, { monitor: !track.monitor })}
-          >
-            <Volume2 size={12} />
-          </button>
+          {/* MIDI tracks are always live; mute one to stop hearing it. */}
+          {track.kind === "audio" && (
+            <button
+              title="Monitor live input · use headphones to avoid feedback"
+              aria-label={`Monitor ${track.name}`}
+              aria-pressed={!!track.monitor}
+              className={track.monitor ? "solo" : ""}
+              onClick={() => update(track, { monitor: !track.monitor })}
+            >
+              <Volume2 size={12} />
+            </button>
+          )}
           <span className="input-label">
             {track.kind === "midi"
               ? track.midiChannel

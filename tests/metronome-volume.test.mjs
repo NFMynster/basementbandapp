@@ -66,12 +66,14 @@ test("metronome sounds are selectable, validated and survive save/open", async (
     const beep = await clickAt("beep");
     const wood = await clickAt("woodblock");
     const stick = await clickAt("stick");
+    // Short clicks carry little energy; each sound must be at least about as
+    // loud as the beep at the same volume, without clipping by default.
+    const energy = (left) => left.reduce((sum, v) => sum + v * v, 0);
     for (const [name, left] of Object.entries({ beep, wood, stick })) {
       const peak = Math.max(...left.map(Math.abs));
-      assert.ok(
-        peak > 0.05 && peak < 0.5,
-        `${name} click is audible (${peak})`,
-      );
+      assert.ok(peak > 0.05 && peak < 0.9, `${name} click peak ${peak}`);
+      const db = 10 * Math.log10(energy(left) / energy(beep));
+      assert.ok(db > -1, `${name} click is ${db.toFixed(1)} dB below the beep`);
     }
     assert.notDeepEqual(wood, beep);
     assert.notDeepEqual(stick, beep);

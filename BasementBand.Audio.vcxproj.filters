@@ -28,7 +28,9 @@
     <ClInclude Include="native\Model.h"><Filter>Headers</Filter></ClInclude>
     <ClInclude Include="native\SoundProcessing.h"><Filter>Headers</Filter></ClInclude>
     <ClCompile Include="native\PluginHost.cpp"><Filter>Engine</Filter></ClCompile>
+    <ClCompile Include="native\WindowFocus.cpp"><Filter>Engine</Filter></ClCompile>
     <ClInclude Include="native\PluginWindow.h"><Filter>Headers</Filter></ClInclude>
+    <ClInclude Include="native\WindowFocus.h"><Filter>Headers</Filter></ClInclude>
     <ClCompile Include="native\Recording.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\Rendering.cpp"><Filter>Engine</Filter></ClCompile>
     <ClCompile Include="native\SessionCommands.cpp"><Filter>Engine</Filter></ClCompile>

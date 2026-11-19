@@ -13,7 +13,7 @@ var Engine::handleTestCommand(const var &c) {
   if (op == "testMidi" && testDevice) {
     auto &t = track(c);
     const int channel = jlimit(1, 16, (int)number(c, "channel", 1));
-    if ((t.armed || t.monitor) && (t.midiChannel == 0 || t.midiChannel == channel))
+    if (t.isMidi && (t.midiChannel == 0 || t.midiChannel == channel))
       t.liveMidi.addEvent(
           flag(c, "off") ? MidiMessage::noteOff(channel, (int)number(c, "note", 60))
                          : MidiMessage::noteOn(channel, (int)number(c, "note", 60), (uint8)100),

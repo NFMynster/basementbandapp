@@ -1,5 +1,6 @@
 #pragma once
 #include "Json.h"
+#include "WindowFocus.h"
 
 namespace basement {
 class PluginWindow : public DocumentWindow {
@@ -14,7 +15,7 @@ public:
 #if JUCE_MAC
     Process::makeForegroundProcess();
 #endif
-    toFront(true);
+    raise();
     if (auto *content = getContentComponent(); content && content->getWantsKeyboardFocus())
       content->grabKeyboardFocus();
     Component::SafePointer<PluginWindow> safe(this);
@@ -23,8 +24,13 @@ public:
 #if JUCE_MAC
       Process::makeForegroundProcess();
 #endif
-      safe->toFront(true);
+      safe->raise();
     });
+  }
+  // toFront alone is ignored on Windows: the engine is a background process.
+  void raise() {
+    toFront(true);
+    if (auto *peer = getPeer()) bringToForeground(peer->getNativeHandle());
   }
   void closeButtonPressed() override { setVisible(false); }
 };

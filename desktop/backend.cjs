@@ -6,8 +6,10 @@ const { SessionService } = require("./session-service.cjs");
 /**
  * @param {string} root
  * @param {string} dataDirectory
+ * @param {string} [deviceFile] remembers the chosen audio device; test
+ *   devices never use it
  */
-function startBackend(root, dataDirectory, inputAllowed = true) {
+function startBackend(root, dataDirectory, inputAllowed = true, deviceFile) {
   const native =
     process.env.BASEMENT_TEST_DEVICE === "1" && process.env.BASEMENT_NATIVE_TEST
       ? path.resolve(process.env.BASEMENT_NATIVE_TEST)
@@ -32,7 +34,11 @@ function startBackend(root, dataDirectory, inputAllowed = true) {
       ),
     ),
     dataDirectory,
-    { recover: process.env.BASEMENT_SMOKE !== "1" },
+    {
+      recover: process.env.BASEMENT_SMOKE !== "1",
+      deviceFile:
+        process.env.BASEMENT_TEST_DEVICE === "1" ? undefined : deviceFile,
+    },
   );
 }
 module.exports = { startBackend };

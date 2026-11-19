@@ -27,6 +27,20 @@
   height: 7px;
   border-radius: 2px;
 }
+.selected-track .track-presets-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.selected-track .track-presets-button:hover:not(:disabled) {
+  background: var(--tint-08);
+  color: #dedee3;
+}
 .tabs {
   display: flex;
   position: absolute;

@@ -148,7 +148,8 @@ void Engine::renderTrack(Track &t, double start, int n, bool cycle, const float 
       }
       t.auditionSamples = jmax(0, t.auditionSamples - n);
     } else t.auditionTail = jmax(0, t.auditionTail - n);
-    if (t.isMidi && t.monitor)
+    // MIDI tracks have no monitor switch; live input always plays (Midi.cpp).
+    if (t.isMidi)
       midi.addEvents(t.liveMidi, 0, n, 0);
     AudioBuffer<float> view(t.scratch.getArrayOfWritePointers(), 2, n);
     t.plugin->processBlock(view, midi);

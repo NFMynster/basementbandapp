@@ -64,7 +64,7 @@ app
     await new Promise((r) => setTimeout(r, 100));
     if (
       (await w.webContents.executeJavaScript(
-        `(() => {const tap=document.querySelector('.metronome-menu .tap-tempo'); const picked=document.querySelector('.metronome-sounds [aria-checked="true"]'); const menu=document.querySelector('.metronome-menu').getBoundingClientRect(); return !!tap && !tap.disabled && picked?.textContent === 'Wood block' && menu.right <= innerWidth && menu.left >= 0;})()`,
+        `(() => {const tap=document.querySelector('.metronome-menu .tap-tempo'); const typed=document.querySelector('.metronome-menu input[aria-label="Tempo in BPM"]'); if (!typed || typed.value !== '120') return false; const picked=document.querySelector('.metronome-sounds [aria-checked="true"]'); const menu=document.querySelector('.metronome-menu').getBoundingClientRect(); return !!tap && !tap.disabled && picked?.textContent === 'Wood block' && menu.right <= innerWidth && menu.left >= 0;})()`,
       )) !== true
     )
       throw new Error("Metronome menu lacks tap tempo or sound choice");
@@ -261,26 +261,30 @@ app
         button: "left",
         clickCount: 1,
       });
+    // Input events and React renders land asynchronously; wait for the
+    // preview to reach the expected state instead of a fixed delay.
+    const previewShown = async (wanted) => {
+      for (let attempt = 0; attempt < 40; ++attempt) {
+        const shown = await w.webContents.executeJavaScript(
+          `document.querySelectorAll('.clip.repeat-copy').length > 0`,
+        );
+        if (shown === wanted) return true;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      return false;
+    };
     mouse("mouseDown", loopHandle.x);
     for (const step of [40, 120, 200]) {
       mouse("mouseMove", loopHandle.x + step);
       await new Promise((r) => setTimeout(r, 30));
     }
-    if (
-      !(await w.webContents.executeJavaScript(
-        `document.querySelectorAll('.clip.repeat-copy').length > 0`,
-      ))
-    )
+    if (!(await previewShown(true)))
       throw new Error("Loop drag shows no repeat preview");
     for (const step of [120, 40, 0]) {
       mouse("mouseMove", loopHandle.x + step);
       await new Promise((r) => setTimeout(r, 30));
     }
-    if (
-      await w.webContents.executeJavaScript(
-        `document.querySelectorAll('.clip.repeat-copy').length > 0`,
-      )
-    )
+    if (!(await previewShown(false)))
       throw new Error("Loop preview remains after dragging back");
     mouse("mouseUp", loopHandle.x);
     await new Promise((r) => setTimeout(r, 200));
@@ -320,6 +324,25 @@ app
       "artifacts/screenshots/plugins-redesign.png",
       (await w.webContents.capturePage()).toPNG(),
     );
+    // MIDI tracks are always live: no monitor button in the header and no
+    // monitor switch in the Recording tab.
+    const midiHeader = await w.webContents.executeJavaScript(`(() => {
+      const header = document.querySelector('[data-track-header="m"]');
+      header.scrollIntoView({block: 'center'});
+      if (header.querySelector('[aria-label^="Monitor"]')) throw new Error('MIDI track still has a monitor button');
+      const r = header.getBoundingClientRect();
+      return {x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height)};
+    })()`);
+    await new Promise((r) => setTimeout(r, 100));
+    writeFileSync(
+      "artifacts/screenshots/midi-track-header.png",
+      (await w.webContents.capturePage(midiHeader)).toPNG(),
+    );
+    await w.webContents.executeJavaScript(`(() => {
+      [...document.querySelectorAll('.tab')].find(b=>b.textContent.trim()==='Recording').click();
+      if (document.querySelector('.monitor-control')) throw new Error('MIDI Recording tab still has a monitor switch');
+      [...document.querySelectorAll('.tab')].find(b=>b.textContent.trim()==='Plug-ins').click();
+    })()`);
     await w.webContents.executeJavaScript(
       `document.querySelector('[aria-label="Audio status"]').click()`,
     );

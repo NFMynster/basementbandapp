@@ -71,16 +71,18 @@ export function TrackRecordingPanel({
             : `Input ${track.input + 1}`}
           <ChevronDown size={14} />
         </button>
-        <button
-          className="monitor-control"
-          aria-label="Monitor track"
-          aria-pressed={track.monitor}
-          disabled={busy}
-          onClick={() => update(track, { monitor: !track.monitor })}
-        >
-          <Volume2 size={13} /> Monitor
-          <span>{track.monitor ? "On" : "Off"}</span>
-        </button>
+        {track.kind === "audio" && (
+          <button
+            className="monitor-control"
+            aria-label="Monitor track"
+            aria-pressed={track.monitor}
+            disabled={busy}
+            onClick={() => update(track, { monitor: !track.monitor })}
+          >
+            <Volume2 size={13} /> Monitor
+            <span>{track.monitor ? "On" : "Off"}</span>
+          </button>
+        )}
       </div>
       <div className="input-block level-block">
         <h3>Level & pan</h3>

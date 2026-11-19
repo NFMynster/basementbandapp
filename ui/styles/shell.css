@@ -376,27 +376,58 @@ span.update-available {
   flex-direction: column;
   gap: 8px;
 }
-.tap-tempo {
+/* Typed tempo (like the transport display) with a tap button below it. */
+.metronome-tempo {
+  display: flex;
   flex-direction: column;
-  gap: 2px;
-  height: 64px;
+  gap: 6px;
   padding: 6px;
   background: var(--tint-08);
   border: 1px solid var(--tint-12);
   border-radius: 8px;
 }
-.tap-tempo strong {
+.metronome-tempo.tapping {
+  border-color: var(--accent);
+}
+.metronome-tempo label {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+.metronome-tempo input {
+  width: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: 22px;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: 1.1;
+  text-align: right;
+  appearance: textfield;
 }
-.tap-tempo small {
+.metronome-tempo input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.metronome-tempo input:focus-visible {
+  outline: 1px solid var(--accent);
+  border-radius: 4px;
+}
+.metronome-tempo.tapping input {
+  color: var(--accent);
+}
+.metronome-tempo small {
   font-size: 10px;
   color: var(--text-muted);
 }
-.tap-tempo.tapping {
-  border-color: var(--accent);
-  color: var(--accent);
+.tap-tempo {
+  height: 26px;
+  font-size: 11px;
+  background: var(--tint-08);
+  border: 1px solid var(--tint-12);
+  border-radius: 6px;
 }
 .tap-tempo:active:not(:disabled) {
   background: var(--tint-18);

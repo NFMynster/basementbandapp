@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="desktop\assets\icon.svg" />
+    <None Include="desktop\audio-device.cjs" />
     <None Include="desktop\backend.cjs" />
     <None Include="desktop\entitlements.mac.plist" />
     <None Include="desktop\commands.cjs" />

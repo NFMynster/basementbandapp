@@ -19,9 +19,57 @@ const metronomeSounds: [MetronomeSound, string][] = [
   ["woodblock", "Wood block"],
   ["stick", "Stick"],
 ];
+/**
+ * A typed tempo, shared by the transport display and the metronome menu.
+ * Applies on Enter or blur when it is a whole range value; Escape reverts.
+ */
+function TempoInput({
+  label,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  disabled?: boolean;
+  onCommit: (bpm: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const bpm = Number(draft);
+    if (draft.trim() && Number.isFinite(bpm) && bpm >= 40 && bpm <= 240)
+      onCommit(bpm);
+    setDraft(null);
+  };
+  return (
+    <input
+      aria-label={label}
+      type="number"
+      min="40"
+      max="240"
+      value={draft ?? value}
+      disabled={disabled}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          e.currentTarget.blur();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          setDraft(null);
+        }
+      }}
+    />
+  );
+}
+
 export function Transport({ controller }: { controller: WorkspaceController }) {
   const { s, run, busy, bar, beat, openSetup, showHelp, setHelp } = controller;
-  const [tempoDraft, setTempoDraft] = useState<string | null>(null);
   const [clickVolumeOpen, setClickVolumeOpen] = useState(false);
   const clickVolume = useRef<HTMLDivElement>(null);
   const volumeGesture = useRef<string | undefined>(undefined);
@@ -64,18 +112,6 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
   }, [clickVolumeOpen]);
-  const commitTempo = () => {
-    if (tempoDraft === null) return;
-    const value = Number(tempoDraft);
-    if (
-      tempoDraft.trim() &&
-      Number.isFinite(value) &&
-      value >= 40 &&
-      value <= 240
-    )
-      void controller.requestTempo(value);
-    setTempoDraft(null);
-  };
   return (
     <>
       <section
@@ -136,27 +172,11 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
             </small>
           </div>
           <div className="lcd-tempo">
-            <input
-              aria-label="Tempo"
-              type="number"
-              min="40"
-              max="240"
-              value={tempoDraft ?? s.tempo}
+            <TempoInput
+              label="Tempo"
+              value={s.tempo}
               disabled={s.recording}
-              onChange={(e) => setTempoDraft(e.target.value)}
-              onBlur={commitTempo}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.currentTarget.blur();
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setTempoDraft(null);
-                }
-              }}
+              onCommit={(bpm) => void controller.requestTempo(bpm)}
             />
             <small>TEMPO</small>
           </div>
@@ -256,15 +276,27 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
                   <output>{Math.round((s.metronomeGain ?? 1) * 100)}%</output>
                 </div>
                 <div className="metronome-options">
-                  <button
-                    className={"tap-tempo " + (tapBpm ? "tapping" : "")}
-                    title="Tap in time to set the tempo (or press T)"
-                    disabled={s.recording || busy}
-                    onClick={tapTempo}
+                  <div
+                    className={"metronome-tempo " + (tapBpm ? "tapping" : "")}
                   >
-                    <strong>{tapBpm ?? s.tempo}</strong>
-                    <small>{tapBpm ? "BPM · keep tapping" : "Tap tempo"}</small>
-                  </button>
+                    <label>
+                      <TempoInput
+                        label="Tempo in BPM"
+                        value={tapBpm ?? s.tempo}
+                        disabled={s.recording || busy}
+                        onCommit={(bpm) => void controller.requestTempo(bpm)}
+                      />
+                      <small>BPM</small>
+                    </label>
+                    <button
+                      className="tap-tempo"
+                      title="Tap in time to set the tempo (or press T)"
+                      disabled={s.recording || busy}
+                      onClick={tapTempo}
+                    >
+                      {tapBpm ? "Keep tapping" : "Tap"}
+                    </button>
+                  </div>
                   <div
                     className="metronome-sounds"
                     role="radiogroup"

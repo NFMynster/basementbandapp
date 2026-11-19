@@ -249,7 +249,7 @@ app
       throw new Error("Instrument and both effect slots must render");
     if (
       await win.webContents.executeJavaScript(
-        "!!document.querySelector('.instrument-hint')",
+        "!!document.querySelector('.instrument-empty')",
       )
     )
       throw new Error(
@@ -267,9 +267,10 @@ app
     );
     await new Promise((r) => setTimeout(r, 150));
     const hint = await win.webContents.executeJavaScript(`(() => {
-      const hint = document.querySelector('.instrument-hint');
-      const add = [...document.querySelectorAll('.plugin-slot button')].find(b => b.textContent.includes('Add VST3 instrument'));
-      return hint && add ? hint.textContent : "";
+      // The explanation lives inside the instrument slot, next to its button.
+      const card = document.querySelector('.plugin-slot.instrument-empty');
+      const add = card?.querySelector('.instrument-empty-add');
+      return add && add.textContent.includes('Add VST3 instrument') ? card.textContent : "";
     })()`);
     if (!hint.includes("no sound yet"))
       throw new Error("An empty MIDI track must show the instrument hint");

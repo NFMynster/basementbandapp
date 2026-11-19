@@ -6,6 +6,7 @@ import {
   Minimize2,
   AudioLines,
   ChartNoAxesColumn,
+  Library,
   Piano,
   Mic2,
   SlidersHorizontal,
@@ -109,6 +110,24 @@ export function TrackInspector({
           <div className="selected-track">
             <span style={{ background: track?.color }} />
             {track?.name || "Track controls"}
+            {/* Presets cover the whole track (plug-ins, EQ, effects), so they
+                sit with the track name rather than inside one tab. */}
+            {track && (
+              <button
+                className="track-presets-button"
+                title="Save or apply a track preset: plug-ins, EQ and effects"
+                disabled={controller.s.playing || controller.busy}
+                onClick={() =>
+                  controller.setSoundBrowser({
+                    track: track.id,
+                    presets: true,
+                  })
+                }
+              >
+                <Library size={13} aria-hidden="true" />
+                Presets
+              </button>
+            )}
           </div>
           <div className="tabs">
             <button
