@@ -1,4 +1,3 @@
-const { dialog } = require("electron");
 /**
  * @param {import("../types").Window} win
  * @param {import("../types").Request} request
@@ -47,21 +46,16 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
     )) <= zoomBefore
   )
     throw new Error("Ctrl-wheel/pinch zoom did not change timeline scale");
-  const originalPicker = dialog.showOpenDialog;
-  let pickerCalled = false;
-  /** @type {(() => void) | undefined} */
-  let cancelExport;
+  // Smoke runs never show native dialogs: the folder picker waits until this
+  // test answers it (here: cancels).
+  const openedBefore = await win.dialogs.opened();
+  const cancelExport = () => win.dialogs.answer(null);
   try {
-    dialog.showOpenDialog = async () => {
-      pickerCalled = true;
-      return new Promise((resolve) => {
-        cancelExport = () => resolve({ canceled: true, filePaths: [] });
-      });
-    };
     await win.webContents.executeJavaScript(
       `[...document.querySelectorAll('.file-actions button')].find(b => b.textContent.trim() === 'Export').click()`,
     );
     await new Promise((r) => setTimeout(r, 100));
+    const pickerCalled = (await win.dialogs.opened()) > openedBefore;
     if (
       !pickerCalled ||
       !(await win.webContents.executeJavaScript(
@@ -71,7 +65,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
       throw new Error(
         "Export must open picker directly with waiting UI, not a settings dialog",
       );
-    cancelExport?.();
+    await cancelExport();
     await new Promise((r) => setTimeout(r, 100));
     if (
       await win.webContents.executeJavaScript(
@@ -91,7 +85,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
       `document.querySelector('.export-settings button').click();document.activeElement.blur()`,
     );
     await new Promise((r) => setTimeout(r, 100));
-    cancelExport?.();
+    await cancelExport();
     await new Promise((r) => setTimeout(r, 150));
     if (
       !(await win.webContents.executeJavaScript(
@@ -114,8 +108,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
     )
       throw new Error("Escape did not close export settings after export");
   } finally {
-    dialog.showOpenDialog = originalPicker;
-    cancelExport?.();
+    await cancelExport();
   }
   console.log(
     "Direct export, delete/undo shortcuts and Ctrl-wheel zoom passed.",

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { startSession } from "./helpers/session.mjs";
 
-test("Electron persists mixed audio/MIDI sessions and reconstructs MIDI note previews", async () => {
+test("The session service persists mixed audio/MIDI sessions and reconstructs MIDI note previews", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/midi-project-"));
   const rpc = startSession(folder);

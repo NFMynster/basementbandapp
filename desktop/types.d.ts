@@ -1,13 +1,11 @@
-// Shared JSDoc types for the desktop layer (checked by tsconfig.desktop.json).
-// Renderer-facing shapes come from ui/models.ts so both sides share one contract.
-import type { BrowserWindow } from "electron";
+// Types for the desktop smoke workflows (desktop/smoke/*.cjs), checked by
+// tsconfig.desktop.json. They run in Node and drive the built app through
+// scripts/webview-driver.cjs.
 import type { Clip, Session, Track } from "../ui/models";
 
 export type { Session, Track };
 
-// The engine's full snapshot: the renderer Session plus document fields
-// (version, persisted media paths) that only the desktop layer reads or strips.
-// Full snapshots also carry each clip's media path and source length.
+// The engine's full snapshot: the renderer Session plus document fields.
 export type SnapshotClip = Omit<Clip, "peaks"> & {
   peaks?: number[];
   path: string;
@@ -21,10 +19,9 @@ export type Snapshot = Omit<Session, "tracks"> & {
   tracks: SnapshotTrack[];
 } & Record<string, unknown>;
 
-// Any engine command; engine replies are JSON whose shape depends on the op.
 export type EngineCommand = { op: string; [field: string]: unknown };
-// Sends one command through SessionService (or the native client in tests).
-// State reads are typed; other replies depend on the op.
+// Any engine command through the shell's SessionService (smoke runs may use
+// test-device ops). State reads are typed; other replies depend on the op.
 export type Request = {
   (command: {
     op: "state" | "snapshot";
@@ -33,39 +30,50 @@ export type Request = {
   (command: EngineCommand): Promise<any>;
 };
 
-export type Window = BrowserWindow;
-
-// One undoable edit: snapshots on either side plus the keys it owns, so undo
-// restores only this edit and leaves later unrelated changes alone.
-export type HistoryEntry = {
-  description: string;
-  before: Snapshot;
-  after: Snapshot;
-  trackId?: unknown;
-  trackOrder?: boolean;
-  // Plug-in edits restore processor state instead of keeping live processors.
-  reloadPlugins?: boolean;
-  globalKeys?: string[];
-  trackKeys?: string[];
-  historyGroup?: unknown;
+export type CapturedImage = {
+  toPNG(): Buffer;
+  getSize(): { width: number; height: number };
 };
 
-export type PluginEntry = {
-  id: string;
-  name: string;
-  path: string;
-  uid?: string;
-  stamp?: number;
-  favorite?: boolean;
-  recent?: number;
-  [field: string]: unknown;
+/** Electron's sendInputEvent shape, which the scripts were written against. */
+export type InputEvent = {
+  type: "mouseDown" | "mouseUp" | "mouseMove" | "keyDown" | "keyUp" | "char";
+  x?: number;
+  y?: number;
+  button?: "left" | "middle" | "right";
+  clickCount?: number;
+  modifiers?: string[];
+  keyCode?: string;
 };
 
-export type TrackPreset = {
-  id: string;
-  name: string;
-  kind: string;
-  settings: Record<string, unknown>;
-  hint?: string;
-  builtIn?: boolean;
+/** The app window as scripts/webview-driver.cjs presents it. */
+export type Window = {
+  webContents: {
+    executeJavaScript(code: string): Promise<any>;
+    sendInputEvent(event: InputEvent): Promise<unknown>;
+    capturePage(rect?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }): Promise<CapturedImage>;
+    insertCSS(css: string): Promise<string>;
+    removeInsertedCSS(key: string): Promise<unknown>;
+    reload(): Promise<void>;
+    on(
+      name: "console-message",
+      listener: (event: unknown, level: number, message: string) => void,
+    ): void;
+  };
+  setSize(width: number, height: number): Promise<unknown>;
+  showInactive(): void;
+  loadFile(
+    file: string,
+    options?: { query?: Record<string, string> },
+  ): Promise<void>;
+  dialogs: {
+    opened(): Promise<number>;
+    answer(answer: string | null): Promise<boolean>;
+  };
+  destroy(): void;
 };

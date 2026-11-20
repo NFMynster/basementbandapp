@@ -1,0 +1,55 @@
+[package]
+name = "basement-band"
+version = "0.2.8"
+description = "A small, local recording room for playing together"
+license = "AGPL-3.0-only"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+default-run = "basement-band"
+
+[lib]
+name = "basement_desktop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "basement-band"
+path = "src/main.rs"
+
+# Test-only host that drives SessionService over stdin/stdout so the Node
+# integration tests exercise the shipped Rust session layer. Never bundled.
+[[bin]]
+name = "session-host"
+path = "src/bin/session-host.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time", "fs", "io-std"] }
+uuid = { version = "1", features = ["v4"] }
+log = { version = "0.4", features = ["std"] }
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "json"] }
+tauri-plugin-updater = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
+
+[features]
+# `tauri build` enables this to serve the bundled UI instead of the dev server.
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

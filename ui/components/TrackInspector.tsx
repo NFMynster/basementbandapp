@@ -12,7 +12,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { WorkspaceController } from "../hooks/useWorkspace";
-import { desktop as api } from "../services/desktop";
 import { ClipSound } from "./ClipSound";
 import { PanelResize } from "./PanelResize";
 import { TrackEqualizer } from "./TrackEqualizer";
@@ -29,7 +28,7 @@ export function TrackInspector({
     if (controller.propertiesPing)
       inspector.current?.focus({ preventScroll: true });
   }, [controller.propertiesPing]);
-  const { track, panel, setPanel, update, task } = controller;
+  const { track, panel, setPanel, update } = controller;
   const [expandedPanel, setExpandedPanel] = useState<string | null>(null);
   const midiExpanded = expandedPanel === "notes" && panel === "notes";
   const eqExpanded = expandedPanel === "eq" && panel === "eq";
@@ -69,17 +68,8 @@ export function TrackInspector({
       <section
         ref={inspector}
         style={{ height: controller.inspectorHeight }}
-        onDragOver={(e) => {
-          if (panel === "plugins") e.preventDefault();
-        }}
-        onDrop={(e) => {
-          if (panel === "plugins" && track) {
-            e.preventDefault();
-            task(() =>
-              api.dropFiles(Array.from(e.dataTransfer.files), track.id, true),
-            );
-          }
-        }}
+        data-file-drop={panel === "plugins" && track ? "plugin" : undefined}
+        data-file-drop-track={panel === "plugins" ? track?.id : undefined}
         className={`inspector ${panel === "notes" ? "with-notes" : ""} ${panel === "notes" && midiExpanded ? "midi-expanded" : ""} ${panel === "eq" && eqExpanded ? "eq-expanded" : ""}`}
         onKeyDown={(e) => {
           if (e.key === "Escape" && (eqExpanded || midiExpanded)) {

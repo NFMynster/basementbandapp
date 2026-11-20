@@ -1,0 +1,202 @@
+{
+  "about": [
+    "The command contract in one place. Each engine op names the native domain",
+    "handler that owns it (native/Commands.cpp routes the same table), who may",
+    "send it, and whether SessionService records it for undo:",
+    "  renderer: allowed through IPC from the UI and typed in ui/models.ts",
+    "  desktop:  sent only by the desktop shell, which validates paths itself",
+    "  test:     accepted only by the engine's test device",
+    "  undoable: true, or \"by-action\" when only some editClip actions are undoable",
+    "  edits:    changes the session document, so recovery is written afterwards",
+    "  gesture:  slider drags with a historyGroup collapse into one queued update",
+    "  query:    reads state without changing it",
+    "undo and redo are applied by SessionService itself and never reach the engine.",
+    "library lists the plug-in library actions handled by PluginLibrary.",
+    "tests/command-contract.test.mjs fails when Commands.cpp or models.ts drift."
+  ],
+  "engine": {
+    "undo": { "domain": "history", "sender": "renderer" },
+    "redo": { "domain": "history", "sender": "renderer" },
+
+    "addTrack": {
+      "domain": "track",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "duplicateTrack": {
+      "domain": "track",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "track": {
+      "domain": "track",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true,
+      "gesture": true
+    },
+    "reorderTrack": {
+      "domain": "track",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "removeTrack": {
+      "domain": "track",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+
+    "preset": {
+      "domain": "plugin",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "reorderEffect": {
+      "domain": "plugin",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "removePlugin": {
+      "domain": "plugin",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "bypass": {
+      "domain": "plugin",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "editor": { "domain": "plugin", "sender": "renderer" },
+    "plugin": {
+      "domain": "plugin",
+      "sender": "desktop",
+      "undoable": true,
+      "edits": true
+    },
+    "scanPlugin": { "domain": "plugin", "sender": "desktop" },
+
+    "play": { "domain": "transport", "sender": "renderer" },
+    "stop": { "domain": "transport", "sender": "renderer" },
+    "record": { "domain": "transport", "sender": "renderer", "edits": true },
+    "seek": { "domain": "transport", "sender": "renderer" },
+    "loop": { "domain": "transport", "sender": "renderer", "edits": true },
+    "tempo": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "metronome": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "countIn": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "metronomeVolume": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true,
+      "gesture": true
+    },
+    "metronomeSound": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "master": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true,
+      "gesture": true
+    },
+    "limiter": {
+      "domain": "transport",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+
+    "audition": { "domain": "region", "sender": "renderer" },
+    "createMidi": {
+      "domain": "region",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "editRegions": {
+      "domain": "region",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "removeClip": {
+      "domain": "region",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "editClip": {
+      "domain": "region",
+      "sender": "renderer",
+      "undoable": "by-action",
+      "edits": true,
+      "gesture": true
+    },
+    "import": {
+      "domain": "region",
+      "sender": "desktop",
+      "undoable": true,
+      "edits": true
+    },
+    "export": { "domain": "region", "sender": "desktop" },
+
+    "state": { "domain": "session", "sender": "renderer", "query": true },
+    "new": { "domain": "session", "sender": "renderer" },
+    "rename": {
+      "domain": "session",
+      "sender": "renderer",
+      "undoable": true,
+      "edits": true
+    },
+    "init": { "domain": "session", "sender": "desktop" },
+    "restore": { "domain": "session", "sender": "desktop" },
+    "snapshot": { "domain": "session", "sender": "desktop", "query": true },
+
+    "devices": { "domain": "device", "sender": "renderer", "query": true },
+    "configure": { "domain": "device", "sender": "renderer" },
+    "tuner": { "domain": "device", "sender": "renderer" },
+    "clearDiagnostics": { "domain": "device", "sender": "renderer" },
+    "clearWarning": { "domain": "device", "sender": "renderer" },
+
+    "testLatency": { "domain": "test", "sender": "test" },
+    "testMidi": { "domain": "test", "sender": "test" },
+    "pump": { "domain": "test", "sender": "test" }
+  },
+  "library": [
+    "list",
+    "scan",
+    "scanFolder",
+    "favorite",
+    "load",
+    "savePreset",
+    "applyPreset",
+    "deletePreset"
+  ]
+}

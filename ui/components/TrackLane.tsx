@@ -15,21 +15,13 @@ export function TrackLane({
   controller: WorkspaceController;
   onMenu: (event: MouseEvent<HTMLElement>, track: Track) => void;
 }) {
-  const { s, pxPerSecond, setSelected, setClipId, dropAudio, openProperties } =
-    controller;
+  const { s, pxPerSecond, setSelected, setClipId, openProperties } = controller;
   return (
     <div
       data-lane={track.id}
+      data-file-drop="audio"
+      data-file-drop-track={track.id}
       className={"lane " + (selected ? "selected" : "")}
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void dropAudio(Array.from(event.dataTransfer.files), track.id);
-      }}
       onContextMenu={(event) => onMenu(event, track)}
       onDoubleClick={async (event) => {
         if (event.target !== event.currentTarget) return;

@@ -358,11 +358,15 @@
 .track-header {
   user-select: none;
 }
-.track-header[draggable="true"] {
+.track-header[data-reorderable] {
   cursor: grab;
 }
-.track-header[draggable="true"]:active {
+.track-header[data-reorderable]:active,
+.track-header.reorder-source {
   cursor: grabbing;
+}
+.track-header.reorder-source {
+  opacity: 0.45;
 }
 .follow-playhead[aria-pressed="true"] {
   color: var(--accent-blue);

@@ -23,7 +23,7 @@ export function App() {
     let cancelled = false;
     let first = 0;
     let second = 0;
-    // Electron can paint before showing the window. Start the fade only once
+    // The webview can paint before the window is shown. Start the fade only once
     // the user can see it, with a painted transparent frame first.
     void Promise.resolve(api.waitUntilVisible?.()).then(() => {
       if (cancelled) return;

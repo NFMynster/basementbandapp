@@ -311,18 +311,7 @@ export function Arrangement({
         </div>
       </div>
       <main className="arrangement">
-        <div
-          className="track-sidebar"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "copy";
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void controller.dropAudio(Array.from(e.dataTransfer.files));
-          }}
-        >
+        <div className="track-sidebar" data-file-drop="audio">
           <aside className="track-list" ref={trackList}>
             <div className="track-list-title">
               TRACKS
@@ -527,6 +516,7 @@ export function Arrangement({
               <div
                 className="empty-grid"
                 data-empty-grid
+                data-file-drop="audio"
                 onClick={() => controller.setClipId("")}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -535,14 +525,6 @@ export function Arrangement({
                     y: e.clientY,
                     position: atPointer(e),
                   });
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "copy";
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  void controller.dropAudio(Array.from(e.dataTransfer.files));
                 }}
               >
                 <span>

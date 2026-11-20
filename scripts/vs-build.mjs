@@ -1,4 +1,10 @@
-import { buildDesktop, run } from "./build-tools.mjs";
+import {
+  buildDesktop,
+  cargo,
+  run,
+  runTool,
+  withCargo,
+} from "./build-tools.mjs";
 import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 const configuration = process.argv[2] || "Debug";
@@ -7,8 +13,8 @@ if (!["Debug", "Release"].includes(configuration))
   throw new Error("Expected Debug or Release configuration");
 if (!["desktop", "native", "clean-native", "clean-desktop"].includes(stage))
   throw new Error("Unknown Visual Studio build stage: " + stage);
-// Vite replaces its generated output on each build. Leave packaged/shared assets
-// intact when cleaning the launcher; the native project owns CMake cleaning.
+// Vite and Cargo replace their own output on each build. Leave packaged and
+// shared assets intact when cleaning; the native project owns CMake cleaning.
 if (stage === "clean-desktop") process.exit(0);
 const nativeCommands = [
   [
@@ -21,5 +27,25 @@ const nativeCommands = [
     ],
   ],
 ];
-if (stage === "desktop") buildDesktop();
-else for (const [executable, args] of nativeCommands) run(executable, args);
+if (stage !== "desktop")
+  for (const [executable, args] of nativeCommands) run(executable, args);
+else if (configuration === "Release") buildDesktop();
+else {
+  // Debug: a debug shell (with PDBs for the Visual Studio debugger) that
+  // serves the built UI, so F5 needs no dev server.
+  run(process.execPath, ["scripts/licenses.mjs"]);
+  runTool("typescript", ["--noEmit"], process.env, "tsc");
+  runTool("vite", ["build"]);
+  run(
+    cargo(),
+    [
+      "build",
+      "--manifest-path",
+      "desktop/Cargo.toml",
+      "--features",
+      "custom-protocol",
+      "--bins",
+    ],
+    withCargo(),
+  );
+}

@@ -143,7 +143,10 @@ function findArtifact(name, builtAfter) {
 
 /** @param {number} builtAfter */
 function verifyMac(builtAfter) {
-  const app = resolve(root, "release", "mac-arm64", "Basement Band.app");
+  const app = resolve(
+    root,
+    "desktop/target/release/bundle/macos/Basement Band.app",
+  );
   if (!existsSync(app)) fail(`Packaged app not found at ${app}.`);
   execute("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
   const displayed = execute("codesign", ["--display", "--verbose=4", app], {
@@ -194,23 +197,84 @@ function verifyWindows(builtAfter) {
 }
 
 /**
- * Files electron-updater reads from the release: the update manifest and the
- * blockmap for differential downloads. The manifest must name the installer
- * exactly as uploaded.
- * @param {string} installer
- * @param {string} version
+ * Self-updates need the updater key: its public half in tauri.conf.json and
+ * the private half (a GitHub secret on Actions) to sign this build.
+ */
+function requireUpdaterSigning() {
+  const shell = JSON.parse(
+    readFileSync(resolve(root, "desktop/tauri.conf.json"), "utf8"),
+  );
+  if (!shell.plugins?.updater?.pubkey?.trim())
+    fail(
+      'Set plugins.updater.pubkey in desktop/tauri.conf.json first (docs/BUILD.md, "Self-updates").',
+    );
+  if (!process.env.TAURI_SIGNING_PRIVATE_KEY)
+    fail(
+      "Set TAURI_SIGNING_PRIVATE_KEY (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD) so this build's updates are signed.",
+    );
+}
+
+/**
+ * The self-update file for this platform and its signature, written by
+ * packaging in this run.
+ * @param {"win" | "mac"} platform
  * @param {number} builtAfter
  */
-function windowsUpdateFiles(installer, version, builtAfter) {
-  const manifest = findArtifact("latest.yml", builtAfter);
-  const blockmap = findArtifact(`${basename(installer)}.blockmap`, builtAfter);
-  const text = readFileSync(manifest, "utf8");
-  if (
-    !text.includes(`version: ${version}`) ||
-    !text.includes(`path: ${basename(installer)}`)
-  )
-    fail("latest.yml does not describe this installer.");
-  return [manifest, blockmap];
+function updateArtifact(platform, builtAfter) {
+  const file =
+    platform === "win"
+      ? findArtifact("Basement-Band-Setup.exe", builtAfter)
+      : findArtifact("Basement-Band-arm64.app.tar.gz", builtAfter);
+  const signature = findArtifact(`${basename(file)}.sig`, builtAfter);
+  return { file, signature };
+}
+
+/**
+ * Adds this platform to the draft's latest.json, the manifest installed apps
+ * read from releases/latest/download/latest.json once a release is
+ * published. Windows (GitHub Actions) and macOS (a Mac) run separately in
+ * either order, so each keeps the other's entry. URLs name this tag, so a
+ * later release never changes what an older manifest points at.
+ * @param {string} tag
+ * @param {string} version
+ * @param {"win" | "mac"} platform
+ * @param {{ file: string, signature: string }} artifact
+ */
+function publishUpdateManifest(tag, version, platform, artifact) {
+  const folder = resolve(root, "release", ".manifest");
+  rmSync(folder, { recursive: true, force: true });
+  mkdirSync(folder, { recursive: true });
+  const downloaded = execute(
+    "gh",
+    ["release", "download", tag, "--pattern", "latest.json", "--dir", folder],
+    { allowFailure: true, capture: true },
+  );
+  let platforms = {};
+  const previous = resolve(folder, "latest.json");
+  if (downloaded.status === 0 && existsSync(previous)) {
+    const manifest = JSON.parse(readFileSync(previous, "utf8"));
+    if (manifest.version === version) platforms = manifest.platforms ?? {};
+  }
+  platforms[platform === "win" ? "windows-x86_64" : "darwin-aarch64"] = {
+    signature: readFileSync(artifact.signature, "utf8").trim(),
+    url: `https://github.com/NFMynster/basementbandapp/releases/download/${tag}/${basename(artifact.file)}`,
+  };
+  const manifest = resolve(root, "release", "latest.json");
+  writeFileSync(
+    manifest,
+    JSON.stringify(
+      {
+        version,
+        notes: `Basement Band ${version}`,
+        pub_date: new Date().toISOString(),
+        platforms,
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  execute("gh", ["release", "upload", tag, manifest, "--clobber"]);
+  rmSync(folder, { recursive: true, force: true });
 }
 
 function copyDependency(source, destination) {
@@ -340,8 +404,8 @@ export function printReleaseHelp(platform) {
       : "accepts an unsigned installer and rejects an invalid signature";
   const prerequisites =
     platform === "mac"
-      ? 'GitHub CLI installed and authenticated with "gh auth login", plus Developer ID and notarization credentials.'
-      : 'GitHub CLI installed and authenticated with "gh auth login". Windows code signing is optional.';
+      ? 'GitHub CLI installed and authenticated with "gh auth login", Developer ID and notarization credentials, and the updater key in TAURI_SIGNING_PRIVATE_KEY.'
+      : 'GitHub CLI installed and authenticated with "gh auth login", and the updater key in TAURI_SIGNING_PRIVATE_KEY. Windows code signing is optional.';
   console.log(`Usage: npm run ${command} -- v0.1.0
 
 Builds the exact pushed tag on ${platform === "mac" ? "macOS arm64" : "Windows x64"}, ${verification}, runs checks and tests, creates a complete-source archive, and uploads new assets to a GitHub draft release.
@@ -361,11 +425,17 @@ export function release(platform, tag) {
   const manifest = JSON.parse(
     readFileSync(resolve(root, "package.json"), "utf8"),
   );
-  if (manifest.build?.appId !== expectedAppId)
-    fail(`Set build.appId to ${expectedAppId} before releasing.`);
+  const shell = JSON.parse(
+    readFileSync(resolve(root, "desktop/tauri.conf.json"), "utf8"),
+  );
+  if (shell.identifier !== expectedAppId)
+    fail(
+      `Set identifier in desktop/tauri.conf.json to ${expectedAppId} before releasing.`,
+    );
   requireCleanTaggedCheckout(tag, manifest.version);
   execute("gh", ["auth", "status"]);
   if (platform === "mac") requireMacCredentials();
+  requireUpdaterSigning();
 
   runNpm(["ci"]);
   runNpm(["run", "check"]);
@@ -378,16 +448,18 @@ export function release(platform, tag) {
     platform === "mac"
       ? verifyMac(packagedAfter)
       : verifyWindows(packagedAfter);
+  const update = updateArtifact(platform, packagedAfter);
   const sourceArchive = createSourceArchive(tag, manifest.version);
   ensureDraftRelease(tag, manifest.version);
+  // The Windows installer is also its update file; macOS updates use the
+  // app archive next to the DMG.
   uploadNewAssets(
     tag,
     platformArtifact,
     sourceArchive,
-    platform === "win"
-      ? windowsUpdateFiles(platformArtifact, manifest.version, packagedAfter)
-      : [],
+    platform === "mac" ? [update.file] : [],
   );
+  publishUpdateManifest(tag, manifest.version, platform, update);
   const url = output("gh", [
     "release",
     "view",

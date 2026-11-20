@@ -16,6 +16,7 @@
   "include": [
     "desktop/**/*.cjs",
     "desktop/types.d.ts",
-    "scripts/screenshot-preload.cjs"
+    "scripts/webview-driver.cjs",
+    "scripts/visual-fixture.js"
   ]
 }

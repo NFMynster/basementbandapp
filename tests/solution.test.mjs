@@ -3,10 +3,14 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+// Build output (Rust's target/, Tauri's gen/) never belongs in the solution.
+const SKIPPED = new Set(["target", "gen", "node_modules"]);
 const list = (folder) =>
   readdirSync(folder, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory()
-      ? list(join(folder, entry.name))
+      ? SKIPPED.has(entry.name)
+        ? []
+        : list(join(folder, entry.name))
       : [join(folder, entry.name).replaceAll("/", "\\")],
   );
 
@@ -43,7 +47,7 @@ test("Visual Studio files have explicit, complete Solution Explorer groups", () 
         ? ["ui", "desktop", "scripts", "docs"]
             .flatMap(list)
             .filter((p) =>
-              /^(ui\\.*\.(tsx?|css)|desktop\\.*\.(cjs|html|plist|svg)|scripts\\.*\.(mjs|cjs)|docs\\.*\.md)$/.test(
+              /^(ui\\.*\.(tsx?|css)|desktop\\.*\.(rs|json|toml|lock|nsh|plist|svg|cjs|ts)|scripts\\.*\.(mjs|cjs|js)|docs\\.*\.md)$/.test(
                 p,
               ),
             )

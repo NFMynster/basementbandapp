@@ -1,7 +1,7 @@
 # Pushing a version tag (v1.2.3 or v1.2.3-beta.1) builds, checks and tests the
 # Windows app and uploads it to a draft GitHub release. The signed macOS build
 # is added from a Mac with `npm run release:mac -- <tag>`. Publishing the draft
-# stays a manual step: only published releases reach testers' auto-updates.
+# stays a manual step: only published releases reach installed apps' updates.
 name: Release draft
 
 on:
@@ -22,13 +22,29 @@ jobs:
     timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
+      # Signs the self-update files; the public half is in tauri.conf.json.
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      # The desktop shell is Rust; check runs rustfmt and clippy.
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            desktop/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('desktop/Cargo.lock') }}
       # The same script as a local release: verifies the tag matches
       # package.json, runs npm ci, check, package and test, then creates the
-      # draft with the installer, latest.yml, blockmap, checksums and source.
+      # draft with the installer, checksums and source, and adds Windows to
+      # the draft's latest.json (the self-update manifest).
       - name: Build, test and upload
         run: npm run release:win -- "${{ github.ref_name }}"

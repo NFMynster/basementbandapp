@@ -5,7 +5,11 @@ build/
 artifacts/
 release/
 **/bin/
+!desktop/src/bin/
 **/obj/
+# Rust build output and Tauri's generated capability schemas
+desktop/target/
+desktop/gen/
 .tools/
 .vs/
 *.user

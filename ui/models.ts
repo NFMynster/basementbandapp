@@ -335,7 +335,12 @@ export interface DesktopApi {
   openFeedback(): Promise<void>;
   waitUntilVisible?(): Promise<void>;
   restart(): Promise<void>;
-  dropFiles(files: File[], track?: string, plugin?: boolean): Promise<Session>;
+  /** `paths` come from the native drop event; the shell accepts no others. */
+  dropFiles(
+    paths: string[],
+    track?: string,
+    plugin?: boolean,
+  ): Promise<Session>;
   command<C extends Command>(command: C): Promise<CommandResult<C>>;
   save(): Promise<SaveResult | null>;
   open(): Promise<Session | null>;

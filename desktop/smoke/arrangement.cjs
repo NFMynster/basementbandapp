@@ -113,11 +113,28 @@ async function verifyTrackOrdering(win, request) {
     `document.querySelector('.audio-diagnostics .modal-close').click()`,
   );
   const orderBefore = (await request({ op: "state" })).tracks.map((t) => t.id);
-  await win.webContents.executeJavaScript(
-    `(() => {const headers=document.querySelectorAll('[data-track-header]'), dt=new DataTransfer();dt.setData('application/x-basement-track',headers[headers.length-1].dataset.trackHeader);headers[0].dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()`,
-  );
+  // Drag the second header above the first with real pointer input.
+  const [from, to] = await win.webContents.executeJavaScript(`(() => {
+    const headers = [...document.querySelectorAll('[data-track-header]')];
+    headers[0].scrollIntoView({ block: 'start' });
+    const at = (h, dy) => { const n = h.querySelector('.track-number').getBoundingClientRect(), r = h.getBoundingClientRect(); return { x: Math.round(n.left + n.width / 2), y: Math.round(r.top + dy(r)) }; };
+    return [at(headers[1], (r) => r.height / 2), at(headers[0], () => 3)];
+  })()`);
+  win.webContents.sendInputEvent({
+    type: "mouseDown",
+    ...from,
+    button: "left",
+  });
+  for (let step = 1; step <= 6; step++)
+    win.webContents.sendInputEvent({
+      type: "mouseMove",
+      x: from.x,
+      y: Math.round(from.y + ((to.y - from.y) * step) / 6),
+      modifiers: ["leftButtonDown"],
+    });
+  win.webContents.sendInputEvent({ type: "mouseUp", ...to, button: "left" });
   await new Promise((r) => setTimeout(r, 250));
-  if ((await request({ op: "state" })).tracks[0].id !== orderBefore.at(-1))
+  if ((await request({ op: "state" })).tracks[0].id !== orderBefore[1])
     throw new Error("Track drop did not reorder");
   const openTrackMenu = async () => {
     await win.webContents.executeJavaScript(

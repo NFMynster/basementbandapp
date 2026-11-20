@@ -1,5 +1,3 @@
-import { saveSession, readSession } from "../desktop/session-storage.cjs";
-import { SessionService } from "../desktop/session-service.cjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +10,7 @@ import {
   existsSync,
 } from "node:fs";
 import { resolve, isAbsolute } from "node:path";
-test("Electron session service saves portable audio, reopens edits, and preserves a session on missing media", async () => {
+test("The session service saves portable audio, reopens edits, and preserves a session on missing media", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
   const folder = mkdtempSync(resolve("artifacts/test-sessions/project-"));
   writeMonoWav(
@@ -36,42 +34,6 @@ test("Electron session service saves portable audio, reopens edits, and preserve
     assert.equal(saved.title, "Two friends");
     assert.equal(isAbsolute(saved.tracks[0].clips[0].path), false);
     assert.ok(existsSync(resolve(folder, saved.tracks[0].clips[0].path)));
-    const portable = await readSession(path);
-    const beforeStorage = structuredClone(portable);
-    const copyPath = resolve(folder, "Copy.basement");
-    await saveSession(copyPath, portable);
-    assert.deepEqual(
-      portable,
-      beforeStorage,
-      "Saving must not mutate the caller's snapshot",
-    );
-    assert.equal((await readSession(copyPath)).title, portable.title);
-    const previousFile = readFileSync(copyPath, "utf8");
-    const broken = structuredClone(portable);
-    broken.tracks[0].clips[0].path = resolve(folder, "missing.wav");
-    await assert.rejects(saveSession(copyPath, broken));
-    assert.equal(
-      readFileSync(copyPath, "utf8"),
-      previousFile,
-      "Failed saves preserve the previous document",
-    );
-    const service = Object.create(SessionService.prototype);
-    service.folder = "current-working-folder";
-    service.workingDirectory = async () => "next-working-folder";
-    service.engine = {
-      request: async () => {
-        throw new Error("Could not restore media");
-      },
-    };
-    await assert.rejects(
-      service.executeRaw({ op: "open", path }),
-      /Could not restore media/,
-    );
-    assert.equal(
-      service.folder,
-      "current-working-folder",
-      "Failed restores keep the active working folder",
-    );
     await send({ op: "new" });
     r = await send({ op: "open", path });
     assert.equal(r.result.title, "Two friends");

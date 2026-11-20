@@ -3,21 +3,6 @@
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
-    <None Include="ui\components\MidiEditor.tsx" />
-    <None Include="ui\components\TrackEqualizer.tsx" />
-    <None Include="ui\components\TrackEffects.tsx" />
-    <None Include="ui\components\AudioDiagnostics.tsx" />
-    <None Include="ui\components\MidiExportDialog.tsx" />
-    <None Include="ui\styles\sound-editors.css" />
-    <None Include="scripts\sound-editors-visual.cjs" />
-    <None Include="ui\components\PanelResize.tsx" />
-    <None Include="ui\hooks\usePanelLayout.ts" />
-    <None Include="ui\hooks\useConfirmation.ts" />
-    <None Include="ui\hooks\useAudioLoad.ts" />
-    <None Include="ui\components\ClipSound.tsx" />
-    <None Include="ui\components\SoundBrowser.tsx" />
-    <None Include="desktop\plugin-library.cjs" />
-    <None Include="desktop\starter-sounds.cjs" />
   </ItemGroup>
   <PropertyGroup Label="Globals"><ProjectGuid>{7166373A-B501-4B8B-8BCB-A328958BC075}</ProjectGuid><Keyword>MakeFileProj</Keyword><ProjectName>Basement Band Desktop</ProjectName></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -27,84 +12,131 @@
     <NMakeBuildCommandLine>node &quot;$(ProjectDir)scripts/vs-build.mjs&quot; $(Configuration)</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>$(NMakeBuildCommandLine)</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>node &quot;$(ProjectDir)scripts/vs-build.mjs&quot; $(Configuration) clean-desktop</NMakeCleanCommandLine>
-    <NMakeOutput>$(ProjectDir)dist\index.html</NMakeOutput>
-    <LocalDebuggerCommand>$(ProjectDir)node_modules\electron\dist\electron.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>&quot;$(ProjectDir).&quot;</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <OutDir>$(ProjectDir)artifacts\vs\desktop\$(Configuration)\</OutDir><IntDir>$(ProjectDir)build\vs\desktop\$(Configuration)\</IntDir>
   </PropertyGroup>
+  <!-- F5 runs the Rust desktop shell under the native debugger (it has PDBs). -->
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <NMakeOutput>$(ProjectDir)desktop\target\debug\basement-band.exe</NMakeOutput>
+    <LocalDebuggerCommand>$(ProjectDir)desktop\target\debug\basement-band.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <NMakeOutput>$(ProjectDir)desktop\target\release\Basement Band.exe</NMakeOutput>
+    <LocalDebuggerCommand>$(ProjectDir)desktop\target\release\Basement Band.exe</LocalDebuggerCommand>
+  </PropertyGroup>
   <ItemGroup>
-    <None Include="desktop\assets\icon.svg" />
-    <None Include="desktop\audio-device.cjs" />
-    <None Include="desktop\backend.cjs" />
-    <None Include="desktop\entitlements.mac.plist" />
-    <None Include="desktop\commands.cjs" />
-    <None Include="desktop\ipc.cjs" />
-    <None Include="desktop\logging.cjs" />
-    <None Include="desktop\main.cjs" />
-    <None Include="desktop\native-client.cjs" />
-    <None Include="desktop\permissions.cjs" />
-    <None Include="desktop\preload.cjs" />
-    <None Include="desktop\session-service.cjs" />
-    <None Include="desktop\session-files.cjs" />
-    <None Include="desktop\session-history.cjs" />
-    <None Include="desktop\updates.cjs" />
-    <None Include="desktop\smoke.cjs" />
-    <None Include="docs\ARCHITECTURE.md" />
-    <None Include="docs\BUILD.md" />
-    <None Include="docs\LICENSING.md" />
-    <None Include="docs\RUNTIME.md" />
-    <None Include="index.html" />
-    <None Include="package.json" />
-    <None Include="README.md" />
+    <None Include="scripts\build-desktop.mjs" />
     <None Include="scripts\build-tools.mjs" />
     <None Include="scripts\check-plugin.mjs" />
     <None Include="scripts\dev.mjs" />
-    <None Include="scripts\icons.cjs" />
+    <None Include="scripts\icons.mjs" />
     <None Include="scripts\licenses.mjs" />
     <None Include="scripts\native.mjs" />
     <None Include="scripts\package.mjs" />
     <None Include="scripts\release-common.mjs" />
     <None Include="scripts\release-mac.mjs" />
     <None Include="scripts\release-win.mjs" />
-    <None Include="scripts\screenshot-preload.cjs" />
+    <None Include="scripts\rust-test.mjs" />
     <None Include="scripts\screenshot.cjs" />
     <None Include="scripts\smoke.mjs" />
+    <None Include="scripts\sound-editors-visual.cjs" />
+    <None Include="scripts\start.mjs" />
+    <None Include="scripts\visual-fixture.js" />
     <None Include="scripts\vite-server.mjs" />
     <None Include="scripts\vs-build.mjs" />
-    <None Include="tsconfig.json" />
-    <None Include="tsconfig.desktop.json" />
+    <None Include="scripts\webview-driver.cjs" />
     <None Include="eslint.config.mjs" />
+    <None Include="index.html" />
+    <None Include="package.json" />
+    <None Include="tsconfig.desktop.json" />
+    <None Include="tsconfig.json" />
+    <None Include="vite.config.ts" />
+    <None Include="desktop\build.rs" />
+    <None Include="desktop\capabilities\main.json" />
+    <None Include="desktop\Cargo.lock" />
+    <None Include="desktop\Cargo.toml" />
+    <None Include="desktop\commands.json" />
+    <None Include="desktop\entitlements.mac.plist" />
+    <None Include="desktop\Info.plist" />
+    <None Include="desktop\starter-sounds.json" />
+    <None Include="desktop\tauri.conf.json" />
+    <None Include="desktop\assets\icon.svg" />
+    <None Include="desktop\src\audio_device.rs" />
+    <None Include="desktop\src\auto_update.rs" />
+    <None Include="desktop\src\bin\session-host.rs" />
+    <None Include="desktop\src\contract.rs" />
+    <None Include="desktop\src\history.rs" />
+    <None Include="desktop\src\ipc.rs" />
+    <None Include="desktop\src\json.rs" />
+    <None Include="desktop\src\lib.rs" />
+    <None Include="desktop\src\logging.rs" />
+    <None Include="desktop\src\main.rs" />
+    <None Include="desktop\src\native_client.rs" />
+    <None Include="desktop\src\paths.rs" />
+    <None Include="desktop\src\permissions.rs" />
+    <None Include="desktop\src\plugin_library.rs" />
+    <None Include="desktop\src\session_files.rs" />
+    <None Include="desktop\src\session_service.rs" />
+    <None Include="desktop\src\session_storage.rs" />
+    <None Include="desktop\src\starter_sounds.rs" />
+    <None Include="desktop\src\updates.rs" />
+    <None Include="desktop\smoke\arrangement.cjs" />
+    <None Include="desktop\smoke\export.cjs" />
+    <None Include="desktop\smoke\midi-editing.cjs" />
+    <None Include="desktop\smoke\midi-navigation.cjs" />
+    <None Include="desktop\smoke\midi-routing.cjs" />
+    <None Include="desktop\smoke\recording.cjs" />
+    <None Include="desktop\smoke\required.cjs" />
+    <None Include="desktop\smoke\sound.cjs" />
+    <None Include="desktop\smoke\startup.cjs" />
+    <None Include="desktop\types.d.ts" />
+    <None Include="docs\ARCHITECTURE.md" />
+    <None Include="docs\BUILD.md" />
+    <None Include="docs\LICENSING.md" />
+    <None Include="docs\RUNTIME.md" />
+    <None Include="README.md" />
     <None Include="ui\App.tsx" />
+    <None Include="ui\main.tsx" />
+    <None Include="ui\models.ts" />
     <None Include="ui\components\Arrangement.tsx" />
     <None Include="ui\components\AudioDevicePanel.tsx" />
+    <None Include="ui\components\AudioDiagnostics.tsx" />
     <None Include="ui\components\ClipRegion.tsx" />
+    <None Include="ui\components\ClipSound.tsx" />
     <None Include="ui\components\ContextMenu.tsx" />
     <None Include="ui\components\CreateTrackDialog.tsx" />
     <None Include="ui\components\ExportSettings.tsx" />
     <None Include="ui\components\FeedbackDialog.tsx" />
     <None Include="ui\components\HelpDialog.tsx" />
     <None Include="ui\components\LevelSlider.tsx" />
+    <None Include="ui\components\MidiEditor.tsx" />
+    <None Include="ui\components\MidiEditorToolbar.tsx" />
+    <None Include="ui\components\MidiExportDialog.tsx" />
     <None Include="ui\components\MidiNotes.tsx" />
+    <None Include="ui\components\MidiPianoRoll.tsx" />
     <None Include="ui\components\MidiRouting.tsx" />
     <None Include="ui\components\Modal.tsx" />
     <None Include="ui\components\Notices.tsx" />
-    <None Include="ui\components\SessionName.tsx" />
+    <None Include="ui\components\PanelResize.tsx" />
     <None Include="ui\components\RecordingPreview.tsx" />
+    <None Include="ui\components\SessionName.tsx" />
     <None Include="ui\components\SettingsDialog.tsx" />
     <None Include="ui\components\SettingsTabs.tsx" />
     <None Include="ui\components\ShortcutSettings.tsx" />
+    <None Include="ui\components\SoundBrowser.tsx" />
     <None Include="ui\components\StatusBar.tsx" />
     <None Include="ui\components\TitleBar.tsx" />
     <None Include="ui\components\TrackAppearance.tsx" />
+    <None Include="ui\components\TrackEffects.tsx" />
+    <None Include="ui\components\TrackEqualizer.tsx" />
+    <None Include="ui\components\TrackHeader.tsx" />
     <None Include="ui\components\TrackIcon.tsx" />
     <None Include="ui\components\TrackInspector.tsx" />
-    <None Include="ui\components\TrackRecordingPanel.tsx" />
-    <None Include="ui\components\TrackPluginsPanel.tsx" />
-    <None Include="ui\components\TrackHeader.tsx" />
     <None Include="ui\components\TrackLane.tsx" />
     <None Include="ui\components\TrackMenu.tsx" />
+    <None Include="ui\components\TrackPluginsPanel.tsx" />
+    <None Include="ui\components\TrackRecordingPanel.tsx" />
     <None Include="ui\components\TrackRoutingPanel.tsx" />
     <None Include="ui\components\Transport.tsx" />
     <None Include="ui\components\Tuner.tsx" />
@@ -112,6 +144,13 @@
     <None Include="ui\components\Waveform.tsx" />
     <None Include="ui\components\WelcomeDialog.tsx" />
     <None Include="ui\hooks\useAnimatedPlayhead.ts" />
+    <None Include="ui\hooks\useAudioLoad.ts" />
+    <None Include="ui\hooks\useConfirmation.ts" />
+    <None Include="ui\hooks\useExport.ts" />
+    <None Include="ui\hooks\useMidiEditor.ts" />
+    <None Include="ui\hooks\useMidiViewport.ts" />
+    <None Include="ui\hooks\usePanelLayout.ts" />
+    <None Include="ui\hooks\useRulerGesture.ts" />
     <None Include="ui\hooks\useShortcuts.ts" />
     <None Include="ui\hooks\useWorkspace.ts" />
     <None Include="ui\hooks\workspace\useDialogs.ts" />
@@ -121,12 +160,12 @@
     <None Include="ui\hooks\workspace\useSelection.ts" />
     <None Include="ui\hooks\workspace\useTempoChange.ts" />
     <None Include="ui\hooks\workspace\useTimeline.ts" />
-    <None Include="ui\main.tsx" />
-    <None Include="ui\models.ts" />
     <None Include="ui\services\desktop.ts" />
     <None Include="ui\services\errors.ts" />
-    <None Include="ui\services\session-updates.ts" />
+    <None Include="ui\services\fileDrop.ts" />
     <None Include="ui\services\midi-note-edits.ts" />
+    <None Include="ui\services\pointerReorder.ts" />
+    <None Include="ui\services\session-updates.ts" />
     <None Include="ui\styles\arrangement.css" />
     <None Include="ui\styles\base.css" />
     <None Include="ui\styles\dialogs.css" />
@@ -134,29 +173,12 @@
     <None Include="ui\styles\overlays.css" />
     <None Include="ui\styles\plugins.css" />
     <None Include="ui\styles\shell.css" />
-    <None Include="vite.config.ts" />
+    <None Include="ui\styles\sound-editors.css" />
     <ProjectReference Include="BasementBand.Audio.vcxproj">
       <Project>{E629AC24-957D-4DAC-A9CE-B1F26F8F97A2}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
-    <None Include="ui\components\MidiEditorToolbar.tsx" />
-    <None Include="ui\components\MidiPianoRoll.tsx" />
-    <None Include="ui\hooks\useExport.ts" />
-    <None Include="ui\hooks\useMidiEditor.ts" />
-    <None Include="ui\hooks\useMidiViewport.ts" />
-    <None Include="ui\hooks\useRulerGesture.ts" />
-    <None Include="desktop\session-storage.cjs" />
-    <None Include="desktop\smoke\arrangement.cjs" />
-    <None Include="desktop\smoke\export.cjs" />
-    <None Include="desktop\smoke\midi-editing.cjs" />
-    <None Include="desktop\smoke\midi-navigation.cjs" />
-    <None Include="desktop\smoke\midi-routing.cjs" />
-    <None Include="desktop\smoke\recording.cjs" />
-    <None Include="desktop\smoke\sound.cjs" />
-    <None Include="desktop\smoke\startup.cjs" />
-    <None Include="desktop\smoke\required.cjs" />
-    <None Include="desktop\types.d.ts" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

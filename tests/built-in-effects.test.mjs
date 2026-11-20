@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { startSession } from "./helpers/session.mjs";
-import { PluginLibrary } from "../desktop/plugin-library.cjs";
-import { validate } from "../desktop/session-files.cjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
 
 function audioSamples(path) {
@@ -187,7 +185,7 @@ test("built-in effects process sound, preserve raw capture, and survive history,
       typeof value === "number"
         ? assert.ok(Math.abs(s.tracks[0][key] - value) < 1e-5)
         : assert.equal(s.tracks[0][key], value);
-    const library = new PluginLibrary(folder, "unused", []);
+    const library = { command: (c) => rpc.library(c) };
     const savedPreset = await library.command(
       { op: "savePreset", name: "Room", track },
       send,
@@ -224,12 +222,12 @@ test("built-in effects process sound, preserve raw capture, and survive history,
         Math.abs(s.tracks[0][key] - patch[key]) < 1e-5,
         `${key} survives preset/save/open`,
       );
-    assert.throws(
-      () => validate({ ...saved, limiterEnabled: "yes" }),
+    await assert.rejects(
+      rpc.validate({ ...saved, limiterEnabled: "yes" }),
       /Invalid/,
     );
     saved.tracks[0].gateThreshold = -100;
-    assert.throws(() => validate(saved), /Invalid/);
+    await assert.rejects(rpc.validate(saved), /Invalid/);
     assert.match(
       (await rpc.send({ op: "track", track, compressorAmount: 2 })).error,
       /Invalid effect/,
@@ -428,18 +426,17 @@ test("starter amp adds harmonics by character, keeps level steady and survives h
     s = await send({ op: "open", path });
     assert.equal(s.tracks[0].ampCharacter, "clean");
     assert.equal(s.tracks[0].ampBypass, true);
-    assert.throws(
-      () =>
-        validate({
-          ...saved,
-          tracks: [{ ...saved.tracks[0], ampCharacter: "metal" }],
-        }),
+    await assert.rejects(
+      rpc.validate({
+        ...saved,
+        tracks: [{ ...saved.tracks[0], ampCharacter: "metal" }],
+      }),
       /Invalid amp/,
     );
     const legacy = structuredClone(saved);
     delete legacy.tracks[0].ampCharacter;
     delete legacy.tracks[0].ampBypass;
-    validate(legacy);
+    await rpc.validate(legacy);
   } finally {
     await rpc.close();
   }
@@ -457,7 +454,7 @@ test("starter sounds are factory presets that keep the track's volume and cannot
   try {
     const track = (await send({ op: "state" })).tracks[0].id;
     await send({ op: "track", track, gain: 1.2, pan: -0.4 });
-    const library = new PluginLibrary(folder, "unused", []);
+    const library = { command: (c) => rpc.library(c) };
     const listed = await library.command({ op: "list" }, send);
     assert.deepEqual(
       listed.starters.map((p) => p.id),

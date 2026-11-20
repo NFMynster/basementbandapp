@@ -35,6 +35,21 @@
 body {
   margin: 0;
 }
+/* Pointer reorder (ui/services/pointerReorder.ts): the copy that follows the
+   pointer, and no text selection or stray hover cursors while dragging. */
+.reorder-ghost {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0.85;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+body.reordering,
+body.reordering * {
+  user-select: none;
+  cursor: grabbing !important;
+}
 button,
 input,
 select {

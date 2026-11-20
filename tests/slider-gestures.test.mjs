@@ -1,48 +1,9 @@
-﻿import test from "node:test";
+// Queue coalescing itself is unit-tested in desktop/src/session_service.rs.
+import test from "node:test";
 import assert from "node:assert/strict";
-import { SessionService } from "../desktop/session-service.cjs";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { resolve } from "node:path";
 import { startSession } from "./helpers/session.mjs";
-
-test("pending slider updates collapse without crossing undo or gesture boundaries", async () => {
-  const service = Object.create(SessionService.prototype);
-  service.ready = Promise.resolve();
-  let release;
-  service.queue = new Promise((r) => {
-    release = r;
-  });
-  const executed = [];
-  service.execute = async (c) => {
-    executed.push(c);
-    return c;
-  };
-  const requests = [];
-  for (let i = 0; i < 1000; i++)
-    requests.push(
-      service.request({
-        op: "track",
-        track: "a",
-        gain: i / 1000,
-        historyGroup: "first",
-      }),
-    );
-  requests.push(service.request({ op: "undo" }));
-  requests.push(
-    service.request({
-      op: "track",
-      track: "a",
-      gain: 0.2,
-      historyGroup: "second",
-    }),
-  );
-  release();
-  await Promise.all(requests);
-  assert.equal(executed.length, 3);
-  assert.equal(executed[0].gain, 0.999);
-  assert.equal(executed[1].op, "undo");
-  assert.equal(executed[2].historyGroup, "second");
-});
 
 test("a long slider gesture undoes and redoes its endpoints in one step", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });

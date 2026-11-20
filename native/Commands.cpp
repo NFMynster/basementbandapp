@@ -4,7 +4,7 @@
 
 namespace basement {
 // Routes each op to the domain file that validates and applies it. This table
-// mirrors desktop/commands.cjs; tests/command-contract.test.mjs keeps them equal.
+// mirrors desktop/commands.json; tests/command-contract.test.mjs keeps them equal.
 var Engine::command(const var &c) {
   using Handler = var (Engine::*)(const var &);
   static const std::map<juce::String, Handler> routes{

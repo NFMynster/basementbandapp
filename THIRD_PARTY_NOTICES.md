@@ -18,15 +18,16 @@ No proprietary ASIO or commercial JUCE license is asserted.
 
 ## Desktop dependencies
 
-- Electron: MIT, plus Chromium/Node and other notices supplied in Electron's distribution.
+- Tauri and its runtime crates (tauri, wry, tao, the dialog and opener plug-ins and their dependencies): MIT or Apache-2.0.
+- The Rust crates linked into the desktop shell (serde, serde_json, tokio, reqwest, uuid, log and their dependencies): mostly MIT and/or Apache-2.0, with some BSD, ISC, Zlib, Unicode-3.0 and MPL-2.0 crates. Each crate's notices are collected under `licenses/rust/`.
 - React and React DOM: MIT, Copyright Meta Platforms, Inc. and affiliates.
 - Lucide: ISC, with Feather-derived icons under MIT; preserve its full license.
-- electron-updater and its runtime dependencies (builder-util-runtime, js-yaml, semver, fs-extra and others): MIT, ISC and Python-2.0 (argparse). Their notices are collected under `licenses/npm/`.
-- Other transitive dependencies retain the licenses in their respective packages.
+- @tauri-apps/api: MIT or Apache-2.0. npm notices are collected under `licenses/npm/`.
+- The app renders with the operating system's webview (Microsoft Edge WebView2 on Windows, WKWebView on macOS), which is not redistributed with it.
 
-Packaging includes a licenses directory generated from the installed
-dependencies and JUCE source, alongside this notice and the complete project
-license. Preserve Electron's LICENSE and LICENSES.chromium.html.
+Packaging includes a licenses directory generated from the installed npm
+packages, the Rust dependency graph (`cargo metadata`) and the JUCE source,
+alongside this notice and the complete project license.
 
 ## User plug-ins and trademarks
 
@@ -34,7 +35,7 @@ No third-party instruments, effects, samples or ASIO drivers are bundled.
 Users install plug-ins separately under the vendors' terms. Compatibility
 does not grant rights to redistribute those plug-ins.
 
-JUCE, VST, ASIO, Electron and other product names belong to their respective
+JUCE, VST, ASIO, Tauri, WebView2 and other product names belong to their respective
 owners. This project is not endorsed by Apple or the named vendors.
 
 ## Signalsmith audio processing

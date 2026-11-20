@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { startSession } from "./helpers/session.mjs";
 import { writeMonoWav } from "./helpers/wav.mjs";
-import { PluginLibrary } from "../desktop/plugin-library.cjs";
 
 test("MIDI composition, fades, tempo host, mixer history and track presets", async () => {
   mkdirSync("artifacts/test-sessions", { recursive: true });
@@ -160,14 +159,7 @@ test("MIDI composition, fades, tempo host, mixer history and track presets", asy
     s = await send({ op: "redo" });
     assert.equal(s.tracks.at(-1).eqBass, 4);
     assert.ok(Math.abs(s.tracks.at(-1).gain - 0.7) < 1e-6);
-    const library = new PluginLibrary(
-      folder,
-      resolve(
-        "artifacts/native/BasementAudio" +
-          (process.platform === "win32" ? ".exe" : ""),
-      ),
-      [],
-    );
+    const library = { command: (c) => rpc.library(c) };
     let lib = await library.command(
       { op: "savePreset", track, name: "Keys" },
       send,
@@ -228,8 +220,9 @@ test("MIDI composition, fades, tempo host, mixer history and track presets", asy
         "Keys",
       ),
     );
-    await library.ready;
-    await library.scan(resolve("build/native/TestGain_artefacts/Release/VST3"));
+    await rpc.scanLibrary(
+      resolve("build/native/TestGain_artefacts/Release/VST3"),
+    );
     lib = await library.command({ op: "list" }, send);
     assert.equal(lib.plugins.length, 1, JSON.stringify(lib.errors));
     assert.ok(lib.plugins[0].name.includes("Gain"));
@@ -238,9 +231,8 @@ test("MIDI composition, fades, tempo host, mixer history and track presets", asy
       send,
     );
     assert.equal(lib.plugins[0].favorite, true);
-    const again = new PluginLibrary(folder, "", []);
-    await again.ready;
-    assert.equal(again.data.plugins[0].favorite, true);
+    const again = await rpc.reloadLibrary();
+    assert.equal(again.plugins[0].favorite, true);
   } finally {
     await rpc.close();
   }

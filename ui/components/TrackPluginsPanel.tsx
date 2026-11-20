@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent } from "react";
+import { type MouseEvent, type PointerEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,8 +10,9 @@ import {
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import type { AmpCharacter, Track } from "../models";
 import { desktop as api } from "../services/desktop";
+import { startPointerReorder } from "../services/pointerReorder";
 
-// Factory presets from desktop/starter-sounds.cjs, keyed by their amp.
+// Factory presets from desktop/starter-sounds.json, keyed by their amp.
 export const STARTER_SOUNDS: Record<Exclude<AmpCharacter, "none">, string> = {
   clean: "Clean guitar",
   crunch: "Crunch guitar",
@@ -24,6 +25,12 @@ export const STARTER_SOUNDS: Record<Exclude<AmpCharacter, "none">, string> = {
 const onButton = (e: MouseEvent<HTMLElement>) =>
   !!(e.target as HTMLElement).closest("button");
 
+function clearSlotMarks() {
+  document
+    .querySelectorAll(".plugin-slot.reorder-target")
+    .forEach((node) => node.classList.remove("reorder-target"));
+}
+
 export function TrackPluginsPanel({
   controller,
   track,
@@ -32,7 +39,29 @@ export function TrackPluginsPanel({
   track: Track;
 }) {
   const { s, run, busy } = controller;
-  const effectDrag = useRef<string | null>(null);
+  // Drag a plug-in onto another slot to move it there; the instrument or
+  // first plug-in slot (index -1) takes effects to the front of the chain.
+  const dragEffect = (e: PointerEvent<HTMLElement>, effect: string) => {
+    if (s.playing || busy || onButton(e)) return;
+    startPointerReorder(e, {
+      targets: "[data-effect-slot]",
+      onMove(target) {
+        clearSlotMarks();
+        if (target && target.dataset.effectId !== effect)
+          target.classList.add("reorder-target");
+      },
+      onDrop(target) {
+        if (!target || target.dataset.effectId === effect) return;
+        void run({
+          op: "reorderEffect",
+          track: track.id,
+          effect,
+          index: Number(target.dataset.effectSlot),
+        });
+      },
+      onEnd: clearSlotMarks,
+    });
+  };
   const amp = track.kind === "audio" ? (track.ampCharacter ?? "none") : "none";
   const emptyChain =
     track.kind === "audio" &&
@@ -116,45 +145,20 @@ export function TrackPluginsPanel({
                 ? " instrument-empty"
                 : "")
             }
-            draggable={
-              track.kind === "audio" &&
-              !!track.pluginName &&
-              !s.playing &&
-              !busy
+            data-effect-slot={track.kind === "audio" ? -1 : undefined}
+            data-effect-id="primary"
+            data-reorderable={
+              track.kind === "audio" && track.pluginName && !s.playing && !busy
+                ? ""
+                : undefined
             }
-            onDragStart={(e) => {
-              effectDrag.current = "primary";
-              e.dataTransfer.setData("text/plain", "primary");
-            }}
-            onDragEnd={() => {
-              effectDrag.current = null;
+            onPointerDown={(e) => {
+              if (track.kind === "audio" && track.pluginName)
+                dragEffect(e, "primary");
             }}
             onDoubleClick={(e) => {
               if (track.pluginName && !onButton(e))
                 void run({ op: "editor", track: track.id }, false);
-            }}
-            onDragOver={(e) => {
-              if (track.kind === "audio" && effectDrag.current) {
-                e.preventDefault();
-                e.stopPropagation();
-              }
-            }}
-            onDrop={(e) => {
-              if (
-                track.kind !== "audio" ||
-                !effectDrag.current ||
-                effectDrag.current === "primary"
-              )
-                return;
-              e.preventDefault();
-              e.stopPropagation();
-              void run({
-                op: "reorderEffect",
-                track: track.id,
-                effect: effectDrag.current,
-                index: -1,
-              });
-              effectDrag.current = null;
             }}
           >
             {track.pluginName ? (
@@ -264,39 +268,16 @@ export function TrackPluginsPanel({
             <div
               className="plugin-slot"
               key={effect.id}
-              draggable={!s.playing && !busy}
-              onDragStart={(e) => {
-                effectDrag.current = effect.id;
-                e.dataTransfer.setData("text/plain", effect.id);
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              onDragEnd={() => {
-                effectDrag.current = null;
-              }}
+              data-effect-slot={index}
+              data-effect-id={effect.id}
+              data-reorderable={!s.playing && !busy ? "" : undefined}
+              onPointerDown={(e) => dragEffect(e, effect.id)}
               onDoubleClick={(e) => {
                 if (!onButton(e))
                   void run(
                     { op: "editor", track: track.id, effect: effect.id },
                     false,
                   );
-              }}
-              onDragOver={(e) => {
-                if (effectDrag.current) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }
-              }}
-              onDrop={(e) => {
-                if (!effectDrag.current) return;
-                e.preventDefault();
-                e.stopPropagation();
-                void run({
-                  op: "reorderEffect",
-                  track: track.id,
-                  effect: effectDrag.current,
-                  index,
-                });
-                effectDrag.current = null;
               }}
             >
               <button

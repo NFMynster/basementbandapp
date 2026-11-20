@@ -1,6 +1,7 @@
+// UI hot reload: Vite on a free loopback port, and a debug build of the
+// desktop shell loading it. The native engine must already be built.
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
+import { cargo, withCargo } from "./build-tools.mjs";
 const vite = spawn(process.execPath, ["scripts/vite-server.mjs"], {
   stdio: ["ignore", "pipe", "pipe", "ipc"],
 });
@@ -39,10 +40,24 @@ try {
     });
   });
   if (!closing) {
-    desktop = spawn(require("electron"), ["."], {
-      stdio: "inherit",
-      env: { ...process.env, BASEMENT_DEV: "1", BASEMENT_DEV_URL: url },
-    });
+    desktop = spawn(
+      cargo(),
+      [
+        "run",
+        "--manifest-path",
+        "desktop/Cargo.toml",
+        "--bin",
+        "basement-band",
+      ],
+      {
+        stdio: "inherit",
+        env: withCargo({
+          ...process.env,
+          BASEMENT_DEV: "1",
+          BASEMENT_DEV_URL: url,
+        }),
+      },
+    );
     desktop.on("error", (error) => {
       console.error(error.message);
       close(1);

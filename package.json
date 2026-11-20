@@ -3,21 +3,21 @@
   "version": "0.2.8",
   "private": true,
   "description": "A small, local recording room for playing together",
-  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc --noEmit && vite build",
     "build:native": "node scripts/native.mjs",
-    "build:all": "npm run build:native && npm run build:licenses && npm run build:icons && npm run build",
-    "start": "electron .",
-    "test": "node --test --test-concurrency=1 --test-timeout=120000 --test-force-exit tests/*.test.mjs",
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "build:all": "npm run build:native && npm run build:desktop",
+    "start": "node scripts/start.mjs",
+    "test": "node scripts/rust-test.mjs && node --test --test-concurrency=1 --test-timeout=120000 --test-force-exit tests/*.test.mjs",
     "test:desktop": "node scripts/smoke.mjs",
-    "test:visual": "electron scripts/screenshot.cjs && electron scripts/sound-editors-visual.cjs",
+    "test:visual": "node scripts/screenshot.cjs && node scripts/sound-editors-visual.cjs",
     "lint": "eslint .",
-    "check": "tsc --noEmit && tsc -p tsconfig.desktop.json && eslint . && prettier --check ui desktop scripts tests package.json tsconfig.json tsconfig.desktop.json eslint.config.mjs vite.config.ts index.html docs README.md",
+    "check": "tsc --noEmit && tsc -p tsconfig.desktop.json && eslint . && node scripts/rust-test.mjs --check && prettier --check ui desktop scripts tests package.json tsconfig.json tsconfig.desktop.json eslint.config.mjs vite.config.ts index.html docs README.md",
     "format": "prettier --write ui desktop scripts tests package.json tsconfig.json tsconfig.desktop.json eslint.config.mjs vite.config.ts index.html docs README.md",
-    "package": "npm run build:all && electron-builder --dir",
-    "build:icons": "electron scripts/icons.cjs",
+    "package": "node scripts/package.mjs",
+    "build:icons": "node scripts/icons.mjs",
     "package:win": "node scripts/package.mjs win",
     "package:mac": "node scripts/package.mjs mac",
     "release:win": "node scripts/release-win.mjs",
@@ -25,18 +25,18 @@
     "build:licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
-    "electron-updater": "6.8.12",
+    "@tauri-apps/api": "^2.12.5",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@tauri-apps/cli": "^2.12.6",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "electron": "^42.11.18",
-    "electron-builder": "^26.0.12",
     "eslint": "10.14.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.14.0",
@@ -44,75 +44,6 @@
     "typescript": "^5.9.0",
     "typescript-eslint": "8.72.1",
     "vite": "^7.1.0"
-  },
-  "build": {
-    "directories": {
-      "output": "release"
-    },
-    "appId": "com.footstompstudios.basementband",
-    "productName": "Basement Band",
-    "files": [
-      "dist/**/*",
-      "desktop/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "artifacts/native",
-        "to": "artifacts/native",
-        "filter": [
-          "**/*",
-          "!**/*.pdb"
-        ]
-      },
-      {
-        "from": "artifacts/licenses",
-        "to": "licenses"
-      }
-    ],
-    "mac": {
-      "category": "public.app-category.music",
-      "extendInfo": {
-        "NSMicrophoneUsageDescription": "Record your instruments into separate audio tracks."
-      },
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ],
-      "entitlements": "desktop/entitlements.mac.plist",
-      "entitlementsInherit": "desktop/entitlements.mac.plist",
-      "binaries": [
-        "Contents/Resources/artifacts/native/BasementAudio"
-      ],
-      "artifactName": "Basement-Band-${arch}.${ext}"
-    },
-    "win": {
-      "signAndEditExecutable": true,
-      "target": "dir",
-      "icon": "desktop/assets/icon.ico"
-    },
-    "linux": {
-      "target": "dir",
-      "category": "AudioVideo"
-    },
-    "icon": "desktop/assets/icon.png",
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "artifactName": "Basement-Band-Setup.${ext}"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "NFMynster",
-        "repo": "basementbandapp",
-        "releaseType": "release"
-      }
-    ]
   },
   "license": "AGPL-3.0-only"
 }

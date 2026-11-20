@@ -18,6 +18,8 @@ export default tseslint.config(
       "artifacts/",
       "release/",
       "video/",
+      "desktop/target/",
+      "desktop/gen/",
       ".tools/",
       "**/*.d.ts",
     ],
@@ -33,7 +35,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
-    // Electron main/preload, build scripts and the screenshot bridge.
+    // Smoke workflows, the webview test driver and visual scripts (Node).
     files: ["desktop/**/*.cjs", "scripts/**/*.cjs"],
     languageOptions: { sourceType: "commonjs", globals: globals.node },
   },
@@ -43,14 +45,13 @@ export default tseslint.config(
   },
   {
     // Strings passed to executeJavaScript run in the page, but these files
-    // also touch DOM types in preload and visual scripts.
-    files: [
-      "desktop/preload.cjs",
-      "scripts/*preload.cjs",
-      "scripts/*visual*.cjs",
-      "scripts/screenshot.cjs",
-    ],
+    // also touch DOM types; the visual fixture is a page script.
+    files: ["scripts/*visual*.cjs", "scripts/screenshot.cjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    files: ["scripts/visual-fixture.js"],
+    languageOptions: { sourceType: "script", globals: globals.browser },
   },
   {
     // Unused values are already errors in tsc (noUnusedLocals/Parameters);

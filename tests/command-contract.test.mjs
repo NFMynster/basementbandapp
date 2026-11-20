@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import test from "node:test";
 
-const require = createRequire(import.meta.url);
-const {
-  ENGINE_COMMANDS,
-  LIBRARY_COMMANDS,
-  RENDERER_COMMANDS,
-} = require("../desktop/commands.cjs");
+// The single command list, read by the Rust shell (desktop/src/contract.rs).
+const contract = JSON.parse(readFileSync("desktop/commands.json", "utf8"));
+const ENGINE_COMMANDS = contract.engine;
+const LIBRARY_COMMANDS = contract.library;
+const RENDERER_COMMANDS = Object.keys(ENGINE_COMMANDS).filter(
+  (op) => ENGINE_COMMANDS[op].sender === "renderer",
+);
 
 const sorted = (values) => [...values].sort();
 

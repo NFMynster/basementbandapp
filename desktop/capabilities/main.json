@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The Basement Band window: core events (file drops, replies) and the app's own commands only. No filesystem, shell or HTTP plug-in access.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { Clip, Track, TrackPatch } from "../../models";
 import { desktop as api } from "../../services/desktop";
+import { listenForFileDrops } from "../../services/fileDrop";
 import type { EngineSession } from "./useEngineSession";
 import type { Notices } from "./useNotices";
 import { trackContainingClip, type Selection } from "./useSelection";
@@ -170,9 +171,9 @@ export function useEditing({
     return created;
   }
 
-  async function dropAudio(files: File[], target?: string) {
+  async function dropAudio(paths: string[], target?: string) {
     const at = s.position;
-    const result = await task(() => api.dropFiles(files, target));
+    const result = await task(() => api.dropFiles(paths, target));
     if (!result) return;
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve()),
@@ -185,6 +186,18 @@ export function useEditing({
       behavior: "smooth",
     });
   }
+
+  // Files dragged in from the desktop: audio and MIDI onto the arrangement
+  // or a lane, VST3 plug-ins onto the selected track's Plug-ins panel.
+  const onFileDrop = useEffectEvent(
+    (paths: string[], target: { kind: string; track?: string }) => {
+      if (target.kind === "plugin") {
+        if (target.track)
+          void task(() => api.dropFiles(paths, target.track, true));
+      } else void dropAudio(paths, target.track);
+    },
+  );
+  useEffect(() => listenForFileDrops(onFileDrop), []);
 
   return {
     update,

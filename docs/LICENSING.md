@@ -19,8 +19,9 @@ by AGPLv3 section 13; VST3's bundled SDK is MIT.
    accessible without an additional source fee. A link to a changing main
    branch or merely saying “source available” is not sufficient.
 3. Run `npm run build:licenses` after building native dependencies. Packaging
-   includes the generated notices and license texts; verify they and Electron's
-   Chromium notices remain in the final installer/app.
+   includes the generated notices and license texts (JUCE, npm packages and
+   every Rust crate linked into the shell); verify they remain in the final
+   installer/app.
 4. Do not impose an EULA or store restriction that prohibits redistribution,
    modification, or other rights granted by these licenses. Do not bundle
    proprietary plug-ins or drivers without separately reviewing their terms.

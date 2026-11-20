@@ -1,29 +1,40 @@
 # Working on Basement Band
 
-The desktop is React/Electron plus a separate C++/JUCE audio process.
+The desktop is a React UI in the system webview (WebView2 on Windows, WKWebView on macOS), a Rust/Tauri shell, and a separate C++/JUCE audio process. There is no bundled browser and no Node runtime in the app.
 
-| Area             | Owns                                                     | Entry points                                            |
-| ---------------- | -------------------------------------------------------- | ------------------------------------------------------- |
-| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                   |
-| Contract         | Typed commands and limited preload API                   | ui/models.ts, desktop/commands.cjs, desktop/preload.cjs |
-| Desktop shell    | Windows, dialogs, sender validation, file drops          | desktop/main.cjs, desktop/ipc.cjs                       |
-| Session service  | Serialized commands, recovery, working folders           | desktop/session-service.cjs                             |
-| Session storage  | Portable projects, validation and atomic writes          | desktop/session-storage.cjs, desktop/session-files.cjs  |
-| Session history  | Undo policy and immutable application of history entries | desktop/session-history.cjs                             |
-| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/native-client.cjs, desktop/backend.cjs          |
-| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                  |
+| Area             | Owns                                                     | Entry points                                                 |
+| ---------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
+| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                        |
+| Contract         | Typed commands and the shell bridge                      | ui/models.ts, desktop/commands.json, ui/services/desktop.ts  |
+| Desktop shell    | Window, tray, dialogs, file drops, quit with recovery    | desktop/src/main.rs, desktop/src/ipc.rs                      |
+| Session service  | Ordered command queue, undo/redo, recovery, folders      | desktop/src/session_service.rs                               |
+| Session storage  | Portable projects, validation and atomic writes          | desktop/src/session_storage.rs, desktop/src/session_files.rs |
+| Session history  | Undo policy and immutable application of history entries | desktop/src/history.rs                                       |
+| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/src/native_client.rs                                 |
+| Sound library    | Plug-in scans, favourites, track presets, starter sounds | desktop/src/plugin_library.rs, desktop/starter-sounds.json   |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                       |
 
 ## Extending behavior
 
 1. Extend the typed contract in ui/models.ts.
-2. Register the op in desktop/commands.cjs with its native domain, sender and policy flags (`undoable`, `edits` for recovery, `gesture` for slider coalescing, `query`). IPC derives its allowlist from that registry; ops that carry paths are `desktop`-only and go through a dedicated validated handler. Renderer code must not gain arbitrary filesystem or process access.
-3. Put portable file operations in session-storage.cjs and ordering/history in SessionService. Route audio commands to their native domain handler.
+2. Register the op in desktop/commands.json with its native domain, sender and policy flags (`undoable`, `edits` for recovery, `gesture` for slider coalescing, `query`). The shell derives its allowlist from that registry (desktop/src/contract.rs); ops that carry paths are `desktop`-only and go through a dedicated handler in desktop/src/ipc.rs that gets its path from a native dialog or drop. Renderer code must not gain arbitrary filesystem or process access.
+3. Put portable file operations in session_storage.rs and ordering/history in SessionService. Route audio commands to their native domain handler.
 4. Reuse Modal, TrackIcon, MIDI routing and the central shortcut hook. Avoid separate keyboard listeners for global actions.
 5. Add deterministic integration tests and UI checks.
 
-## Desktop types
+## Desktop shell
 
-The desktop layer stays plain CommonJS that Electron runs directly, but `tsconfig.desktop.json` type-checks it strictly through JSDoc as part of `npm run check`. Shared shapes live in `desktop/types.d.ts` and reuse `ui/models.ts`, so the preload bridge is checked against the same `DesktopApi` the renderer calls, and the screenshot bridge mock in `scripts/screenshot-preload.cjs` cannot drift from it. Engine snapshots are typed as `Snapshot`, the renderer `Session` plus document fields only the desktop reads.
+`desktop/` is a Cargo crate: a library (`basement_desktop`, everything testable without a window), the app binary (`src/main.rs`: Tauri window, tray, commands, dialogs, quit flow) and `session-host`, a test-only binary that exposes SessionService, PluginLibrary and the drop/import handlers over stdin/stdout so `npm test` drives the shipped Rust code with the real engine. It is never bundled.
+
+The UI reaches the shell only through `ui/services/desktop.ts`, which calls Tauri commands with `@tauri-apps/api`. The capability in `desktop/capabilities/main.json` grants the window core events and the app's own commands, nothing else: no filesystem, shell or HTTP plug-ins. Commands check that they come from the main window. Session commands are synchronous Tauri commands that queue the request the moment it arrives and reply on a channel, so rapid slider updates keep their order. Native dialogs and updates run in Rust; the CSP is set in `desktop/tauri.conf.json`. Installed builds update themselves through the Tauri updater (`desktop/src/auto_update.rs`): the newest published release's `latest.json` names a signed installer (Windows) or app archive (macOS), which downloads in the background and installs after recovery is written, on quit or through "restart to update". Development, smoke runs and builds without the updater's public key show the release-page notice instead (`desktop/src/updates.rs`).
+
+User data (recovery, the Sound library, the remembered device) lives in `com.footstompstudios.basementband` under the platform's app-data folder (`%APPDATA%` on Windows, `~/Library/Application Support` on macOS). Logs go to `logs/main.log` there (macOS: `~/Library/Logs/Basement Band`), rotated at 4 MiB. The engine is a Tauri sidecar next to the app executable; development builds use `artifacts/native`.
+
+Rust code is checked by `cargo fmt --check` and `cargo clippy -D warnings` in `npm run check`, and unit tests run first in `npm test`. White-box tests (gesture coalescing, device restore, storage, history, the pipe client) live next to the code in `desktop/src`; behaviour that needs the engine stays in `tests/*.test.mjs`. `desktop/types.d.ts` types the smoke workflows and the webview test driver; the visual fixture in `scripts/visual-fixture.js` is checked against the same `DesktopApi` the renderer calls.
+
+## File drops and in-app drags
+
+Files dragged in from the desktop arrive as one native Tauri drop event with real paths, not as DOM events. Drop zones opt in with `data-file-drop="audio" | "plugin"` (and `data-file-drop-track`); `ui/services/fileDrop.ts` hands the drop to the innermost zone under the pointer. The shell accepts `drop_files` only for paths from the latest native drop, so the UI cannot name arbitrary files. Because native drops own the drag channel (on Windows they cannot share it with HTML5 drag-and-drop), in-app reordering of tracks and plug-ins uses pointer events through `ui/services/pointerReorder.ts`: a threshold before the drag starts, a following ghost, edge auto-scroll, and cancellation on Escape, blur or pointer cancel. Use it for new reorderable lists instead of `draggable`.
 
 ## Renderer coordination
 
@@ -62,25 +73,27 @@ Each file in `ui/styles/` covers one area: `base` (element defaults and the shar
 
 ## Native command routing
 
-Engine::command in native/Commands.cpp looks each op up in one route table and hands it to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. desktop/commands.cjs is the single command list: tests/command-contract.test.mjs fails when the native route table or the types in ui/models.ts disagree with it. To add an operation, register it there, add its route and implementation in the appropriate domain, and type it in ui/models.ts if the renderer sends it.
+Engine::command in native/Commands.cpp looks each op up in one route table and hands it to TrackCommands, PluginCommands, TransportCommands, RegionCommands, SessionCommands, DeviceCommands or TestCommands. Each file owns its command validation and mutations; processing still lives in the existing recording, rendering, MIDI and DSP files. desktop/commands.json is the single command list: tests/command-contract.test.mjs fails when the native route table or the types in ui/models.ts disagree with it. To add an operation, register it there, add its route and implementation in the appropriate domain, and type it in ui/models.ts if the renderer sends it.
 
 Engine retains ownership of processors, devices and shared audio state. Handlers run on the message thread. Callback-visible mutations retain their existing guard scopes; those locks are released before syncAudioInput can restart a device. Test commands remain restricted to the test device. Splitting command files does not add another thread or queue.
 
 ## Session storage and desktop checks
 
-SessionService owns the command queue, working folder, undo/redo and recovery ordering. desktop/session-storage.cjs only reads and writes portable projects: saveSession copies media and atomically replaces the document without mutating the supplied snapshot; readSession validates fields and resolves media before engine restore. The service adopts the new working folder only after restore succeeds. desktop/session-files.cjs owns validation and atomic JSON writing.
+SessionService owns the command queue, working folder, undo/redo and recovery ordering. desktop/src/session_storage.rs only reads and writes portable projects: save_session copies media and atomically replaces the document without mutating the supplied snapshot; read_session validates fields and resolves media before engine restore. The service adopts the new working folder only after restore succeeds. desktop/src/session_files.rs owns validation and atomic JSON writing.
 
-The desktop smoke entry point owns one Electron lifecycle and invokes named workflows in desktop/smoke/. Workflows are intentionally sequential; explicit return values carry any shared fixtures. Extend the relevant workflow for a UI change and register new workflows in desktop/smoke.cjs. The entry point alone owns app shutdown and failure exit status.
+The desktop smoke run (`scripts/smoke.mjs`) starts the built app on the engine's test device and invokes named workflows in desktop/smoke/. Workflows are intentionally sequential; explicit return values carry any shared fixtures. Extend the relevant workflow for a UI change and register new workflows in scripts/smoke.mjs, which alone owns app shutdown and failure exit status.
+
+The smoke and visual runs drive WebView2 over the Chrome DevTools Protocol through `scripts/webview-driver.cjs`, which gives the scripts the window surface they were written against: page scripts, real mouse and key input (Electron's `sendInputEvent` shape), screenshots, injected CSS, resizing and reloads. With `BASEMENT_SMOKE=1` the shell opens the DevTools port, uses a disposable webview profile and smoke user data, keeps timers running while covered, and answers file dialogs from the test (`win.dialogs`) instead of showing them. Smoke-only shell commands (`smoke_request`, `smoke_set_size`, `smoke_dialog`) refuse to run otherwise. Navigate from inside the page (the driver does): navigations started over DevTools skip the shell's bridge script. These runs are Windows-only; macOS's WKWebView has no automation port, so check macOS by hand.
 
 Session documents require CURRENT_SESSION_VERSION and all persisted sound fields. Optional plug-in state remains valid for snapshots that intentionally omit processor state. Keep driver fallbacks: they support current audio devices.
 
 ## Protocol and lifecycle
 
-Electron’s SessionService serializes operations so save/open cannot race edits. NativeClient serializes JUCE requests and accepts only BASEMENT:-prefixed JSON replies. Plugin stdout diagnostics are ignored. Command errors leave the connection usable; malformed replies, timeouts and child failures quarantine it so late replies cannot be assigned to another request.
+SessionService runs every operation on one worker in arrival order, so save/open cannot race edits. NativeClient serializes JUCE requests and accepts only BASEMENT:-prefixed JSON replies. Plugin stdout diagnostics are logged, not parsed. Command errors leave the connection usable; malformed replies, timeouts and child failures quarantine it so late replies cannot be assigned to another request.
 
-Close the child on Electron will-quit, after unsaved-work confirmation. EOF tells JUCE to finalize recording and exit. A bounded shutdown fallback terminates an unresponsive child. The normal app has no control TCP listener.
+Closing the window, Quit in the tray or menu bar, and Restart all go through one quit flow: stop the transport, write recovery, then end the engine. EOF tells JUCE to finalize recording and exit; a bounded fallback kills an unresponsive child. If recovery cannot be written the user chooses between keeping the app open and quitting without recovery. The normal app has no control TCP listener.
 
-The renderer is sandboxed with context isolation and a narrow preload bridge. File-drop paths are derived from actual File objects by Electron webUtils, not arbitrary path strings supplied to the public renderer API. The main handler checks the sender, path type, file extensions and audio/MIDI track compatibility. Imports copy into the working session; new-track import failures remove the just-created empty track while stopped.
+The renderer has no filesystem or process access. Paths reach the engine only from native dialogs or the latest native file drop. The drop handler checks the path type, file extensions and audio/MIDI track compatibility. Imports copy into the working session; new-track import failures remove the just-created empty track while stopped.
 
 ## Timing and recording
 
@@ -92,9 +105,9 @@ The engine uses short control locks. Its callback attempts the lock without bloc
 
 ## Session files
 
-Session files use version 4, which adds ordered effect chains. Version 3 sessions still open and are upgraded on save. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
+Session files use version 4, which adds ordered effect chains; older versions are rejected. Persisted fields are validated before restore. Media lives beside the .basement document in its .basement.audio directory with relative paths.
 
-Undo/redo stores before/after snapshots and applies only the region and setting differences owned by an entry to the current session. `session-history.cjs` owns undo eligibility, descriptions, fingerprints and the pure history transformation; `SessionService` owns the stacks, command grouping, engine restore and recovery writes. Track settings, volume, tempo and plug-in changes participate in history. Surviving tracks retain their processors unless the entry requires a plug-in reload; restoring a deleted track loads its saved processors. Recovery saving remains independent of undo.
+Undo/redo stores before/after snapshots and applies only the region and setting differences owned by an entry to the current session. `desktop/src/history.rs` owns undo eligibility, descriptions, fingerprints and the pure history transformation; `SessionService` owns the stacks, command grouping, engine restore and recovery writes. Track settings, volume, tempo and plug-in changes participate in history. Surviving tracks retain their processors unless the entry requires a plug-in reload; restoring a deleted track loads its saved processors. Recovery saving remains independent of undo.
 
 Shared sources are copied once per save, not once per take. New asset copies have unique names so a failed save does not overwrite the previous document’s media. Metadata is written to a temporary file and renamed. Multi-file copying is not fully transactional: a failed save may leave unused media, which is deliberately not deleted automatically.
 
@@ -102,7 +115,7 @@ Waveforms and MIDI note previews are derived rather than saved. Removing a regio
 
 ## Built-in sound and diagnostics
 
-`TrackSound` in `SoundProcessing.h/.cpp` owns starter amp, compressor, room reverb and noise gate settings and DSP. Processors and wet buffers are prepared outside the audio callback. On audio tracks the gate and then the starter amp run before plug-ins; EQ, compressor and reverb complete the track chain. The starter amp is not a configurable effect: `desktop/starter-sounds.cjs` defines factory track presets (Clean guitar, Crunch guitar, Lead guitar, Bass) that pick an amp character alongside EQ and effects, and the Plug-ins tab shows the amp as a slot that can be bypassed or removed. Starter presets keep the track's volume and pan. The amp clips at 4x oversampling (IIR half-band filters, a few samples of uncompensated delay) between per-character input shaping and a filter-based speaker cabinet; the bass character drives only the band above a 250 Hz crossover. `ampCharacter` and `ampBypass` are optional in version 4 sessions; without them there is no amp. Captured source audio is always dry. Settings participate in snapshots, undo, recovery and track presets.
+`TrackSound` in `SoundProcessing.h/.cpp` owns starter amp, compressor, room reverb and noise gate settings and DSP. Processors and wet buffers are prepared outside the audio callback. On audio tracks the gate and then the starter amp run before plug-ins; EQ, compressor and reverb complete the track chain. The starter amp is not a configurable effect: `desktop/starter-sounds.json` defines factory track presets (Clean guitar, Crunch guitar, Lead guitar, Bass) that pick an amp character alongside EQ and effects, and the Plug-ins tab shows the amp as a slot that can be bypassed or removed. Starter presets keep the track's volume and pan. The amp clips at 4x oversampling (IIR half-band filters, a few samples of uncompensated delay) between per-character input shaping and a filter-based speaker cabinet; the bass character drives only the band above a 250 Hz crossover. `ampCharacter` and `ampBypass` are optional in version 4 sessions; without them there is no amp. Captured source audio is always dry. Settings participate in snapshots, undo, recovery and track presets.
 
 `OutputProtection` applies stereo-linked sample-peak limiting with immediate gain reduction, an 80 ms release and no lookahead or makeup gain. It is shared by playback and audio exports, enabled in new sessions. It does not provide true-peak/inter-sample protection. Non-finite samples never leave the engine: `renderTrack` checks the buffer after the built-in amp, after each plug-in and after the built-in chain, and on NaN/inf it silences that block and resets the offending stage, the EQ filters and `TrackSound`, so one broken plug-in cannot latch the whole mix silent. `OutputProtection` zeroes any that still reach the master. The audio thread only sets flags; a one-second message-thread timer in `Engine` logs them (capped at 20 reports), logs device errors, and acts as a watchdog: if an open, running device delivers no callbacks for two seconds (WASAPI can stop without reporting an error), it logs the device and reopens it once. The device in use (type, input/output names, rate, buffer, active channels, latency) is logged on open, configure and input changes. Audio status reports driver latency plus selected-track plug-in latency, device underruns (when supported), missed processing blocks and recording buffer overruns. Expected export silence is excluded from processing-dropout counts. Diagnostics are runtime readings, not saved session settings.
 
