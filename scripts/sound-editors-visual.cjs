@@ -340,8 +340,25 @@ const path = require("node:path");
   );
   // Holding a loop drag at the timeline's right edge scrolls the timeline
   // and keeps extending the loop past what was visible.
+  // Measure the handle again once the layout has settled after the tab
+  // change, and only press while the region is the element under it.
+  Object.assign(
+    loopHandle,
+    await w.webContents.executeJavaScript(`(async () => {
+      const clip = document.querySelector('[data-clip="clipg"]');
+      let previous = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const r = clip.getBoundingClientRect();
+        const point = {x: Math.round(r.right - 3), y: Math.round(r.top + 5)};
+        const hit = document.elementFromPoint(point.x, point.y)?.closest('[data-clip="clipg"]');
+        if (hit && previous && previous.x === point.x && previous.y === point.y) return point;
+        previous = point;
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 16)));
+      }
+      throw new Error('Loop handle never settled under the pointer');
+    })()`),
+  );
   const edge = await w.webContents.executeJavaScript(`(() => {
-      // Same scroll as above, so loopHandle still points at the handle.
       const view = document.querySelector('.timeline-scroll');
       const r = view.getBoundingClientRect();
       return {x: Math.round(r.right - 8), start: view.scrollLeft};
@@ -371,9 +388,20 @@ const path = require("node:path");
     );
   // A region drag whose release never arrives (Alt+Tab, then letting go in
   // another window) must not leave the region floating between lanes.
-  const region = await w.webContents.executeJavaScript(`(() => {
-      const r = document.querySelector('[data-clip="clipg"]').getBoundingClientRect();
-      return {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), left: r.left, top: r.top};
+  // Wait until the scroll reset has settled and the region itself is under
+  // the point, so the press cannot land on a moving target.
+  const region = await w.webContents.executeJavaScript(`(async () => {
+      const clip = document.querySelector('[data-clip="clipg"]');
+      let previous = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const r = clip.getBoundingClientRect();
+        const point = {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), left: r.left, top: r.top};
+        const hit = document.elementFromPoint(point.x, point.y)?.closest('[data-clip="clipg"]');
+        if (hit && previous && previous.left === point.left && previous.top === point.top) return point;
+        previous = point;
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 16)));
+      }
+      throw new Error('Region never settled under the pointer');
     })()`);
   const regionRect = () =>
     w.webContents.executeJavaScript(

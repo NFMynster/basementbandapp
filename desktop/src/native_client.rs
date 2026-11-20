@@ -8,7 +8,7 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::{oneshot, Notify};
 
@@ -83,7 +83,7 @@ impl NativeClient {
         let mut child = command.spawn()?;
         let stdin = child.stdin.take();
         let stdout = child.stdout.take().expect("piped stdout");
-        let mut stderr = child.stderr.take().expect("piped stderr");
+        let stderr = child.stderr.take().expect("piped stderr");
         let inner = Arc::new(Inner {
             stdin: tokio::sync::Mutex::new(stdin),
             pending: Mutex::new(None),
@@ -120,13 +120,18 @@ impl NativeClient {
                 }
             }
         });
+        // Engine diagnostics, one log entry per non-empty line. Raw bytes, so
+        // a plug-in writing invalid UTF-8 cannot stop the reader.
         tokio::spawn(async move {
-            let mut buffer = [0u8; 4096];
-            while let Ok(read) = stderr.read(&mut buffer).await {
-                if read == 0 {
-                    break;
+            let mut reader = BufReader::new(stderr);
+            let mut line = Vec::new();
+            while matches!(reader.read_until(b'\n', &mut line).await, Ok(read) if read > 0) {
+                let text = String::from_utf8_lossy(&line);
+                let text = text.trim_end();
+                if !text.is_empty() {
+                    log::error!("{text}");
                 }
-                log::error!("{}", String::from_utf8_lossy(&buffer[..read]).trim_end());
+                line.clear();
             }
         });
         let watcher_inner = inner.clone();
