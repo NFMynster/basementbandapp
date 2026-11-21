@@ -252,7 +252,7 @@ const path = require("node:path");
   // Dragging near the timeline's right edge scrolls it, so first bring the
   // region's end to the middle of the view and stay clear of that edge.
   const loopHandle = await w.webContents.executeJavaScript(`(() => {
-      const view = document.querySelector('.timeline-scroll');
+      const view = document.querySelector('.arrangement-scroll');
       const clip = document.querySelector('[data-clip="clipg"]');
       const v = view.getBoundingClientRect();
       view.scrollLeft += clip.getBoundingClientRect().right - (v.left + v.width / 2);
@@ -359,7 +359,7 @@ const path = require("node:path");
     })()`),
   );
   const edge = await w.webContents.executeJavaScript(`(() => {
-      const view = document.querySelector('.timeline-scroll');
+      const view = document.querySelector('.arrangement-scroll');
       const r = view.getBoundingClientRect();
       return {x: Math.round(r.right - 8), start: view.scrollLeft};
     })()`);
@@ -368,7 +368,7 @@ const path = require("node:path");
     (mouse("mouseMove", x), await new Promise((r) => setTimeout(r, 30)));
   await new Promise((r) => setTimeout(r, 600));
   const edgeScrolled = await w.webContents.executeJavaScript(
-    `({left: document.querySelector('.timeline-scroll').scrollLeft, copies: document.querySelectorAll('.clip.repeat-copy').length})`,
+    `({left: document.querySelector('.arrangement-scroll').scrollLeft, copies: document.querySelectorAll('.clip.repeat-copy').length})`,
   );
   // Cancel the drag (button up elsewhere) and put the view back.
   w.webContents.sendInputEvent({
@@ -379,7 +379,7 @@ const path = require("node:path");
   mouse("mouseUp", edge.x - 1);
   await new Promise((r) => setTimeout(r, 150));
   await w.webContents.executeJavaScript(
-    `document.querySelector('.timeline-scroll').scrollLeft = 0`,
+    `document.querySelector('.arrangement-scroll').scrollLeft = 0`,
   );
   if (edgeScrolled.left - edge.start < 100 || edgeScrolled.copies < 2)
     throw new Error(
@@ -569,7 +569,7 @@ const path = require("node:path");
   );
 
   await w.webContents.executeJavaScript(
-    `document.querySelector('.timeline-scroll').scrollLeft=0; document.querySelector('.timeline-scroll').scrollTop=0`,
+    `document.querySelector('.arrangement-scroll').scrollLeft=0; document.querySelector('.arrangement-scroll').scrollTop=0`,
   );
   await new Promise((r) => setTimeout(r, 80));
   const box = await w.webContents.executeJavaScript(

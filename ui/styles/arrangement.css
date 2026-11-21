@@ -6,9 +6,26 @@
   display: flex;
   background: #1c1d21;
 }
+/* One scroller for headers and lanes, so both move together natively without
+   script: the sidebar is pinned left and the ruler and title are pinned top. */
+.arrangement-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+  isolation: isolate;
+  scrollbar-color: #484a52 #202126;
+  scrollbar-width: thin;
+  scroll-padding-top: 44px;
+  scroll-padding-bottom: 44px;
+}
+.arrangement-content {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+}
 .track-list {
-  overflow-y: auto;
-  scrollbar-width: none;
   width: 280px;
   flex-shrink: 0;
   background: #26272c;
@@ -129,16 +146,10 @@
   height: 35px;
   flex-shrink: 0;
 }
-.timeline-scroll {
-  flex: 1;
-  overflow: auto;
-  position: relative;
-  scrollbar-color: #484a52 #202126;
-  scrollbar-width: thin;
-}
 .timeline {
   margin-left: 8px;
   position: relative;
+  flex: none;
 }
 .ruler {
   height: 43px;
@@ -268,10 +279,17 @@
   padding: 8px 0;
   justify-content: flex-start;
 }
+/* Pinned to the bottom of the visible area; the line reaches up to the ruler. */
+.playhead-rail {
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  z-index: 5;
+}
 .playhead {
   position: absolute;
-  top: 25px;
   bottom: 0;
+  height: calc(var(--arrangement-view-height, 0px) - 25px);
   width: 1px;
   background: #e0ddd2;
   pointer-events: auto;
@@ -455,12 +473,6 @@ body > .reorder-ghost.track-header.selected {
   bottom: auto;
   height: 22px;
 }
-.track-header {
-  scroll-margin-top: 44px;
-}
-.track-list {
-  scroll-padding-bottom: 44px;
-}
 .clip.moving {
   z-index: 3;
   opacity: 0.8;
@@ -497,7 +509,7 @@ body > .reorder-ghost.track-header.selected {
 }
 .empty-grid {
   position: sticky;
-  left: 0;
+  left: var(--sidebar-width);
   width: calc(100vw - var(--sidebar-width));
   min-width: calc(100vw - var(--sidebar-width));
   display: flex;
@@ -507,22 +519,23 @@ body > .reorder-ghost.track-header.selected {
   font-size: 11px;
 } /* Arrangement overlays, scrolling and transient feedback states. */
 .track-list-tail {
-  min-height: var(--track-tail-height, 144px);
-  flex: 1 0 var(--track-tail-height, 144px);
+  flex: 1 0 144px;
   display: flex;
   flex-direction: column;
 }
+/* Above every lane layer (moving regions and the marquee use 8). */
 .track-sidebar {
+  position: sticky;
+  left: 0;
+  z-index: 9;
   width: var(--sidebar-width);
   flex-shrink: 0;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #26272c;
 }
 .track-sidebar .track-list {
   flex: 1;
-  min-height: 0;
 }
 .ruler-seek {
   bottom: 0;

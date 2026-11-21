@@ -1,6 +1,8 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import type { Session } from "../models";
 
+const noInset = () => 0;
+
 export function useAnimatedPlayhead(
   session: Session,
   scale: number,
@@ -11,6 +13,8 @@ export function useAnimatedPlayhead(
   follow?: React.RefObject<HTMLDivElement | null>,
   followEnabled = true,
   seekRevision = 0,
+  // Pixels of the follow view covered by pinned content on its left.
+  followInset: (view: HTMLElement) => number = noInset,
 ) {
   const element = useRef<HTMLDivElement>(null);
   // Schedules one frame when the loop is idle; set by the frame loop below.
@@ -106,15 +110,22 @@ export function useAnimatedPlayhead(
           ((s.playing && followEnabled) || settling) &&
           drag === null
         ) {
+          // The playhead in the view's scroll coordinates, and the visible
+          // span right of any pinned content.
           const x =
-            element.current.parentElement!.offsetLeft +
+            element.current.parentElement!.getBoundingClientRect().left -
+            view.getBoundingClientRect().left -
+            view.clientLeft +
+            view.scrollLeft +
             gutter +
             relative * scale;
+          const inset = followInset(view),
+            width = view.clientWidth - inset;
           let target = view.scrollLeft;
-          if (x < view.scrollLeft + view.clientWidth * 0.25)
-            target = Math.max(0, x - view.clientWidth * 0.25);
-          else if (x > view.scrollLeft + view.clientWidth * 0.75)
-            target = x - view.clientWidth * 0.75;
+          if (x < view.scrollLeft + inset + width * 0.25)
+            target = Math.max(0, x - inset - width * 0.25);
+          else if (x > view.scrollLeft + inset + width * 0.75)
+            target = x - inset - width * 0.75;
           target = Math.min(
             target,
             Math.max(0, view.scrollWidth - view.clientWidth),
@@ -148,6 +159,6 @@ export function useAnimatedPlayhead(
       view?.removeEventListener("wheel", cancelSettling);
       view?.removeEventListener("pointerdown", cancelSettling);
     };
-  }, [follow]);
+  }, [follow, followInset]);
   return element;
 }

@@ -52,6 +52,8 @@ Files dragged in from the desktop arrive as one native Tauri drop event with rea
 
 Components still receive the composed `WorkspaceController`. Put new state in the domain that owns it and pass other domains in explicitly; keep `useWorkspace` to wiring. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
 
+The arrangement is one scroller (`.arrangement-scroll`, the `timelineScroll` ref) holding the track sidebar and the timeline. The sidebar is pinned left, and the ruler, the track title and the playhead rail are pinned with `position: sticky`, so headers and lanes scroll together natively without scroll listeners. Do not split it into synced scrollers again: copying `scrollTop` between them cancels smooth and momentum scrolling and lags a frame. `scrollLeft` maps to timeline pixels as before, but the visible timeline starts right of the sidebar; use `timelineViewport()` from `useTimeline.ts` for its client-space edges and width.
+
 TrackInspector owns the panel shell and tabs; TrackRecordingPanel owns recording controls and pan gestures; TrackPluginsPanel owns the plug-in chain and drag ordering.
 
 The renderer uses ordinary React hooks for behavior and components for rendering:

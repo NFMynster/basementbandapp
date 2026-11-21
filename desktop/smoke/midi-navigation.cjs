@@ -7,7 +7,7 @@ async function verifyMidiNavigation(win, request) {
   await new Promise((r) => setTimeout(r, 80));
   win.showInactive();
   await win.webContents.executeJavaScript(
-    `document.querySelector('.timeline-scroll').scrollLeft=0; document.querySelector('.piano-scroll').scrollLeft=0`,
+    `document.querySelector('.arrangement-scroll').scrollLeft=0; document.querySelector('.piano-scroll').scrollLeft=0`,
   );
   await new Promise((r) => setTimeout(r, 120));
   await win.webContents.capturePage();

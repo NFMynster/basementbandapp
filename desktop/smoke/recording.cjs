@@ -145,7 +145,7 @@ async function verifyRecordingControls(win, request) {
   for (const height of [700, 810, 1080]) {
     win.setSize(1280, height);
     await new Promise((r) => setTimeout(r, 100));
-    for (const selector of [".timeline-scroll", ".track-list"]) {
+    for (const selector of [".arrangement-scroll"]) {
       for (const top of [99999, 240, 0]) {
         await win.webContents.executeJavaScript(
           `document.querySelector('${selector}').scrollTop = ${top}`,
@@ -153,7 +153,7 @@ async function verifyRecordingControls(win, request) {
         await win.webContents.capturePage(); // Flush a compositor frame in the hidden smoke window.
         await new Promise((r) => setTimeout(r, 100));
         const offsets = await win.webContents.executeJavaScript(`(() => {
-              const sidebar = document.querySelector('.track-list'), timeline = document.querySelector('.timeline-scroll');
+              const sidebar = document.querySelector('.track-list'), timeline = document.querySelector('.arrangement-scroll');
               return { height: innerHeight, sidebarHeight: sidebar.clientHeight, timelineHeight: timeline.clientHeight, sidebarContent: sidebar.scrollHeight, timelineContent: timeline.scrollHeight, sidebar: sidebar.scrollTop, timeline: timeline.scrollTop,
                 difference: document.querySelector('.track-header').getBoundingClientRect().top -
                   document.querySelector('.lane').getBoundingClientRect().top };
@@ -192,7 +192,7 @@ async function verifyRecordingControls(win, request) {
   await request({ op: "seek", position: 48 });
   await new Promise((r) => setTimeout(r, 150));
   await win.webContents.executeJavaScript(
-    `document.querySelector('.timeline-scroll').scrollLeft = 0`,
+    `document.querySelector('.arrangement-scroll').scrollLeft = 0`,
   );
   await request({ op: "record" });
   for (let frame = 0; frame < 10; ++frame) {
@@ -201,9 +201,10 @@ async function verifyRecordingControls(win, request) {
   }
   if (
     !(await win.webContents.executeJavaScript(`(() => {
-        const view = document.querySelector('.timeline-scroll').getBoundingClientRect();
+        const view = document.querySelector('.arrangement-scroll').getBoundingClientRect();
         const head = document.querySelector('.playhead').getBoundingClientRect();
-        return head.left >= view.left && head.left <= view.right && document.querySelector('.timeline-scroll').scrollLeft > 0;
+        const sidebar = document.querySelector('.track-sidebar').getBoundingClientRect();
+        return head.left >= sidebar.right && head.left <= view.right && document.querySelector('.arrangement-scroll').scrollLeft > 0;
       })()`))
   )
     throw new Error("Recording did not reveal the playhead");

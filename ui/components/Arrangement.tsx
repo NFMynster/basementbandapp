@@ -10,6 +10,10 @@ import type { WorkspaceController } from "../hooks/useWorkspace";
 import { desktop as api } from "../services/desktop";
 import { TrackHeader } from "./TrackHeader";
 import { TrackLane } from "./TrackLane";
+import {
+  timelineInset,
+  timelineViewport,
+} from "../hooks/workspace/useTimeline";
 export function Arrangement({
   controller,
   animateReady = true,
@@ -42,7 +46,6 @@ export function Arrangement({
     run,
     zoom,
     setZoom,
-    trackList,
     timelineScroll,
     width,
     rulerDown,
@@ -159,17 +162,20 @@ export function Arrangement({
   }, [trackIds, animateReady, controller.projectRevision]);
   const zoomScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
-    const view = timelineScroll.current;
-    if (!view) return;
+    const view = timelineScroll.current,
+      timeline = view?.querySelector<HTMLElement>(".timeline");
+    if (!view || !timeline) return;
     // Keep the point under the pointer fixed after a Ctrl-wheel zoom.
     if (zoomScroll.current !== null) {
       view.scrollTo({ left: zoomScroll.current });
       zoomScroll.current = null;
     }
+    // Only the timeline listens, so wheel scrolling over the track headers
+    // never waits on this handler.
     const wheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      const x = e.clientX - view.getBoundingClientRect().left;
+      const x = Math.max(0, e.clientX - timelineViewport(view).left);
       const next = Math.max(
         40,
         Math.min(
@@ -183,8 +189,8 @@ export function Arrangement({
       );
       setZoom(next);
     };
-    view.addEventListener("wheel", wheel, { passive: false });
-    return () => view.removeEventListener("wheel", wheel);
+    timeline.addEventListener("wheel", wheel, { passive: false });
+    return () => timeline.removeEventListener("wheel", wheel);
   }, [zoom, setZoom, timelineScroll]);
   const playhead = useAnimatedPlayhead(
     s,
@@ -196,41 +202,24 @@ export function Arrangement({
     timelineScroll,
     followPlayhead,
     controller.seekRevision,
+    timelineInset,
   );
+  // The playhead rail is pinned to the bottom of the view with position:
+  // sticky and its line reaches up to the ruler, so scrolling never runs
+  // script; only the line's height follows the view's size.
   useLayoutEffect(() => {
-    const timeline = timelineScroll.current,
-      sidebar = trackList.current;
-    if (!timeline || !sidebar) return;
-    const syncPlayhead = (scrollTop: number) => {
-      if (playhead.current) playhead.current.style.top = `${scrollTop + 25}px`;
-    };
-    const fromTimeline = () => {
-      if (sidebar.scrollTop !== timeline.scrollTop)
-        sidebar.scrollTop = timeline.scrollTop;
-      syncPlayhead(timeline.scrollTop);
-    };
-    const fromSidebar = () => {
-      if (timeline.scrollTop !== sidebar.scrollTop)
-        timeline.scrollTop = sidebar.scrollTop;
-      syncPlayhead(sidebar.scrollTop);
-    };
-    timeline.addEventListener("scroll", fromTimeline, { passive: true });
-    sidebar.addEventListener("scroll", fromSidebar, { passive: true });
-    syncPlayhead(timeline.scrollTop);
-    const resize = new ResizeObserver(() => {
-      sidebar.style.setProperty(
-        "--track-tail-height",
-        Math.max(0, 180 + sidebar.clientHeight - timeline.clientHeight) + "px",
+    const view = timelineScroll.current;
+    if (!view) return;
+    const measure = () =>
+      view.style.setProperty(
+        "--arrangement-view-height",
+        `${view.clientHeight}px`,
       );
-    });
-    resize.observe(timeline);
-    resize.observe(sidebar);
-    return () => {
-      resize.disconnect();
-      timeline.removeEventListener("scroll", fromTimeline);
-      sidebar.removeEventListener("scroll", fromSidebar);
-    };
-  }, [playhead, timelineScroll, trackList]);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(view);
+    return () => resize.disconnect();
+  }, [timelineScroll]);
   const selectedClip = track?.clips.find((c) => c.id === controller.clipId);
   const selectedTakes = selectedClip?.takeGroup
     ? track!.clips.filter((c) => c.takeGroup === selectedClip.takeGroup)
@@ -311,47 +300,295 @@ export function Arrangement({
         </div>
       </div>
       <main className="arrangement">
-        <div className="track-sidebar" data-file-drop="audio">
-          <aside className="track-list" ref={trackList}>
-            <div className="track-list-title">
-              TRACKS
-              <button
-                title="Add track"
-                disabled={s.recording}
-                onClick={controller.openCreateTrack}
-              >
-                <Plus size={17} />
-              </button>
+        <div className="arrangement-scroll" ref={timelineScroll}>
+          <div className="arrangement-content">
+            <div className="track-sidebar" data-file-drop="audio">
+              <aside className="track-list">
+                <div className="track-list-title">
+                  TRACKS
+                  <button
+                    title="Add track"
+                    disabled={s.recording}
+                    onClick={controller.openCreateTrack}
+                  >
+                    <Plus size={17} />
+                  </button>
+                </div>
+                {s.tracks.map((t, i) => (
+                  <TrackHeader
+                    key={t.id}
+                    track={t}
+                    index={i}
+                    selected={track?.id === t.id}
+                    controller={controller}
+                    onMenu={(selectedTrack, anchor) => {
+                      setSelected(selectedTrack.id);
+                      setMenu({
+                        id: selectedTrack.id,
+                        x: anchor.x,
+                        y: anchor.y,
+                        position: s.position,
+                      });
+                    }}
+                  />
+                ))}
+                <div className="track-list-tail">
+                  <button
+                    className="add-track"
+                    disabled={s.recording}
+                    onClick={controller.openCreateTrack}
+                  >
+                    <Plus size={17} />
+                    Add track
+                  </button>
+                </div>
+              </aside>
             </div>
-            {s.tracks.map((t, i) => (
-              <TrackHeader
-                key={t.id}
-                track={t}
-                index={i}
-                selected={track?.id === t.id}
-                controller={controller}
-                onMenu={(selectedTrack, anchor) => {
-                  setSelected(selectedTrack.id);
-                  setMenu({
-                    id: selectedTrack.id,
-                    x: anchor.x,
-                    y: anchor.y,
-                    position: s.position,
-                  });
+            <div className="timeline" style={{ width }}>
+              <div
+                className="ruler"
+                style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
+                onPointerDown={rulerDown}
+                onPointerMove={rulerMove}
+                onPointerUp={rulerUp}
+                onPointerCancel={controller.rulerCancel}
+                title="Top: select a loop. Bottom: move the playhead."
+              >
+                <div
+                  className="ruler-zone ruler-loop"
+                  data-ruler-zone="loop"
+                  title="Drag to select a loop"
+                />
+                <div
+                  className="ruler-zone ruler-seek"
+                  data-ruler-zone="seek"
+                  title="Click or drag to move the playhead"
+                />
+                {Array.from({ length: Math.ceil(width / zoom) }, (_, i) => (
+                  <span key={i} style={{ left: i * zoom, width: zoom }}>
+                    {i + 1}
+                  </span>
+                ))}
+                {loop.end > loop.start && (
+                  <div
+                    className={
+                      "cycle-region " +
+                      (!s.looping && !selection ? "inactive" : "")
+                    }
+                    style={{
+                      left: loop.start * pxPerSecond,
+                      width: (loop.end - loop.start) * pxPerSecond,
+                    }}
+                  ></div>
+                )}
+              </div>
+              <div
+                className="lanes"
+                style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
+                onPointerDown={(e) => {
+                  if (
+                    e.button !== 0 ||
+                    s.recording ||
+                    controller.busy ||
+                    (e.target as HTMLElement).closest(
+                      "[data-clip], button, select, input",
+                    )
+                  )
+                    return;
+                  e.preventDefault();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const owner = (e.target as HTMLElement).closest<HTMLElement>(
+                    "[data-lane]",
+                  );
+                  if (owner?.dataset.lane)
+                    controller.setSelected(owner.dataset.lane);
+                  marqueeDrag.current = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    ids:
+                      e.shiftKey || e.ctrlKey || e.metaKey
+                        ? controller.regionIds
+                        : [],
+                  };
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  suppressClick.current = false;
                 }}
-              />
-            ))}
-            <div className="track-list-tail">
-              <button
-                className="add-track"
-                disabled={s.recording}
-                onClick={controller.openCreateTrack}
+                onPointerMove={(e) => {
+                  const start = marqueeDrag.current;
+                  if (!start) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left,
+                    y = e.clientY - rect.top;
+                  if (Math.hypot(x - start.x, y - start.y) < 4 && !marquee)
+                    return;
+                  const box = {
+                    x: Math.min(start.x, x),
+                    y: Math.min(start.y, y),
+                    width: Math.abs(x - start.x),
+                    height: Math.abs(y - start.y),
+                  };
+                  setMarquee(box);
+                  suppressClick.current = true;
+                  const ids = [...start.ids];
+                  e.currentTarget
+                    .querySelectorAll<HTMLElement>("[data-clip]")
+                    .forEach((node) => {
+                      const r = node.getBoundingClientRect();
+                      if (
+                        r.right > rect.left + box.x &&
+                        r.left < rect.left + box.x + box.width &&
+                        r.bottom > rect.top + box.y &&
+                        r.top < rect.top + box.y + box.height
+                      )
+                        ids.push(node.dataset.clip!);
+                    });
+                  controller.selectRegions([...new Set(ids)]);
+                }}
+                onPointerUp={(e) => {
+                  if (!marqueeDrag.current) return;
+                  if (!suppressClick.current)
+                    controller.selectRegions(marqueeDrag.current.ids);
+                  marqueeDrag.current = null;
+                  setMarquee(null);
+                  if (e.currentTarget.hasPointerCapture(e.pointerId))
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+                onPointerCancel={() => {
+                  marqueeDrag.current = null;
+                  setMarquee(null);
+                }}
+                onClickCapture={(e) => {
+                  if (suppressClick.current) {
+                    e.stopPropagation();
+                    suppressClick.current = false;
+                  }
+                }}
               >
-                <Plus size={17} />
-                Add track
-              </button>
+                {marquee && (
+                  <div
+                    className="region-marquee"
+                    aria-hidden="true"
+                    style={{
+                      left: marquee.x,
+                      top: marquee.y,
+                      width: marquee.width,
+                      height: marquee.height,
+                    }}
+                  />
+                )}
+                {s.tracks.map((t) => (
+                  <TrackLane
+                    key={t.id}
+                    track={t}
+                    selected={t.id === track?.id}
+                    controller={controller}
+                    onMenu={(event, selectedTrack) => {
+                      event.preventDefault();
+                      setSelected(selectedTrack.id);
+                      setMenu({
+                        id: selectedTrack.id,
+                        x: event.clientX,
+                        y: event.clientY,
+                        position: atPointer(event),
+                      });
+                    }}
+                  />
+                ))}
+                <div
+                  className="empty-grid"
+                  data-empty-grid
+                  data-file-drop="audio"
+                  onClick={() => controller.setClipId("")}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      position: atPointer(e),
+                    });
+                  }}
+                >
+                  <span>
+                    Drop files here to create tracks, or drag a recording down
+                    to copy its track settings
+                  </span>
+                </div>
+              </div>
+              <div className="playhead-rail">
+                <div
+                  className={"playhead " + (s.recording ? "red" : "")}
+                  style={{
+                    left: (controller.dragPosition ?? s.position) * pxPerSecond,
+                  }}
+                  ref={playhead}
+                  role="slider"
+                  aria-label="Playhead"
+                  aria-valuemin={0}
+                  aria-valuemax={width / pxPerSecond}
+                  aria-valuenow={controller.dragPosition ?? s.position}
+                  aria-disabled={s.recording}
+                  tabIndex={0}
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  onPointerDown={(e) => {
+                    if (s.recording || e.button !== 0) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    controller.setDragPosition(s.position);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                    const r =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+                    controller.setDragPosition(
+                      Math.max(0, Math.min(width, e.clientX - r.left)) /
+                        pxPerSecond,
+                    );
+                  }}
+                  onPointerUp={(e) => {
+                    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                    const rect =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+                    const position =
+                      Math.max(0, Math.min(width, e.clientX - rect.left)) /
+                      pxPerSecond;
+                    void run({ op: "seek", position }, false).finally(() =>
+                      controller.setDragPosition(null),
+                    );
+                  }}
+                  onPointerCancel={() => controller.setDragPosition(null)}
+                  onKeyDown={(e) => {
+                    if (
+                      s.recording ||
+                      !["ArrowLeft", "ArrowRight", "Home"].includes(e.key)
+                    )
+                      return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    run(
+                      {
+                        op: "seek",
+                        position:
+                          e.key === "Home"
+                            ? 0
+                            : Math.max(
+                                0,
+                                s.position +
+                                  ((e.key === "ArrowRight" ? 1 : -1) * 60) /
+                                    s.tempo,
+                              ),
+                      },
+                      false,
+                    );
+                  }}
+                >
+                  <span />
+                </div>
+              </div>
             </div>
-          </aside>
+          </div>
         </div>
         <PanelResize
           axis="horizontal"
@@ -362,251 +599,6 @@ export function Arrangement({
           reset={280}
           onChange={controller.setSidebarWidth}
         />
-        <div className="timeline-scroll" ref={timelineScroll}>
-          <div className="timeline" style={{ width, minHeight: "100%" }}>
-            <div
-              className="ruler"
-              style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
-              onPointerDown={rulerDown}
-              onPointerMove={rulerMove}
-              onPointerUp={rulerUp}
-              onPointerCancel={controller.rulerCancel}
-              title="Top: select a loop. Bottom: move the playhead."
-            >
-              <div
-                className="ruler-zone ruler-loop"
-                data-ruler-zone="loop"
-                title="Drag to select a loop"
-              />
-              <div
-                className="ruler-zone ruler-seek"
-                data-ruler-zone="seek"
-                title="Click or drag to move the playhead"
-              />
-              {Array.from({ length: Math.ceil(width / zoom) }, (_, i) => (
-                <span key={i} style={{ left: i * zoom, width: zoom }}>
-                  {i + 1}
-                </span>
-              ))}
-              {loop.end > loop.start && (
-                <div
-                  className={
-                    "cycle-region " +
-                    (!s.looping && !selection ? "inactive" : "")
-                  }
-                  style={{
-                    left: loop.start * pxPerSecond,
-                    width: (loop.end - loop.start) * pxPerSecond,
-                  }}
-                ></div>
-              )}
-            </div>
-            <div
-              className="lanes"
-              style={{ "--bar-width": zoom + "px" } as React.CSSProperties}
-              onPointerDown={(e) => {
-                if (
-                  e.button !== 0 ||
-                  s.recording ||
-                  controller.busy ||
-                  (e.target as HTMLElement).closest(
-                    "[data-clip], button, select, input",
-                  )
-                )
-                  return;
-                e.preventDefault();
-                const rect = e.currentTarget.getBoundingClientRect();
-                const owner = (e.target as HTMLElement).closest<HTMLElement>(
-                  "[data-lane]",
-                );
-                if (owner?.dataset.lane)
-                  controller.setSelected(owner.dataset.lane);
-                marqueeDrag.current = {
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top,
-                  ids:
-                    e.shiftKey || e.ctrlKey || e.metaKey
-                      ? controller.regionIds
-                      : [],
-                };
-                e.currentTarget.setPointerCapture(e.pointerId);
-                suppressClick.current = false;
-              }}
-              onPointerMove={(e) => {
-                const start = marqueeDrag.current;
-                if (!start) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left,
-                  y = e.clientY - rect.top;
-                if (Math.hypot(x - start.x, y - start.y) < 4 && !marquee)
-                  return;
-                const box = {
-                  x: Math.min(start.x, x),
-                  y: Math.min(start.y, y),
-                  width: Math.abs(x - start.x),
-                  height: Math.abs(y - start.y),
-                };
-                setMarquee(box);
-                suppressClick.current = true;
-                const ids = [...start.ids];
-                e.currentTarget
-                  .querySelectorAll<HTMLElement>("[data-clip]")
-                  .forEach((node) => {
-                    const r = node.getBoundingClientRect();
-                    if (
-                      r.right > rect.left + box.x &&
-                      r.left < rect.left + box.x + box.width &&
-                      r.bottom > rect.top + box.y &&
-                      r.top < rect.top + box.y + box.height
-                    )
-                      ids.push(node.dataset.clip!);
-                  });
-                controller.selectRegions([...new Set(ids)]);
-              }}
-              onPointerUp={(e) => {
-                if (!marqueeDrag.current) return;
-                if (!suppressClick.current)
-                  controller.selectRegions(marqueeDrag.current.ids);
-                marqueeDrag.current = null;
-                setMarquee(null);
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-              onPointerCancel={() => {
-                marqueeDrag.current = null;
-                setMarquee(null);
-              }}
-              onClickCapture={(e) => {
-                if (suppressClick.current) {
-                  e.stopPropagation();
-                  suppressClick.current = false;
-                }
-              }}
-            >
-              {marquee && (
-                <div
-                  className="region-marquee"
-                  aria-hidden="true"
-                  style={{
-                    left: marquee.x,
-                    top: marquee.y,
-                    width: marquee.width,
-                    height: marquee.height,
-                  }}
-                />
-              )}
-              {s.tracks.map((t) => (
-                <TrackLane
-                  key={t.id}
-                  track={t}
-                  selected={t.id === track?.id}
-                  controller={controller}
-                  onMenu={(event, selectedTrack) => {
-                    event.preventDefault();
-                    setSelected(selectedTrack.id);
-                    setMenu({
-                      id: selectedTrack.id,
-                      x: event.clientX,
-                      y: event.clientY,
-                      position: atPointer(event),
-                    });
-                  }}
-                />
-              ))}
-              <div
-                className="empty-grid"
-                data-empty-grid
-                data-file-drop="audio"
-                onClick={() => controller.setClipId("")}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setMenu({
-                    x: e.clientX,
-                    y: e.clientY,
-                    position: atPointer(e),
-                  });
-                }}
-              >
-                <span>
-                  Drop files here to create tracks, or drag a recording down to
-                  copy its track settings
-                </span>
-              </div>
-            </div>
-            <div
-              className={"playhead " + (s.recording ? "red" : "")}
-              style={{
-                top: 25,
-                left: (controller.dragPosition ?? s.position) * pxPerSecond,
-              }}
-              ref={playhead}
-              role="slider"
-              aria-label="Playhead"
-              aria-valuemin={0}
-              aria-valuemax={width / pxPerSecond}
-              aria-valuenow={controller.dragPosition ?? s.position}
-              aria-disabled={s.recording}
-              tabIndex={0}
-              draggable={false}
-              onDragStart={(e) => e.preventDefault()}
-              onPointerDown={(e) => {
-                if (s.recording || e.button !== 0) return;
-                e.preventDefault();
-                e.stopPropagation();
-                e.currentTarget.setPointerCapture(e.pointerId);
-                controller.setDragPosition(s.position);
-              }}
-              onPointerMove={(e) => {
-                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                const r =
-                  e.currentTarget.parentElement!.getBoundingClientRect();
-                controller.setDragPosition(
-                  Math.max(0, Math.min(width, e.clientX - r.left)) /
-                    pxPerSecond,
-                );
-              }}
-              onPointerUp={(e) => {
-                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                e.currentTarget.releasePointerCapture(e.pointerId);
-                const rect =
-                  e.currentTarget.parentElement!.getBoundingClientRect();
-                const position =
-                  Math.max(0, Math.min(width, e.clientX - rect.left)) /
-                  pxPerSecond;
-                void run({ op: "seek", position }, false).finally(() =>
-                  controller.setDragPosition(null),
-                );
-              }}
-              onPointerCancel={() => controller.setDragPosition(null)}
-              onKeyDown={(e) => {
-                if (
-                  s.recording ||
-                  !["ArrowLeft", "ArrowRight", "Home"].includes(e.key)
-                )
-                  return;
-                e.preventDefault();
-                e.stopPropagation();
-                run(
-                  {
-                    op: "seek",
-                    position:
-                      e.key === "Home"
-                        ? 0
-                        : Math.max(
-                            0,
-                            s.position +
-                              ((e.key === "ArrowRight" ? 1 : -1) * 60) /
-                                s.tempo,
-                          ),
-                  },
-                  false,
-                );
-              }}
-            >
-              <span />
-            </div>
-          </div>
-        </div>
       </main>
       {menu && !menu.id && (
         <ContextMenu

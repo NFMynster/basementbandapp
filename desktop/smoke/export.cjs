@@ -37,7 +37,7 @@ async function verifyExportAndShortcuts(win, request, takeChoice) {
     `Number(document.querySelector('[aria-label="Timeline zoom"]').value)`,
   );
   await win.webContents.executeJavaScript(
-    `document.querySelector('.timeline-scroll').dispatchEvent(new WheelEvent('wheel', { deltaY: -50, ctrlKey: true, clientX: 650, bubbles: true, cancelable: true }))`,
+    `document.querySelector('.arrangement-scroll .lanes').dispatchEvent(new WheelEvent('wheel', { deltaY: -50, ctrlKey: true, clientX: 650, bubbles: true, cancelable: true }))`,
   );
   await new Promise((r) => setTimeout(r, 100));
   if (

@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { Clip, Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
+import { timelineViewport } from "../hooks/workspace/useTimeline";
 import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
@@ -26,6 +27,7 @@ function scrollTowardsEdge(
   grow: boolean,
 ) {
   const bounds = view.getBoundingClientRect(),
+    { left: start, right: end } = timelineViewport(view),
     zone = 48;
   const speed = (towardsStart: number, towardsEnd: number) =>
     towardsEnd > 0
@@ -33,7 +35,7 @@ function scrollTowardsEdge(
       : towardsStart > 0
         ? -Math.min(1, towardsStart / zone)
         : 0;
-  const dx = speed(bounds.left + zone - at.x, at.x - (bounds.right - zone));
+  const dx = speed(start + zone - at.x, at.x - (end - zone));
   const dy = vertical
     ? speed(bounds.top + zone - at.y, at.y - (bounds.bottom - zone))
     : 0;

@@ -5,7 +5,7 @@ import { listenForFileDrops } from "../../services/fileDrop";
 import type { EngineSession } from "./useEngineSession";
 import type { Notices } from "./useNotices";
 import { trackContainingClip, type Selection } from "./useSelection";
-import type { Timeline } from "./useTimeline";
+import { timelineViewport, type Timeline } from "./useTimeline";
 
 /**
  * Track and region edits. Deletions update the view immediately and roll back
@@ -178,11 +178,9 @@ export function useEditing({
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve()),
     );
-    timelineScroll.current?.scrollTo({
-      left: Math.max(
-        0,
-        at * pxPerSecond - (timelineScroll.current?.clientWidth ?? 0) * 0.2,
-      ),
+    const view = timelineScroll.current;
+    view?.scrollTo({
+      left: Math.max(0, at * pxPerSecond - timelineViewport(view).width * 0.2),
       behavior: "smooth",
     });
   }

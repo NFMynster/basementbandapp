@@ -4,7 +4,7 @@ async function verifyArrangementSettings(win, request) {
   await new Promise((r) => setTimeout(r, 700));
   if (
     !(await win.webContents.executeJavaScript(`(() => {
-        const viewport = document.querySelector('.timeline-scroll').getBoundingClientRect();
+        const viewport = document.querySelector('.arrangement-scroll').getBoundingClientRect();
         const ruler = document.querySelector('.ruler').getBoundingClientRect();
         const last = [...document.querySelectorAll('.track-header')].at(-1).getBoundingClientRect();
         return Math.abs(ruler.top - viewport.top) < 2 && last.top >= ruler.bottom && last.bottom <= viewport.bottom;
@@ -14,7 +14,7 @@ async function verifyArrangementSettings(win, request) {
       "Adding tracks did not scroll to them with a pinned ruler: " +
         JSON.stringify(
           await win.webContents.executeJavaScript(
-            `Object.fromEntries(['.timeline-scroll','.ruler','.track-header:last-of-type','.track-list'].map(selector => { const e=document.querySelector(selector),r=e?.getBoundingClientRect(); return [selector,{top:r?.top,bottom:r?.bottom,scroll:e?.scrollTop}]; }))`,
+            `Object.fromEntries(['.arrangement-scroll','.ruler','.track-header:last-of-type','.track-list'].map(selector => { const e=document.querySelector(selector),r=e?.getBoundingClientRect(); return [selector,{top:r?.top,bottom:r?.bottom,scroll:e?.scrollTop}]; }))`,
           ),
         ),
     );
@@ -52,8 +52,8 @@ async function verifyLoopControls(win, request) {
   if ((await request({ op: "state" })).tempo !== 120)
     throw new Error("Tempo did not commit");
   await win.webContents.executeJavaScript(`(() => {
-        document.querySelector('.timeline-scroll').scrollLeft = 0;
-        document.querySelector('.timeline-scroll').scrollTop = 0;
+        document.querySelector('.arrangement-scroll').scrollLeft = 0;
+        document.querySelector('.arrangement-scroll').scrollTop = 0;
         document.querySelector('.clip').click();
       })()`);
   await new Promise((r) => setTimeout(r, 80));
