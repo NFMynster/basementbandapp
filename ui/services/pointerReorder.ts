@@ -126,6 +126,15 @@ export function startPointerReorder(
       };
       window.addEventListener("click", swallow, { capture: true, once: true });
       setTimeout(() => window.removeEventListener("click", swallow, true), 0);
+      // WebKit places a caret in the sidebar on the release and paints the
+      // gaps around it as highlight lines; clear it once the release is done.
+      const clearSelection = () =>
+        setTimeout(() => window.getSelection()?.removeAllRanges(), 0);
+      clearSelection();
+      window.addEventListener("mouseup", clearSelection, {
+        capture: true,
+        once: true,
+      });
     }
     options.onEnd();
   };

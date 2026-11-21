@@ -368,6 +368,14 @@
 .track-header.reorder-source {
   opacity: 0.45;
 }
+/* The drag copy lives on <body>, outside the sidebar that paints behind
+   headers, so it brings the sidebar background with it. */
+body > .reorder-ghost.track-header {
+  background: #26272c;
+}
+body > .reorder-ghost.track-header.selected {
+  background: #33353c;
+}
 .follow-playhead[aria-pressed="true"] {
   color: var(--accent-blue);
   background: var(--selection);
