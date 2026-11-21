@@ -54,11 +54,12 @@ mod platform {
         }
     }
 
-    async fn ask() -> bool {
+    /// Starts the system prompt. Kept synchronous so the block, which is not
+    /// `Send`, is dropped before the caller awaits (AVFoundation copies it).
+    fn request(sender: tokio::sync::oneshot::Sender<bool>) -> bool {
         let Some(media) = (unsafe { AVMediaTypeAudio }) else {
             return false;
         };
-        let (sender, receiver) = tokio::sync::oneshot::channel::<bool>();
         let sender = Mutex::new(Some(sender));
         let block = RcBlock::new(move |granted: Bool| {
             if let Some(sender) = sender.lock().unwrap().take() {
@@ -66,6 +67,14 @@ mod platform {
             }
         });
         unsafe { AVCaptureDevice::requestAccessForMediaType_completionHandler(media, &block) };
+        true
+    }
+
+    async fn ask() -> bool {
+        let (sender, receiver) = tokio::sync::oneshot::channel::<bool>();
+        if !request(sender) {
+            return false;
+        }
         receiver.await.unwrap_or(false)
     }
 
