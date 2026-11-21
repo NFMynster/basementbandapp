@@ -18,6 +18,9 @@
   scrollbar-width: thin;
   scroll-padding-top: 44px;
   scroll-padding-bottom: 44px;
+  /* No macOS rubber-band bounce: it carries the pinned playhead and ruler
+     past the edges of the timeline. */
+  overscroll-behavior: none;
 }
 .arrangement-content {
   display: flex;
