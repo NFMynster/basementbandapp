@@ -70,6 +70,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback, pri
   bool needsAudioInput() const;
   bool inputSharesDriver() const;
   void syncAudioInput();
+  String openRememberedDevice(bool inputAllowed, const var &remembered, bool listening);
 
   Track &track(const var &command);
   std::unique_ptr<Clip> readClip(String path, String name, double start);
@@ -78,7 +79,7 @@ class Engine final : public AudioIODeviceCallback, public MidiInputCallback, pri
   void loadPlugin(Track &track, const String &path, const String &state = {}, bool effect = false, int uid = 0);
 
 public:
-  void initializeAudio(bool inputAllowed = true);
+  void initializeAudio(bool inputAllowed = true, const var &remembered = {}, bool listening = false);
   explicit Engine(bool testing = false);
   ~Engine() override;
   void handleIncomingMidiMessage(MidiInput *source, const MidiMessage &message) override;

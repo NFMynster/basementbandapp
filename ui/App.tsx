@@ -18,7 +18,6 @@ export function App() {
   const controller = useWorkspace();
   const [startupVisible, setStartupVisible] = useState(true);
   const [startupEntered, setStartupEntered] = useState(false);
-  const [startupLeaving, setStartupLeaving] = useState(false);
   useEffect(() => {
     let cancelled = false;
     let first = 0;
@@ -37,24 +36,19 @@ export function App() {
       cancelAnimationFrame(second);
     };
   }, []);
+  // Reveal as soon as the engine is ready; the app is usable during the fade.
+  const startupLeaving = startupEntered && !controller.starting;
   useEffect(() => {
-    if (controller.starting || !startupEntered) return;
-    let finish: ReturnType<typeof setTimeout>;
-    const timer = setTimeout(() => {
-      setStartupLeaving(true);
-      // Fallback for reduced motion or a window hidden during the transition.
-      finish = setTimeout(() => setStartupVisible(false), 600);
-    }, 380);
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(finish);
-    };
-  }, [controller.starting, startupEntered]);
+    if (!startupLeaving) return;
+    // Fallback for reduced motion or a window hidden during the transition.
+    const finish = setTimeout(() => setStartupVisible(false), 600);
+    return () => clearTimeout(finish);
+  }, [startupLeaving]);
   return (
     <>
       <div
         className={`app ${startupVisible ? "startup-pending" : ""} ${startupLeaving ? "startup-revealing" : ""}`}
-        inert={startupVisible}
+        inert={startupVisible && !startupLeaving}
         style={
           { "--sidebar-width": `${controller.sidebarWidth}px` } as CSSProperties
         }
@@ -67,7 +61,7 @@ export function App() {
         <TrackInspector controller={controller} />
         <StatusBar controller={controller} />
         <Notices controller={controller} />
-        {!startupVisible && (
+        {(startupLeaving || !startupVisible) && (
           <>
             <SettingsDialog controller={controller} />
             <HelpDialog controller={controller} />

@@ -163,6 +163,7 @@
     <None Include="ui\services\desktop.ts" />
     <None Include="ui\services\errors.ts" />
     <None Include="ui\services\fileDrop.ts" />
+    <None Include="ui\services\meterAnimator.ts" />
     <None Include="ui\services\midi-note-edits.ts" />
     <None Include="ui\services\pointerReorder.ts" />
     <None Include="ui\services\session-updates.ts" />

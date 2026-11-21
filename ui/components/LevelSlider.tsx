@@ -1,4 +1,5 @@
-import { useRef, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { removeMeter, setMeterLevel } from "../services/meterAnimator";
 import { ValueEntry, useValueEntry } from "./ValueEntry";
 
 /** One accessible gain control; its trough also displays the signal level. */
@@ -19,17 +20,22 @@ export function LevelSlider({
     undefined,
   );
   const entry = useValueEntry();
+  const cover = useRef<HTMLElement>(null);
+  // Meter motion bypasses React renders; see services/meterAnimator.ts.
+  useLayoutEffect(() => {
+    if (cover.current) setMeterLevel(cover.current, peak);
+  }, [peak]);
+  useEffect(() => {
+    const element = cover.current;
+    return () => {
+      if (element) removeMeter(element);
+    };
+  }, []);
   return (
-    <div
-      className="level-slider"
-      style={
-        {
-          "--signal": Math.min(100, Math.max(0, peak) * 100) + "%",
-        } as CSSProperties
-      }
-    >
+    <div className="level-slider">
       <div className="level-slider-trough" aria-hidden="true">
         <i />
+        <b ref={cover} />
       </div>
       <input
         aria-label={label}

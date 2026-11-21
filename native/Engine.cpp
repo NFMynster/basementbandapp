@@ -72,34 +72,79 @@ Engine::Engine(bool testing) : testDevice(testing) {
   outputProtection.prepare(rate);
 }
 
-void Engine::initializeAudio(bool inputAllowed) {
+// Opens the device chosen in Settings exactly as remembered, in one step, with
+// its input when the recovered session listens (or the driver shares one
+// instance for input and output). A device that is gone is never swapped for a
+// default: another microphone could feed back, so the user picks again.
+String Engine::openRememberedDevice(bool inputAllowed, const var &remembered, bool listening) {
+  const auto typeName = str(remembered, "type");
+  const auto output = str(remembered, "output");
+  const auto input = inputAllowed ? str(remembered, "input") : String();
+  AudioIODeviceType *type = nullptr;
+  for (auto *candidate : devices.getAvailableDeviceTypes()) // scans every type once
+    if (candidate->getTypeName() == typeName) type = candidate;
+  if (type == nullptr)
+    return "The " + typeName + " audio driver is not available. Choose a device in Input settings.";
+  if (!type->getDeviceNames(false).contains(output))
+    return "Your audio output \"" + output + "\" is not connected. Choose a device in Input settings.";
+  configuredInput = input.isNotEmpty() && type->getDeviceNames(true).contains(input) ? input : String();
+  const bool openInput = configuredInput.isNotEmpty() && (listening || !type->hasSeparateInputsAndOutputs());
+  // The XML form selects the driver type without opening its default device
+  // first (setCurrentAudioDeviceType would), and with selectDefaultDeviceOnFailure
+  // off a failure leaves the device closed instead of substituting another.
+  XmlElement setup("DEVICESETUP");
+  setup.setAttribute("deviceType", typeName);
+  setup.setAttribute("audioOutputDeviceName", output);
+  setup.setAttribute("audioInputDeviceName", openInput ? configuredInput : String());
+  setup.setAttribute("audioDeviceRate", number(remembered, "sampleRate", 48000));
+  setup.setAttribute("audioDeviceBufferSize", (int)number(remembered, "bufferSize", 64));
+  setup.setAttribute("audioDeviceInChans", openInput ? String::repeatedString("1", 128) : String("0"));
+  const auto error = devices.initialise(0, 2, &setup, false);
+  if (error.isNotEmpty()) {
+    configuredInput.clear(); // arming must not open an input without the chosen device
+    return error;
+  }
+  if (input.isNotEmpty() && configuredInput.isEmpty())
+    return "Your audio input \"" + input + "\" is not connected. Choose an input in Input settings.";
+  return {};
+}
+
+void Engine::initializeAudio(bool inputAllowed, const var &remembered, bool listening) {
   if (testDevice)
     return;
-  // Open the output only. The default input is remembered by name and opened
-  // by syncAudioInput once a track is armed or monitored or the tuner runs, so
-  // launching never turns on the OS microphone indicator.
-  std::cerr << "Opening audio device (output only, input " << (inputAllowed ? "on demand" : "not allowed") << ")"
-            << std::endl;
-  AudioDeviceManager::AudioDeviceSetup preferred;
-  preferred.bufferSize = 64;
-  preferred.sampleRate = 48000;
-  // Pin the OS default output explicitly. Otherwise JUCE may substitute
-  // another device while searching for a supported sample rate.
+  if (remembered.isObject()) {
+    std::cerr << "Opening remembered audio device (input " << (listening ? "for the recovered session" : "on demand")
+              << ")" << std::endl;
+    deviceError = openRememberedDevice(inputAllowed, remembered, listening);
+  } else {
+    // First launch: open the output only. The default input is remembered by
+    // name and opened by syncAudioInput once a track is armed or monitored or
+    // the tuner runs, so launching never turns on the OS microphone indicator.
+    std::cerr << "Opening audio device (output only, input " << (inputAllowed ? "on demand" : "not allowed") << ")"
+              << std::endl;
+    AudioDeviceManager::AudioDeviceSetup preferred;
+    preferred.bufferSize = 64;
+    preferred.sampleRate = 48000;
+    // Pin the OS default output explicitly. Otherwise JUCE may substitute
+    // another device while searching for a supported sample rate.
 #if JUCE_WINDOWS
-  for (auto *type : devices.getAvailableDeviceTypes())
-    if (type->getTypeName() == "Windows Audio") {
-      type->scanForDevices();
-      preferred.outputDeviceName = type->getDeviceNames(false)[type->getDefaultDeviceIndex(false)];
-      devices.setCurrentAudioDeviceType(type->getTypeName(), false);
-      break;
-    }
+    for (auto *type : devices.getAvailableDeviceTypes())
+      if (type->getTypeName() == "Windows Audio") {
+        type->scanForDevices();
+        preferred.outputDeviceName = type->getDeviceNames(false)[type->getDefaultDeviceIndex(false)];
+        devices.setCurrentAudioDeviceType(type->getTypeName(), false);
+        break;
+      }
 #endif
-  deviceError = devices.initialise(0, 2, nullptr, true, {}, &preferred);
-  if (auto *type = devices.getCurrentDeviceTypeObject(); type && inputAllowed) {
-    const auto inputs = type->getDeviceNames(true);
-    configuredInput = inputs[jmax(0, type->getDefaultDeviceIndex(true))];
+    deviceError = devices.initialise(0, 2, nullptr, true, {}, &preferred);
+    if (auto *type = devices.getCurrentDeviceTypeObject(); type && inputAllowed) {
+      const auto inputs = type->getDeviceNames(true);
+      configuredInput = inputs[jmax(0, type->getDefaultDeviceIndex(true))];
+    }
   }
-  audioInputActive = false;
+  auto *opened = devices.getCurrentAudioDevice();
+  audioInputActive = opened != nullptr && !opened->getActiveInputChannels().isZero();
+  if (audioInputActive) inputChannelNames = opened->getInputChannelNames();
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
   std::cerr << "Audio device initialization finished: " << deviceError << std::endl;

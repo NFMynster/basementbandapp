@@ -13,6 +13,8 @@ export function useAnimatedPlayhead(
   seekRevision = 0,
 ) {
   const element = useRef<HTMLDivElement>(null);
+  // Schedules one frame when the loop is idle; set by the frame loop below.
+  const wake = useRef<(() => void) | null>(null);
   // Read the clock once, on mount, rather than on every render.
   const [mountedAt] = useState(() => performance.now());
   const anchor = useRef({
@@ -43,6 +45,7 @@ export function useAnimatedPlayhead(
       seekRevision,
       time: changed ? performance.now() : previous.time,
     };
+    wake.current?.();
   }, [
     session,
     scale,
@@ -54,7 +57,7 @@ export function useAnimatedPlayhead(
     seekRevision,
   ]);
   useEffect(() => {
-    let frame: number;
+    let frame = 0;
     let lastFrame = performance.now();
     let lastSeek = anchor.current.seekRevision;
     let settling = false;
@@ -88,6 +91,7 @@ export function useAnimatedPlayhead(
       )
         position =
           s.loopStart + ((position - s.loopStart) % (s.loopEnd - s.loopStart));
+      frame = 0;
       const elapsed = Math.min(64, performance.now() - lastFrame);
       lastFrame = performance.now();
       if (seekRevision !== lastSeek) {
@@ -130,10 +134,16 @@ export function useAnimatedPlayhead(
         element.current.style.visibility =
           relative < 0 || relative > duration ? "hidden" : "visible";
       }
-      frame = requestAnimationFrame(draw);
+      // Keep animating only while the playhead or the view is moving. A
+      // stopped transport redraws once per change, from wake().
+      if (s.playing || settling) frame = requestAnimationFrame(draw);
     };
-    frame = requestAnimationFrame(draw);
+    wake.current = () => {
+      if (!frame) frame = requestAnimationFrame(draw);
+    };
+    wake.current();
     return () => {
+      wake.current = null;
       cancelAnimationFrame(frame);
       view?.removeEventListener("wheel", cancelSettling);
       view?.removeEventListener("pointerdown", cancelSettling);

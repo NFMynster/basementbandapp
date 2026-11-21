@@ -113,12 +113,12 @@ const { mkdirSync, writeFileSync } = require("node:fs");
   );
   await new Promise((r) => setTimeout(r, 80));
   const meterStyle = await win.webContents.insertCSS(
-    ".level-slider { --signal: 62% !important; }",
+    ".level-slider-trough b { transform: translateX(62%) !important; }",
   );
   await new Promise((r) => setTimeout(r, 100));
   console.log(
     await win.webContents.executeJavaScript(
-      `(() => { const e = document.querySelector('.level-slider-trough i'); const s = getComputedStyle(e); return { level: getComputedStyle(e.parentElement.parentElement).getPropertyValue('--signal'), width: s.width, height: s.height, background: s.backgroundImage }; })()`,
+      `(() => { const e = document.querySelector('.level-slider-trough i'); const s = getComputedStyle(e); return { level: getComputedStyle(e.nextElementSibling).transform, width: s.width, height: s.height, background: s.backgroundImage }; })()`,
     ),
   );
   writeFileSync(

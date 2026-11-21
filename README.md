@@ -18,6 +18,7 @@ A simple DAW built around usability. The kind of thing you open when the band is
 - **Your plug-ins.** Bring your own VST3s. Nothing to buy, nothing to unlock.
 - **Everything stays on your disk.** Projects and media live in a folder you choose. Export separate tracks individually or as one mix.
 - **Fast to learn.** Pick an input, arm a track, hit record. Usability is the top priority.
+- **Lightweight.** No bundled browser: about a 15 MB install that uses around 125 MB of memory and opens in about a second, so your computer's power goes to the audio.
 
 Good for: basement rehearsals, demos, songwriting, capturing an idea before it evaporates.
 

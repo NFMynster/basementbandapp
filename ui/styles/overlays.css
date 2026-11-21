@@ -166,6 +166,8 @@
 .startup-overlay.leaving {
   opacity: 0;
   backdrop-filter: blur(0);
+  /* The app is already usable while the overlay fades out. */
+  pointer-events: none;
 }
 .startup-content {
   display: flex;

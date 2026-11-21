@@ -6,12 +6,13 @@
 
 mod auto_update;
 
+use basement_desktop::audio_device::startup_arguments;
 use basement_desktop::contract::renderer_allowed;
 use basement_desktop::ipc::{self, DialogKind, DialogRequest, Dialogs, PluginFolders};
 use basement_desktop::native_client::{Engine, NativeClient};
 use basement_desktop::permissions::microphone_access;
 use basement_desktop::plugin_library::PluginLibrary;
-use basement_desktop::session_service::{Options, SessionService};
+use basement_desktop::session_service::{Options, SessionService, RECOVERY_FILE};
 use basement_desktop::updates::{check_for_update, RELEASE_PAGE};
 use basement_desktop::{json::op, BoxFuture, Outcome};
 use serde_json::{json, Value};
@@ -147,24 +148,32 @@ fn licenses_folder(app: &AppHandle) -> PathBuf {
         .unwrap_or_else(|| repository().join("artifacts/licenses"))
 }
 
-fn start_engine(path: PathBuf) -> BoxFuture<'static, Result<Arc<dyn Engine>, String>> {
+/// `launch` are the remembered-device arguments from `startup_arguments`.
+fn start_engine(
+    path: PathBuf,
+    launch: Vec<String>,
+) -> BoxFuture<'static, Result<Arc<dyn Engine>, String>> {
     Box::pin(async move {
         let input_allowed = microphone_access().await;
         if !path.exists() {
             return Err("Run npm run build:all to build the audio engine.".into());
         }
-        let args: &[&str] = if env_flag("BASEMENT_TEST_DEVICE") {
-            &["--test-device"]
-        } else if input_allowed {
-            &[]
+        let mut args: Vec<&str> = Vec::new();
+        if env_flag("BASEMENT_TEST_DEVICE") {
+            args.push("--test-device");
         } else {
-            &["--no-input"]
-        };
+            if !input_allowed {
+                args.push("--no-input");
+            }
+            args.extend(launch.iter().map(String::as_str));
+        }
         log::info!(
-            "Launching audio engine {} inputAllowed: {input_allowed}",
-            path.display()
+            "Launching audio engine {} inputAllowed: {input_allowed} rememberedDevice: {} listening: {}",
+            path.display(),
+            launch.iter().any(|arg| arg == "--device"),
+            launch.iter().any(|arg| arg == "--listening")
         );
-        let client = NativeClient::spawn(&path, args, Duration::from_secs(60))
+        let client = NativeClient::spawn(&path, &args, Duration::from_secs(60))
             .map_err(|error| format!("The audio engine could not start: {error}"))?;
         Ok(Arc::new(client) as Arc<dyn Engine>)
     })
@@ -725,13 +734,16 @@ fn main() {
         .setup(move |app| {
             let engine = engine_path();
             let test_device = env_flag("BASEMENT_TEST_DEVICE");
+            let device_file = (!test_device).then(|| data.join("audio-device.json"));
+            let recovery = (!smoke).then(|| data.join("Sessions").join(RECOVERY_FILE));
+            let launch = startup_arguments(device_file.as_deref(), recovery.as_deref());
             let service = tauri::async_runtime::block_on(async {
                 SessionService::start(
-                    start_engine(engine.clone()),
+                    start_engine(engine.clone(), launch),
                     data.join("Sessions"),
                     Options {
                         recover: !smoke,
-                        device_file: (!test_device).then(|| data.join("audio-device.json")),
+                        device_file,
                     },
                 )
             });

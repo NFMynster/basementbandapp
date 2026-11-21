@@ -23,11 +23,25 @@ int main(int argc, char **argv) {
   std::cerr << "macOS application event dispatcher initialized" << std::endl;
 #endif
   ScopedJuceInitialiser_GUI gui;
-  Engine engine(argc > 1 && String(argv[1]) == "--test-device");
+  bool testDevice = false, inputAllowed = true, listening = false;
+  var remembered;
+  for (int i = 1; i < argc; ++i) {
+    const String arg(argv[i]);
+    if (arg == "--test-device") testDevice = true;
+    else if (arg == "--no-input") inputAllowed = false;
+    else if (arg == "--listening") listening = true;
+    else if (arg == "--device" && i + 1 < argc) {
+      // Hex-encoded UTF-8 JSON: device names survive any command-line code page.
+      MemoryBlock utf8;
+      utf8.loadFromHexString(String(argv[++i]));
+      remembered = JSON::parse(String::fromUTF8((const char *)utf8.getData(), (int)utf8.getSize()));
+    }
+  }
+  Engine engine(testDevice);
   MessageManager::callAsync(
       [&] {
         std::cerr << "Message loop dispatched audio initialization" << std::endl;
-        engine.initializeAudio(!(argc > 1 && String(argv[1]) == "--no-input"));
+        engine.initializeAudio(inputAllowed, remembered, listening);
       });
   std::cerr << "Native engine ready; entering message loop" << std::endl;
   std::atomic<bool> inputEnded{false};

@@ -1,7 +1,7 @@
 //! Owns the open session between the UI and the engine: one ordered command
 //! queue, slider-gesture coalescing, undo/redo, recovery and save/open.
 
-use crate::audio_device::{device_configuration, load_audio_device, save_audio_device};
+use crate::audio_device::save_audio_device;
 use crate::contract::policy;
 use crate::history::{
     apply_history_entry, edit_description, global_edit, history_fingerprint, is_undoable,
@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::task::{Context, Poll};
 use tokio::sync::{mpsc, oneshot};
 
-const RECOVERY_FILE: &str = "recovery.json";
+pub const RECOVERY_FILE: &str = "recovery.json";
 const MAX_UNDO_STEPS: usize = 30;
 /// Lifecycle moments that always refresh recovery, including desktop-only
 /// save/open, which never reach the engine as commands.
@@ -304,59 +304,14 @@ impl Session {
         self.engine(command).await
     }
 
-    /// Reapplies the device chosen last time. A device that is gone (unplugged
-    /// interface, renamed driver) is retried without its input, then left at
-    /// the engine's default, exactly as on a first launch.
-    async fn restore_audio_device(&self) {
-        let Some(file) = &self.device_file else {
-            return;
-        };
-        let Some(saved) = load_audio_device(file) else {
-            return;
-        };
-        // A failed configure can leave the device closed; keep the launch default.
-        let fallback =
-            device_configuration(self.engine(json!({ "op": "devices" })).await.ok().as_ref());
-        let mut without_input = saved.clone();
-        without_input["input"] = json!("");
-        for attempt in [saved, without_input] {
-            match self
-                .engine(merge(Some(&json!({ "op": "configure" })), &attempt))
-                .await
-            {
-                Ok(_) => {
-                    log::info!(
-                        "Restored audio device {} {}",
-                        text_or_empty(attempt.get("type")),
-                        text_or_empty(attempt.get("output"))
-                    );
-                    return;
-                }
-                Err(error) => {
-                    log::error!("Remembered audio device unavailable: {error}");
-                    if !truthy(attempt.get("input")) {
-                        break;
-                    }
-                }
-            }
-        }
-        if let Some(fallback) = fallback {
-            if let Err(error) = self
-                .engine(merge(Some(&json!({ "op": "configure" })), &fallback))
-                .await
-            {
-                log::error!("Default audio device could not be reopened {error}");
-            }
-        }
-    }
-
+    /// The engine has already opened the remembered device (see
+    /// `audio_device::startup_arguments`). A recovered session is restored
+    /// directly: `init` would first reset to a session without armed tracks
+    /// and close the input the engine opened for it.
     async fn initialize(&mut self) -> Outcome {
         let folder = self.working_directory()?;
         self.folder = Some(folder.clone());
-        let mut state = self
-            .engine(json!({ "op": "init", "folder": folder.to_string_lossy() }))
-            .await?;
-        self.restore_audio_device().await;
+        let mut restored = None;
         if self.recover {
             let file = self.directory.join(RECOVERY_FILE);
             match std::fs::read_to_string(&file) {
@@ -367,8 +322,8 @@ impl Session {
                         format!("Previous session could not be restored: {error}");
                 }
                 Ok(raw) => match self.restore_recovery(&raw, &folder).await {
-                    Ok(restored) => {
-                        state = restored;
+                    Ok(state) => {
+                        restored = Some(state);
                         self.recovered = true;
                     }
                     Err(error) => {
@@ -395,6 +350,13 @@ impl Session {
                 },
             }
         }
+        let state = match restored {
+            Some(state) => state,
+            None => {
+                self.engine(json!({ "op": "init", "folder": folder.to_string_lossy() }))
+                    .await?
+            }
+        };
         if self.recover && self.last_snapshot.is_none() {
             self.last_snapshot = Some(self.snapshot(None).await?);
         }
@@ -894,57 +856,48 @@ mod tests {
         assert_eq!(tracks[1]["historyGroup"], json!("second"));
     }
 
-    fn launch_default() -> Value {
-        json!({ "type": "Windows Audio", "output": "Speakers", "input": "",
-                "sampleRate": 48000, "bufferSize": 480 })
-    }
-
-    async fn restore_with(file: PathBuf, available: fn(&Value) -> bool) -> Vec<Value> {
+    async fn launch_commands(recovery: Option<Value>, restore_fails: bool) -> Vec<String> {
+        let folder = temp_folder("launch");
+        if let Some(recovery) = recovery {
+            std::fs::write(folder.join(RECOVERY_FILE), recovery.to_string()).unwrap();
+        }
         let engine = scripted(false, move |command| match op(command) {
-            "devices" => Ok(merge(Some(&launch_default()), &json!({ "types": [] }))),
-            "configure" if !available(command) => Err("No such device".into()),
-            _ => Ok(command.clone()),
+            "restore" if restore_fails => Err("Missing media file".into()),
+            "init" | "restore" => Ok(json!({ "tracks": [] })),
+            _ => Ok(json!({ "tracks": [], "title": "Jam" })),
         });
-        let session = Session::new(
+        let mut session = Session::new(
             engine.clone(),
-            temp_folder("device"),
+            folder,
             Options {
-                recover: false,
-                device_file: Some(file),
+                recover: true,
+                device_file: None,
             },
         );
-        session.restore_audio_device().await;
+        session.initialize().await.unwrap();
         let log = engine.log.lock().unwrap().clone();
-        log
+        log.iter().map(|c| op(c).to_owned()).collect()
     }
 
     #[tokio::test]
-    async fn launch_reapplies_the_remembered_device_drops_a_missing_input_else_keeps_the_default() {
-        let remembered = json!({ "type": "ASIO", "output": "USB Interface", "input": "USB Interface",
-                                 "sampleRate": 48000, "bufferSize": 128 });
-        let file = temp_folder("device-file").join("audio-device.json");
-        save_audio_device(&file, &remembered).unwrap();
-        let configure = |config: &Value| merge(Some(&json!({ "op": "configure" })), config);
-
-        let log = restore_with(file.clone(), |_| true).await;
-        assert_eq!(log.last(), Some(&configure(&remembered)));
-
-        // Interface present but its input gone: keep the output choice.
-        let log = restore_with(file.clone(), |c| {
-            c["output"] == "USB Interface" && c["input"] == ""
-        })
-        .await;
-        let mut without_input = remembered.clone();
-        without_input["input"] = json!("");
-        assert_eq!(log.last(), Some(&configure(&without_input)));
-
-        // Interface unplugged: reopen the device the engine started with.
-        let log = restore_with(file.clone(), |c| c["output"] == "Speakers").await;
-        assert_eq!(log.last(), Some(&configure(&launch_default())));
-
-        // Without a remembered device nothing is touched.
-        let log = restore_with(temp_folder("none").join("none.json"), |_| true).await;
-        assert!(log.is_empty());
+    async fn launch_restores_recovery_directly_and_never_reconfigures_the_device() {
+        let recovery = json!({
+            "version": 4, "title": "Jam", "tempo": 120, "masterGain": 1, "metronomeGain": 1,
+            "metronome": false, "countIn": false, "limiterEnabled": true,
+            "loopStart": 0, "loopEnd": 8, "looping": false, "tracks": []
+        });
+        // `init` would reset to unarmed tracks and close the input the engine
+        // opened for the recovered session.
+        assert_eq!(
+            launch_commands(Some(recovery.clone()), false).await,
+            ["restore"]
+        );
+        assert_eq!(
+            launch_commands(Some(recovery), true).await,
+            ["restore", "init", "snapshot"],
+            "A recovery that cannot be restored falls back to a new session"
+        );
+        assert_eq!(launch_commands(None, false).await, ["init", "snapshot"]);
     }
 
     #[tokio::test]
