@@ -1,18 +1,21 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { removeMeter, setMeterLevel } from "../services/meterAnimator";
+import { removeMeter, setMeterSource } from "../services/meterAnimator";
 import { ValueEntry, useValueEntry } from "./ValueEntry";
 
-/** One accessible gain control; its trough also displays the signal level. */
+/** One accessible gain control; its trough also displays the signal level of
+ * `meter` ("master" or a track id) while `metering`. */
 export function LevelSlider({
   label,
   value,
-  peak,
+  meter,
+  metering = true,
   max = 1,
   onChange,
 }: {
   label: string;
   value: number;
-  peak: number;
+  meter: string;
+  metering?: boolean;
   max?: number;
   onChange: (value: number, historyGroup?: string) => void;
 }) {
@@ -21,10 +24,10 @@ export function LevelSlider({
   );
   const entry = useValueEntry();
   const cover = useRef<HTMLElement>(null);
-  // Meter motion bypasses React renders; see services/meterAnimator.ts.
+  // Levels arrive outside React; see services/meterAnimator.ts.
   useLayoutEffect(() => {
-    if (cover.current) setMeterLevel(cover.current, peak);
-  }, [peak]);
+    if (cover.current) setMeterSource(cover.current, meter, metering);
+  }, [meter, metering]);
   useEffect(() => {
     const element = cover.current;
     return () => {

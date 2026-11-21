@@ -124,9 +124,20 @@ async function verifyStartup(win, request) {
   if ((await request({ op: "state" })).position !== 0)
     throw new Error("Enter on a focused slider did not return to start");
   await win.webContents.executeJavaScript(`document.activeElement.blur()`);
-  const head = await win.webContents.executeJavaScript(
-    `(() => { const r = document.querySelector('.playhead > span').getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2 + 3), y: Math.round(r.y + 4) }; })()`,
-  );
+  // The playhead animates back to the start; press only once it has settled
+  // and is the element under the point.
+  const head = await win.webContents.executeJavaScript(`(async () => {
+      let previous = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const r = document.querySelector('.playhead > span').getBoundingClientRect();
+        const point = { x: Math.round(r.x + r.width / 2 + 3), y: Math.round(r.y + 4) };
+        const hit = document.elementFromPoint(point.x, point.y)?.closest('.playhead');
+        if (hit && previous && previous.x === point.x && previous.y === point.y) return point;
+        previous = point;
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 16)));
+      }
+      throw new Error('Playhead never settled under the pointer');
+    })()`);
   win.webContents.sendInputEvent({
     type: "mouseDown",
     ...head,
@@ -149,9 +160,12 @@ async function verifyStartup(win, request) {
     button: "left",
     clickCount: 1,
   });
-  await new Promise((r) => setTimeout(r, 150));
-  if ((await request({ op: "state" })).position < 2)
-    throw new Error("Dragging the playhead did not seek");
+  let seeked = false;
+  for (let attempt = 0; attempt < 20 && !seeked; attempt++) {
+    await new Promise((r) => setTimeout(r, 50));
+    seeked = (await request({ op: "state" })).position >= 2;
+  }
+  if (!seeked) throw new Error("Dragging the playhead did not seek");
   for (const zone of ["loop", "seek"]) {
     const point = await win.webContents.executeJavaScript(
       `(() => { const r = document.querySelector('[data-ruler-zone="${zone}"]').getBoundingClientRect(); return { x: Math.round(r.left + 220), y: Math.round(r.top + r.height / 2) }; })()`,

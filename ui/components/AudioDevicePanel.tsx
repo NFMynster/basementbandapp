@@ -81,6 +81,11 @@ export function AudioDevicePanel({
               <option key={name}>{name}</option>
             ))}
           </select>
+          {!devices.output && (
+            <small role="status">
+              No output selected: playback and monitoring are silent.
+            </small>
+          )}
         </label>
       </div>
       <div className="form-row">

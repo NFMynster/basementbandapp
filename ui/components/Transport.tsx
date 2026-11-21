@@ -359,10 +359,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
             label="Output volume"
             max={2}
             value={s.masterGain ?? 1}
-            peak={
-              s.masterPeak ??
-              Math.max(...s.tracks.map((t) => t.peak), 0) * (s.masterGain ?? 1)
-            }
+            meter="master"
             onChange={(value, historyGroup) =>
               run({ op: "master", value, historyGroup })
             }

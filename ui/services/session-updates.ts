@@ -83,3 +83,26 @@ export function optimisticSession(
       return null;
   }
 }
+
+/** Values that change on every poll and are shown without a session render:
+ * meters take their levels directly, and the audio load is averaged once a
+ * second. */
+const LIVE_KEYS = new Set(["peak", "masterPeak", "audioCpu"]);
+const fingerprints = new WeakMap<Session, string>();
+
+/** True when a polled session differs from the shown one in anything a render
+ * would display, ignoring the live values. */
+export function sessionChanged(shown: Session, polled: Session) {
+  return fingerprint(shown) !== fingerprint(polled);
+}
+
+function fingerprint(session: Session) {
+  let text = fingerprints.get(session);
+  if (text === undefined) {
+    text = JSON.stringify(session, (key, value: unknown) =>
+      LIVE_KEYS.has(key) ? undefined : value,
+    );
+    fingerprints.set(session, text);
+  }
+  return text;
+}

@@ -128,9 +128,12 @@ fn engine_path() -> PathBuf {
     } else {
         "BasementAudio"
     };
-    // Bundled builds ship the engine next to the app executable.
+    // Installed builds ship the engine next to the app executable. Builds
+    // under desktop/target always use the freshly built engine instead:
+    // packaging leaves a copy of the sidecar there that would go stale.
     if let Some(beside) = std::env::current_exe()
         .ok()
+        .filter(|exe| !exe.components().any(|part| part.as_os_str() == "target"))
         .and_then(|exe| exe.parent().map(|dir| dir.join(name)))
         .filter(|path| path.exists())
     {

@@ -102,7 +102,7 @@ export function TrackRecordingPanel({
             label="Track volume"
             value={track.gain}
             max={1.5}
-            peak={track.peak}
+            meter={track.id}
             onChange={(gain, historyGroup) =>
               update(track, { gain, historyGroup })
             }

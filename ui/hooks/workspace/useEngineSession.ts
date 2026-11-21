@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   Command,
   CommandResult,
@@ -8,7 +8,11 @@ import type {
 } from "../../models";
 import { desktop as api } from "../../services/desktop";
 import { errorMessage } from "../../services/errors";
-import { optimisticSession } from "../../services/session-updates";
+import { setMeterLevels } from "../../services/meterAnimator";
+import {
+  optimisticSession,
+  sessionChanged,
+} from "../../services/session-updates";
 import type { Notices } from "./useNotices";
 
 const empty: Session = {
@@ -48,10 +52,17 @@ export function useEngineSession({
   const polling = useRef(false),
     editing = useRef(false),
     activeCommands = useRef(0),
-    optimisticRevision = useRef(0);
+    optimisticRevision = useRef(0),
+    // The session on screen and when a poll last replaced it.
+    shown = useRef(s),
+    lastPollRender = useRef(0);
+  useLayoutEffect(() => {
+    shown.current = s;
+  }, [s]);
 
   const accept = (v: Session | Devices | SaveResult | null) => {
     if (v && "tracks" in v) {
+      setMeterLevels(v);
       setS(v);
       if (v.recoveryError) setError(v.recoveryError);
     }
@@ -143,7 +154,17 @@ export function useEngineSession({
           !activeCommands.current &&
           revision === optimisticRevision.current
         ) {
-          accept(v);
+          // Most polls change only live values on screen: meters take their
+          // levels directly, the render is skipped, and it still refreshes
+          // once a second for the averaged audio load.
+          const now = performance.now();
+          if (
+            sessionChanged(shown.current, v) ||
+            now - lastPollRender.current >= 1000
+          ) {
+            lastPollRender.current = now;
+            accept(v);
+          } else setMeterLevels(v);
           setStarting(false);
         }
       } catch (e) {
