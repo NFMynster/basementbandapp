@@ -30,7 +30,7 @@ The UI reaches the shell only through `ui/services/desktop.ts`, which calls Taur
 
 User data (recovery, the Sound library, the remembered device) lives in `com.footstompstudios.basementband` under the platform's app-data folder (`%APPDATA%` on Windows, `~/Library/Application Support` on macOS). Logs go to `logs/main.log` there (macOS: `~/Library/Logs/Basement Band`), rotated at 4 MiB. The engine is a Tauri sidecar next to the app executable; development builds use `artifacts/native`.
 
-Rust code is checked by `cargo fmt --check` and `cargo clippy -D warnings` in `npm run check`, and unit tests run first in `npm test`. White-box tests (gesture coalescing, device restore, storage, history, the pipe client) live next to the code in `desktop/src`; behaviour that needs the engine stays in `tests/*.test.mjs`. `desktop/types.d.ts` types the smoke workflows and the webview test driver; the visual fixture in `scripts/visual-fixture.js` answers the same Tauri commands the shell registers.
+Rust code is checked by `cargo fmt --check` and `cargo clippy -D warnings` in `npm run check`, and unit tests run first in `npm test`. White-box tests (gesture coalescing, device restore, storage, history, the pipe client) live next to the code in `desktop/src`; behaviour that needs the engine stays in `tests/*.test.mjs`. Renderer logic without React rendering (the live store, optimistic previews, note edits) is tested in Node against the shipped `.ts` modules; `tests/helpers/ui-modules.mjs` resolves their imports as Vite does. `desktop/types.d.ts` types the smoke workflows and the webview test driver; the visual fixture in `scripts/visual-fixture.js` answers the same Tauri commands the shell registers.
 
 ## File drops and in-app drags
 

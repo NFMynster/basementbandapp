@@ -43,6 +43,30 @@ const { mkdirSync, writeFileSync } = require("node:fs");
       "Only the update action should appear in the footer: " +
         JSON.stringify(footerActions),
     );
+  // Live frames move the playhead, its slider value and the bar/beat readout
+  // without a session render: 6 s at 120 BPM is bar 4, beat 1.
+  const live = await win.webContents.executeJavaScript(`(async () => {
+      await window.visualFixture.command({ op: 'testPosition', value: 6 });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const head = document.querySelector('.playhead');
+      const bar = parseFloat(document.querySelector('.ruler').style.getPropertyValue('--bar-width'));
+      return {
+        seconds: parseFloat(head.style.left) / (bar / 2),
+        value: head.getAttribute('aria-valuenow'),
+        readout: document.querySelector('.lcd .position strong').textContent,
+      };
+    })()`);
+  if (
+    Math.abs(live.seconds - 6) > 0.01 ||
+    live.value !== "6.00" ||
+    live.readout !== "0041 1"
+  )
+    throw new Error(
+      "Live frames did not move the playhead: " + JSON.stringify(live),
+    );
+  await win.webContents.executeJavaScript(
+    `window.visualFixture.command({ op: 'testPosition', value: 3 })`,
+  );
   await win.webContents.executeJavaScript(
     `document.querySelector('[title="Quick guide"]').click()`,
   );

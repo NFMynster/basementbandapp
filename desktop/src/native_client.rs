@@ -305,6 +305,37 @@ mod tests {
         client.shutdown();
     }
 
+    /// Collects the client's event frames.
+    fn events(client: &NativeClient) -> tokio::sync::mpsc::UnboundedReceiver<Value> {
+        let (sender, received) = tokio::sync::mpsc::unbounded_channel();
+        client.on_events(Box::new(move |frame| {
+            let _ = sender.send(serde_json::from_str(frame).unwrap());
+        }));
+        received
+    }
+
+    #[tokio::test]
+    async fn an_engine_crash_tells_the_window_once_and_a_shutdown_does_not() {
+        let crashed = fixture(2000);
+        let mut received = events(&crashed);
+        assert!(crashed.send(json!({ "op": "exit" })).await.is_err());
+        let frame = received.recv().await.unwrap();
+        assert_eq!(frame["event"], "failed");
+        assert!(frame["error"].as_str().unwrap().contains("stopped"));
+        assert!(crashed.send(json!({ "value": "late" })).await.is_err());
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(received.try_recv().is_err(), "one notice per failure");
+
+        let closed = fixture(2000);
+        let mut quiet = events(&closed);
+        closed.shutdown();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        assert!(
+            quiet.try_recv().is_err(),
+            "an expected exit is not a failure"
+        );
+    }
+
     #[tokio::test]
     async fn closing_drains_the_active_reply_and_rejects_queued_requests() {
         let client = fixture(2000);

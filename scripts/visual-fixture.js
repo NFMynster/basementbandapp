@@ -9,7 +9,7 @@
    * @typedef {EngineState["tracks"][number]} Track
    * @typedef {import("../ui/models").Command
    *   | { op: "testAddTrack" | "testRemoveTrack" | "testTakes" }
-   *   | { op: "testAudioLoad", value: number }} MockCommand
+   *   | { op: "testAudioLoad" | "testPosition", value: number }} MockCommand
    *   Real commands plus fixture-only ops the visual scripts send.
    */
   /**
@@ -196,6 +196,7 @@
     if (c.op === "metronomeSound") state.metronomeSound = c.value;
     if (c.op === "removePlugin" && !c.effect)
       Object.assign(fixtureTrack(c.track), { pluginName: "", effects: [] });
+    if (c.op === "testPosition") state.position = c.value;
     if (c.op === "testAudioLoad") {
       state.audioCpu = c.value;
       state.processingDropouts = 2;

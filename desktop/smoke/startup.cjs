@@ -234,6 +234,27 @@ async function verifyStartup(win, request) {
     )
   )
     throw new Error("Escape did not close the dialog");
+  // Nothing polls: changes made outside the UI reach the screen through the
+  // engine's live stream, the session (a rename) and the transport (a seek).
+  const title = (await request({ op: "state" })).title;
+  await request({ op: "rename", title: "Pushed by the engine" });
+  await request({ op: "seek", position: 4 });
+  let pushed = { name: "", playhead: "" };
+  for (let i = 0; i < 40; i++) {
+    pushed = await win.webContents.executeJavaScript(
+      `({ name: document.querySelector('[aria-label="Session name"]').value, playhead: document.querySelector('.playhead').getAttribute('aria-valuenow') })`,
+    );
+    if (pushed.name === "Pushed by the engine" && pushed.playhead === "4.00")
+      break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (pushed.name !== "Pushed by the engine" || pushed.playhead !== "4.00")
+    throw new Error(
+      "The live stream did not bring engine changes to the UI: " +
+        JSON.stringify(pushed),
+    );
+  await request({ op: "rename", title });
+  await request({ op: "seek", position: 0 });
   console.log(
     "Desktop smoke passed: UI-to-JUCE commands, dialog shortcuts and Escape.",
   );

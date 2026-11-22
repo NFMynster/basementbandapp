@@ -115,3 +115,74 @@ test("the engine streams live frames and the session only when it changes", asyn
     await engine.close();
   }
 });
+
+test("snapshots stay documents while every UI-bound state is numbered in order", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const folder = mkdtempSync(resolve("artifacts/test-sessions/live-order-"));
+  const engine = startStreamingEngine();
+  try {
+    const first = await engine.send({ op: "init", folder });
+    const snapshot = await engine.send({ op: "snapshot" });
+    assert.equal(
+      snapshot.revision,
+      undefined,
+      "saved projects carry no revision",
+    );
+    assert.equal(snapshot.deviceListVersion, 0);
+    assert.equal(first.deviceListVersion, 0, "the test device never changes");
+    await delay(150);
+    const added = await engine.send({ op: "addTrack", kind: "midi" });
+    assert.ok(added.revision > first.revision);
+    await delay(150);
+    const revisions = engine.frames.map((frame) => frame.revision);
+    assert.ok(
+      revisions.every((revision, i) => i === 0 || revision > revisions[i - 1]),
+      "frames count up",
+    );
+    const id = added.tracks.at(-1).id;
+    const announced = engine.frames.find((frame) =>
+      frame.session?.tracks.some((track) => track.id === id),
+    );
+    assert.ok(announced, "the new track arrives in a session frame");
+    assert.ok(announced.revision > added.revision);
+    assert.ok(id in engine.frames.at(-1).live.tracks, "and in the live values");
+    assert.ok(
+      engine.frames.every((frame) =>
+        Object.values(frame.live.tracks).every(
+          (track) => track.recordingPreview === undefined,
+        ),
+      ),
+      "no previews while nothing records",
+    );
+  } finally {
+    await engine.close();
+  }
+});
+
+test("a cycle recording starts each pass's streamed waveform over", async () => {
+  mkdirSync("artifacts/test-sessions", { recursive: true });
+  const folder = mkdtempSync(resolve("artifacts/test-sessions/live-cycle-"));
+  const engine = startStreamingEngine();
+  try {
+    const state = await engine.send({ op: "init", folder });
+    const track = state.tracks[0].id;
+    await engine.send({ op: "loop", start: 0, end: 0.5, enabled: true });
+    await engine.send({ op: "track", track, armed: true, gain: 1 });
+    await engine.send({ op: "record" });
+    for (let i = 0; i < 14; i++) {
+      await engine.send({ op: "pump", frames: 4096, left: 0.5 });
+      await delay(40);
+    }
+    await delay(80);
+    await engine.send({ op: "stop" });
+    const starts = engine.frames
+      .map((frame) => frame.live.tracks[track]?.recordingPreview?.from)
+      .filter((from) => from !== undefined);
+    assert.ok(
+      starts.some((from, i) => i > 0 && from === 0 && starts[i - 1] > 0),
+      `a new pass restarts at 0: ${starts.join(",")}`,
+    );
+  } finally {
+    await engine.close();
+  }
+});
