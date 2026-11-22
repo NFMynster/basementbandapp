@@ -1,7 +1,8 @@
-// Visual fixture: scripts/webview-driver.cjs installs this page script as
-// `window.basement` before the UI loads, replacing the shell bridge with
-// canned state. Never shipped or used by the app or its audio engine. The
-// bridge is checked against DesktopApi so it cannot drift from the real one.
+// Visual fixture: stands in for the desktop shell in the visual runs.
+// scripts/webview-driver.cjs opens the built UI in Microsoft Edge and installs
+// this page script first; it provides the Tauri internals the UI calls (like
+// @tauri-apps/api's mockIPC) and answers the shell's commands with canned
+// state. Never shipped or used by the app or its audio engine.
 (() => {
   /**
    * @typedef {import("../ui/models").Session} Session
@@ -213,60 +214,103 @@
     if (c.op === "limiter") state.limiterEnabled = c.value;
     return state;
   }
-  /** @type {import("../ui/models").DesktopApi} */
-  const api = {
-    soundLibrary: async (c) => {
-      const library = {
-        plugins: [],
-        presets: [],
-        starters: ["clean", "crunch", "lead", "bass"].map((character) => ({
-          id: "starter-" + character,
-          name: character,
-          hint: "",
-        })),
-        scanning: false,
-        progress: "",
-        errors: [],
-      };
-      if (c?.op !== "applyPreset") return library;
-      const t = fixtureTrack(c.track);
-      Object.assign(t, {
-        ampCharacter: /** @type {import("../ui/models").AmpCharacter} */ (
-          String(c.id).replace("starter-", "")
-        ),
-        ampBypass: false,
-      });
-      return { ...library, session: structuredClone(state) };
+  /** @param {{ op?: string, track?: string, id?: string }} c */
+  async function soundLibrary(c) {
+    const library = {
+      plugins: [],
+      presets: [],
+      starters: ["clean", "crunch", "lead", "bass"].map((character) => ({
+        id: "starter-" + character,
+        name: character,
+        hint: "",
+      })),
+      scanning: false,
+      progress: "",
+      errors: [],
+    };
+    if (c?.op !== "applyPreset") return library;
+    const t = fixtureTrack(c.track);
+    Object.assign(t, {
+      ampCharacter: /** @type {import("../ui/models").AmpCharacter} */ (
+        String(c.id).replace("starter-", "")
+      ),
+      ampBypass: false,
+    });
+    return { ...library, session: state };
+  }
+
+  /**
+   * The desktop shell's Tauri commands (desktop/src/main.rs `generate_handler!`)
+   * by name, plus the event plug-in calls the UI makes for file drops.
+   * @type {Record<string, (args: any) => unknown>}
+   */
+  const commands = {
+    // Session commands reply on their channel, as in the shell.
+    command: ({ command, reply }) => {
+      mockCommand(command).then(
+        (ok) => reply.onmessage({ ok: structuredClone(ok) }),
+        (/** @type {Error} */ error) =>
+          reply.onmessage({ error: error.message ?? String(error) }),
+      );
     },
-    // The mock also accepts fixture-only ops, so its own signature is wider.
-    command: /** @type {import("../ui/models").DesktopApi["command"]} */ (
-      /** @type {unknown} */ (mockCommand)
-    ),
-    save: async () => null,
-    open: async () => null,
-    plugin: async () => null,
-    importAudio: async () => null,
-    exportAudio: async () => null,
-    checkForUpdate: async () => ({ available: true, version: "0.2.0" }),
-    installUpdate: async () => undefined,
-    openRelease: async () => undefined,
-    openFeedback: async () => undefined,
-    openLicenses: async () => "",
-    openLogs: async () => "",
-    openWebsite: async () => undefined,
-    restart: async () => undefined,
-    dropFiles: async () => state,
+    sound_library: ({ command }) => soundLibrary(command),
+    save: () => null,
+    open: () => null,
+    plugin: () => null,
+    import_audio: () => null,
+    export_audio: () => null,
+    drop_files: () => state,
+    check_update: () => ({ available: true, version: "0.2.0" }),
+    install_update: () => undefined,
+    open_release: () => undefined,
+    open_feedback: () => undefined,
+    open_licenses: () => "",
+    open_logs: () => "",
+    open_website: () => undefined,
+    restart: () => undefined,
+    window_visible: () => undefined,
+    "plugin:event|listen": () => 0,
+    "plugin:event|unlisten": () => undefined,
   };
-  // Replies are copies, as from a real IPC bridge: the UI must never share
+
+  // The Tauri internals @tauri-apps/api calls into, as its mockIPC provides
+  // them. Replies are copies, as from the real IPC: the UI must never share
   // (or be handed back) the fixture's own objects.
-  const copying = Object.fromEntries(
-    Object.entries(api).map(([name, method]) => [
-      name,
-      async (/** @type {unknown[]} */ ...args) =>
-        structuredClone(await /** @type {Function} */ (method)(...args)),
-    ]),
-  );
-  window.basement = /** @type {import("../ui/models").DesktopApi} */ (
-    /** @type {unknown} */ (copying)
-  );
+  /** @type {Map<number, (data: unknown) => void>} */
+  const callbacks = new Map();
+  let nextCallback = 1;
+  Object.assign(window, {
+    __TAURI_INTERNALS__: {
+      metadata: {
+        currentWindow: { label: "main" },
+        currentWebview: { windowLabel: "main", label: "main" },
+      },
+      callbacks,
+      /** @param {(data: unknown) => void} callback @param {boolean} once */
+      transformCallback(callback, once = false) {
+        const id = nextCallback++;
+        callbacks.set(id, (data) => {
+          if (once) callbacks.delete(id);
+          callback?.(data);
+        });
+        return id;
+      },
+      /** @param {number} id */
+      unregisterCallback: (id) => callbacks.delete(id),
+      /** @param {number} id @param {unknown} data */
+      runCallback: (id, data) => callbacks.get(id)?.(data),
+      /** @param {string} name @param {Record<string, unknown>} [args] */
+      async invoke(name, args = {}) {
+        const handler = commands[name];
+        if (!handler) throw new Error(`The visual fixture has no ${name}`);
+        return structuredClone(await handler(args));
+      },
+    },
+    __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener() {} },
+    // Fixture-only ops for the visual scripts (testAddTrack, testTakes...).
+    visualFixture: {
+      /** @param {MockCommand} c */
+      command: async (c) => structuredClone(await mockCommand(c)),
+    },
+  });
 })();

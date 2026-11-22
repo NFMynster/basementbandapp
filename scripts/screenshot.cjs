@@ -1,10 +1,9 @@
-// Development-only visual smoke test. Runs the built app with the visual
-// fixture bridge (scripts/visual-fixture.js), with no microphone capture.
-const { launchDesktop } = require("./webview-driver.cjs");
+// Development-only visual smoke test. Runs the built UI in Edge with the
+// visual fixture (scripts/visual-fixture.js) in place of the desktop shell.
+const { launchFixture } = require("./webview-driver.cjs");
 const { mkdirSync, writeFileSync } = require("node:fs");
 (async () => {
-  const { win, app } = await launchDesktop({
-    fixture: true,
+  const { win, app } = await launchFixture({
     width: 1440,
     height: 960,
   });
@@ -200,7 +199,7 @@ const { mkdirSync, writeFileSync } = require("node:fs");
     })()`);
     await new Promise((r) => setTimeout(r, 100));
     const appliedOutput = await win.webContents.executeJavaScript(
-      `(async () => (await window.basement.command({op:'devices'})).output)()`,
+      `(async () => (await window.visualFixture.command({op:'devices'})).output)()`,
     );
     if (output === "Headphones" && appliedOutput !== output)
       throw new Error("Output selection must apply before Done");
@@ -209,7 +208,7 @@ const { mkdirSync, writeFileSync } = require("node:fs");
     );
     await new Promise((r) => setTimeout(r, 100));
     const result = await win.webContents.executeJavaScript(
-      `(async () => ({dialogs:[...document.querySelectorAll('[role="dialog"]')].map(e=>e.getAttribute("aria-label")),done:document.querySelector(".modal-bottom .primary")?.outerHTML,open:!!document.querySelector('[role="dialog"]'), error:!!document.querySelector('[role="alert"]'), output:(await window.basement.command({op:'devices'})).output}))()`,
+      `(async () => ({dialogs:[...document.querySelectorAll('[role="dialog"]')].map(e=>e.getAttribute("aria-label")),done:document.querySelector(".modal-bottom .primary")?.outerHTML,open:!!document.querySelector('[role="dialog"]'), error:!!document.querySelector('[role="alert"]'), output:(await window.visualFixture.command({op:'devices'})).output}))()`,
     );
     if (
       output === "Unavailable"

@@ -35,7 +35,7 @@ export type CapturedImage = {
   getSize(): { width: number; height: number };
 };
 
-/** Electron's sendInputEvent shape, which the scripts were written against. */
+/** The scripts' input events, in the shape of Electron's sendInputEvent (what they were first written against). */
 export type InputEvent = {
   type: "mouseDown" | "mouseUp" | "mouseMove" | "keyDown" | "keyUp" | "char";
   x?: number;

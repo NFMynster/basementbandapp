@@ -24,7 +24,7 @@ export function App() {
     let second = 0;
     // The webview can paint before the window is shown. Start the fade only once
     // the user can see it, with a painted transparent frame first.
-    void Promise.resolve(api.waitUntilVisible?.()).then(() => {
+    void api.waitUntilVisible().then(() => {
       if (cancelled) return;
       first = requestAnimationFrame(() => {
         second = requestAnimationFrame(() => setStartupEntered(true));

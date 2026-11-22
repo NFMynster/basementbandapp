@@ -34,7 +34,8 @@ function command(cmd: Command): Promise<never> {
   });
 }
 
-const shell: DesktopApi = {
+/** The desktop shell's commands (desktop/src/main.rs). */
+export const desktop: DesktopApi = {
   soundLibrary: (c) => call("sound_library", { command: c }),
   openLicenses: () => call("open_licenses"),
   openWebsite: () => call("open_website"),
@@ -54,30 +55,4 @@ const shell: DesktopApi = {
   plugin: (track, bundle = false, append = false) =>
     call("plugin", { track, bundle, append }),
   exportAudio: (options) => call("export_audio", { options }),
-};
-
-// Visual tests install a fixture bridge as `window.basement` before the UI
-// loads; the app itself always talks to the shell.
-function bridge(): DesktopApi {
-  return window.basement ?? shell;
-}
-
-export const desktop: DesktopApi = {
-  soundLibrary: (command) => bridge().soundLibrary(command),
-  openLicenses: () => bridge().openLicenses(),
-  openWebsite: () => bridge().openWebsite(),
-  checkForUpdate: () => bridge().checkForUpdate(),
-  installUpdate: () => bridge().installUpdate(),
-  openRelease: () => bridge().openRelease(),
-  openFeedback: () => bridge().openFeedback(),
-  waitUntilVisible: () => bridge().waitUntilVisible?.() ?? Promise.resolve(),
-  openLogs: () => bridge().openLogs(),
-  restart: () => bridge().restart(),
-  dropFiles: (paths, track, plugin) => bridge().dropFiles(paths, track, plugin),
-  command: (c) => bridge().command(c),
-  save: () => bridge().save(),
-  open: () => bridge().open(),
-  importAudio: (t, position) => bridge().importAudio(t, position),
-  plugin: (t, bundle, append) => bridge().plugin(t, bundle, append),
-  exportAudio: (options) => bridge().exportAudio(options),
 };

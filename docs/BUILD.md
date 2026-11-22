@@ -91,7 +91,7 @@ npm run test:desktop
 npm run test:visual
 ```
 
-`npm test` runs the Rust unit tests, then the Node integration tests, which drive the shipped Rust session layer (`desktop/target/*/session-host`) and the real engine on its test device; they do not use physical audio inputs. `npm run test:desktop` exercises actual React → Rust shell → JUCE commands in the built app; `npm run test:visual` uses a clearly separate synthetic fixture. Both drive WebView2 over the DevTools protocol (`scripts/webview-driver.cjs`) and run on Windows only; macOS gets a manual pass. Set `BASEMENT_APP` to test a different build of the app.
+`npm test` runs the Rust unit tests, then the Node integration tests, which drive the shipped Rust session layer (`desktop/target/*/session-host`) and the real engine on its test device; they do not use physical audio inputs. `npm run test:desktop` exercises actual React → Rust shell → JUCE commands in the built app; `npm run test:visual` runs the built UI in headless Microsoft Edge against a clearly separate synthetic fixture (`scripts/visual-fixture.js`) in place of the shell, so it needs only `npm run build`. Both speak the DevTools protocol through `scripts/webview-driver.cjs`. The smoke run is Windows only, as macOS's WKWebView has no automation port; macOS gets a manual pass. Set `BASEMENT_APP` to test a different build of the app, or `BASEMENT_BROWSER` to run the visual checks in another Chromium browser.
 
 To diagnose an installed MIDI instrument without opening its editor:
 

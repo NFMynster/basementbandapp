@@ -1,9 +1,8 @@
-const { launchDesktop } = require("./webview-driver.cjs");
+const { launchFixture } = require("./webview-driver.cjs");
 const { writeFileSync, mkdirSync } = require("node:fs");
 const path = require("node:path");
 (async () => {
-  const { win: w, app } = await launchDesktop({
-    fixture: true,
+  const { win: w, app } = await launchFixture({
     width: 1200,
     height: 800,
   });
@@ -314,7 +313,7 @@ const path = require("node:path");
       const observer = new MutationObserver(() => changes++);
       observer.observe(output, {childList:true,characterData:true,subtree:true});
       let high = false;
-      const timer = setInterval(() => window.basement.command({op:'testAudioLoad',value:(high = !high) ? 1.2 : 1.8}), 50);
+      const timer = setInterval(() => window.visualFixture.command({op:'testAudioLoad',value:(high = !high) ? 1.2 : 1.8}), 50);
       await new Promise(r => setTimeout(r, 3200));
       clearInterval(timer);
       observer.disconnect();
@@ -631,7 +630,7 @@ const path = require("node:path");
   )
     throw new Error("New track dialog changes height");
   await w.webContents.executeJavaScript(
-    `document.querySelector('.create-track-dialog .modal-close').click(); window.basement.command({op:'testTakes'})`,
+    `document.querySelector('.create-track-dialog .modal-close').click(); window.visualFixture.command({op:'testTakes'})`,
   );
   await new Promise((r) => setTimeout(r, 150));
   await w.webContents.executeJavaScript(
@@ -663,7 +662,7 @@ const path = require("node:path");
     "Region box selection, Shift selection, stable creation dialog and take panel verified",
   );
   await w.webContents.executeJavaScript(
-    `window.basement.command({op:'testAddTrack'})`,
+    `window.visualFixture.command({op:'testAddTrack'})`,
   );
   await new Promise((r) => setTimeout(r, 90));
   if (
@@ -674,7 +673,7 @@ const path = require("node:path");
     throw new Error("Track insertion is not animated");
   await new Promise((r) => setTimeout(r, 220));
   await w.webContents.executeJavaScript(
-    `window.basement.command({op:'testRemoveTrack'})`,
+    `window.visualFixture.command({op:'testRemoveTrack'})`,
   );
   await new Promise((r) => setTimeout(r, 90));
   if (

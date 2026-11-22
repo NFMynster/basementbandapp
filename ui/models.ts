@@ -333,7 +333,7 @@ export interface DesktopApi {
   installUpdate(): Promise<void>;
   openRelease(): Promise<void>;
   openFeedback(): Promise<void>;
-  waitUntilVisible?(): Promise<void>;
+  waitUntilVisible(): Promise<void>;
   restart(): Promise<void>;
   /** `paths` come from the native drop event; the shell accepts no others. */
   dropFiles(
@@ -351,9 +351,4 @@ export interface DesktopApi {
     append?: boolean,
   ): Promise<Session | null>;
   exportAudio(options: ExportOptions): Promise<ExportResult | null>;
-}
-declare global {
-  interface Window {
-    basement?: DesktopApi;
-  }
 }
