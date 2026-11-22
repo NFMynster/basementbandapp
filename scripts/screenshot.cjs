@@ -67,6 +67,18 @@ const { mkdirSync, writeFileSync } = require("node:fs");
   await win.webContents.executeJavaScript(
     `window.visualFixture.command({ op: 'testPosition', value: 3 })`,
   );
+  // Select all works in text fields only, never on the interface itself.
+  await win.webContents.executeJavaScript("document.activeElement?.blur()");
+  for (const type of ["keyDown", "keyUp"])
+    win.webContents.sendInputEvent({
+      type,
+      keyCode: "A",
+      modifiers: ["control"],
+      commands: ["selectAll"],
+    });
+  await new Promise((r) => setTimeout(r, 50));
+  if (await win.webContents.executeJavaScript("String(getSelection())"))
+    throw new Error("Select all highlighted the interface");
   await win.webContents.executeJavaScript(
     `document.querySelector('[title="Quick guide"]').click()`,
   );

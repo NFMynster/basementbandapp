@@ -142,6 +142,9 @@ impl SessionService {
                     job.state.lock().unwrap().command.take()
                 };
                 let result = match (&ready, session.as_mut()) {
+                    // The engine never ran, so there is nothing to preserve;
+                    // the previous recovery file stays as it was.
+                    (Err(_), _) if matches!(job.kind, JobKind::Close) => Ok(Value::Null),
                     (Err(error), _) => Err(error.clone()),
                     (Ok(()), Some(session)) => match job.kind {
                         JobKind::Command => session.execute(command.unwrap_or_default()).await,
@@ -811,6 +814,18 @@ mod tests {
 
     fn ready(engine: Arc<ScriptedEngine>) -> EngineFuture {
         Box::pin(async move { Ok(engine as Arc<dyn Engine>) })
+    }
+
+    #[tokio::test]
+    async fn closing_after_a_failed_engine_start_succeeds_and_commands_still_fail() {
+        let service = SessionService::start(
+            Box::pin(async { Err("The audio engine could not start".to_owned()) }),
+            temp_folder("failed-start"),
+            Options::default(),
+        );
+        let error = service.request(json!({ "op": "state" })).await.unwrap_err();
+        assert_eq!(error, "The audio engine could not start");
+        service.close().await.unwrap();
     }
 
     #[tokio::test]

@@ -74,18 +74,21 @@ export function useShortcuts(actions: Record<Shortcut, () => void>) {
   }, [bindings]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
+      const handled = e.defaultPrevented;
+      const typing = (e.target as HTMLElement).closest(
+        'input:not([type="range"]):not([type="checkbox"]):not([type="button"]),select,textarea,[contenteditable]',
+      );
+      const pressed = keyBinding(e).replace("Backspace", "Delete");
+      // Select all belongs to text fields; anywhere else, dialogs included,
+      // it would highlight the interface itself.
+      if (pressed === "Mod+KeyA" && !typing) e.preventDefault();
       if (
         e.repeat ||
-        e.defaultPrevented ||
-        document.querySelector(
-          '[role="dialog"], [role="menu"], [data-startup]',
-        ) ||
-        (e.target as HTMLElement).closest(
-          'input:not([type="range"]):not([type="checkbox"]):not([type="button"]),select,textarea,[contenteditable]',
-        )
+        handled ||
+        typing ||
+        document.querySelector('[role="dialog"], [role="menu"], [data-startup]')
       )
         return;
-      const pressed = keyBinding(e).replace("Backspace", "Delete");
       const action =
         (Object.keys(bindings) as Shortcut[]).find(
           (key) => bindings[key].replace("Backspace", "Delete") === pressed,

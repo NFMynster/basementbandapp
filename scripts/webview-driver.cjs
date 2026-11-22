@@ -28,10 +28,13 @@ const root = path.join(__dirname, "..");
  * @typedef {{
  *   type: "mouseDown" | "mouseUp" | "mouseMove" | "keyDown" | "keyUp" | "char",
  *   x?: number, y?: number, button?: "left" | "middle" | "right",
- *   clickCount?: number, modifiers?: string[], keyCode?: string
+ *   clickCount?: number, modifiers?: string[], keyCode?: string,
+ *   commands?: string[]
  * }} InputEvent
  *   The scripts' input events, in the shape of Electron's sendInputEvent
- *   (what they were first written against).
+ *   (what they were first written against). `commands` names the editing
+ *   commands a key runs unless the page cancels it (on macOS Chrome runs
+ *   none by itself, e.g. "selectAll" for Cmd+A).
  */
 
 function appExecutable() {
@@ -103,7 +106,7 @@ class Cdp {
   }
 }
 
-/** @typedef {{ type: string, url: string, webSocketDebuggerUrl: string }} Target */
+/** @typedef {{ id: string, type: string, url: string, webSocketDebuggerUrl: string }} Target */
 
 /**
  * The first page on the DevTools port that `matches`.
@@ -387,9 +390,14 @@ async function attach(target, origin, close) {
           key: info.key,
           code: info.code,
           windowsVirtualKeyCode: info.vk,
-          nativeVirtualKeyCode: info.vk,
+          // Windows key codes; elsewhere Chrome would read them as other
+          // physical keys (on macOS, Escape opens chrome://settings/help).
+          ...(process.platform === "win32"
+            ? { nativeVirtualKeyCode: info.vk }
+            : {}),
           modifiers: bits,
           ...(down && info.text ? { text: info.text } : {}),
+          ...(down && event.commands ? { commands: event.commands } : {}),
         }),
       );
     },
@@ -637,8 +645,32 @@ async function launchFixture({ width = 1440, height = 960 } = {}) {
       source: readFileSync(path.join(__dirname, "visual-fixture.js"), "utf8"),
     });
     await page.win.loadFile("index.html");
+    // The UI must stay the only tab: another page (say, a browser shortcut
+    // the driver set off) hides it, and a hidden page never paints, so a
+    // screenshot would wait forever.
+    const onlyTab = async () => {
+      /** @type {Target[]} */
+      const targets = await (
+        await fetch(`http://127.0.0.1:${port}/json/list`)
+      ).json();
+      const others = targets
+        .filter((t) => t.type === "page" && t.id !== target.id)
+        .map((t) => t.url);
+      if (others.length)
+        throw new Error(
+          `The browser opened another tab, which hides the UI: ${others.join(", ")}`,
+        );
+    };
     const win = {
       ...page.win,
+      webContents: {
+        ...page.win.webContents,
+        /** @param {Rect} [rect] */
+        capturePage: async (rect) => {
+          await onlyTab();
+          return page.win.webContents.capturePage(rect);
+        },
+      },
       /** Resizes the content area. @param {number} w @param {number} h */
       setSize: (w, h) => page.handled(resize(w, h)),
     };

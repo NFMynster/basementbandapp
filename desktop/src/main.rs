@@ -902,8 +902,8 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("Basement Band could not start")
-        .run(|app, event| {
-            if let RunEvent::ExitRequested { api, code, .. } = event {
+        .run(|app, event| match event {
+            RunEvent::ExitRequested { api, code, .. } => {
                 // Quit from the macOS menu bar: preserve the session first.
                 let flushed = app.state::<Shell>().recovery_flushed.load(Ordering::SeqCst);
                 if !flushed && code.is_none() {
@@ -911,5 +911,29 @@ fn main() {
                     quit(app, false);
                 }
             }
+            #[cfg(target_os = "macos")]
+            RunEvent::Exit => preserve_on_terminate(app),
+            _ => {}
         });
+}
+
+/// Quit from the Dock, logout and shutdown terminate the app directly: the
+/// event loop ends without `ExitRequested`, and the process exits right
+/// after this returns. Preserve the session and install a downloaded update
+/// here, blocking, as `quit` would have.
+#[cfg(target_os = "macos")]
+fn preserve_on_terminate(app: &AppHandle) {
+    let shell = app.state::<Shell>();
+    if shell.recovery_flushed.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let closed = tauri::async_runtime::block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), shell.service.close()).await
+    });
+    match closed {
+        Ok(Ok(())) => log::info!("Session preserved on terminate"),
+        Ok(Err(error)) => log::error!("Session recovery on terminate failed {error}"),
+        Err(_) => log::error!("Session recovery on terminate timed out"),
+    }
+    auto_update::install_ready(app, false);
 }
