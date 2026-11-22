@@ -1,20 +1,21 @@
 // Types for the desktop smoke workflows (desktop/smoke/*.cjs), checked by
 // tsconfig.desktop.json. They run in Node and drive the built app through
 // scripts/webview-driver.cjs.
-import type { Clip, Session, Track } from "../ui/models";
+import type { Clip, EngineState, Session, Track } from "../ui/models";
 
 export type { Session, Track };
 
-// The engine's full snapshot: the renderer Session plus document fields.
+// The engine's full state: the session with its live values, plus document
+// fields in snapshots.
 export type SnapshotClip = Omit<Clip, "peaks"> & {
   peaks?: number[];
   path: string;
   length: number;
 };
-export type SnapshotTrack = Omit<Track, "clips"> & {
+export type SnapshotTrack = Omit<EngineState["tracks"][number], "clips"> & {
   clips: SnapshotClip[];
 } & Record<string, unknown>;
-export type Snapshot = Omit<Session, "tracks"> & {
+export type Snapshot = Omit<EngineState, "tracks"> & {
   version?: number;
   tracks: SnapshotTrack[];
 } & Record<string, unknown>;

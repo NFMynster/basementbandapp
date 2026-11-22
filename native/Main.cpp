@@ -23,13 +23,14 @@ int main(int argc, char **argv) {
   std::cerr << "macOS application event dispatcher initialized" << std::endl;
 #endif
   ScopedJuceInitialiser_GUI gui;
-  bool testDevice = false, inputAllowed = true, listening = false;
+  bool testDevice = false, inputAllowed = true, listening = false, streamState = false;
   var remembered;
   for (int i = 1; i < argc; ++i) {
     const String arg(argv[i]);
     if (arg == "--test-device") testDevice = true;
     else if (arg == "--no-input") inputAllowed = false;
     else if (arg == "--listening") listening = true;
+    else if (arg == "--stream-state") streamState = true;
     else if (arg == "--device" && i + 1 < argc) {
       // Hex-encoded UTF-8 JSON: device names survive any command-line code page.
       MemoryBlock utf8;
@@ -43,6 +44,18 @@ int main(int argc, char **argv) {
         std::cerr << "Message loop dispatched audio initialization" << std::endl;
         engine.initializeAudio(inputAllowed, remembered, listening);
       });
+  // The app's window follows the engine through live frames instead of
+  // polling: transport, meters and any session change, 30 times a second.
+  // Frames and replies are both written from the message thread, so they
+  // never interleave. Plug-in scans and tests run without the stream.
+  TimedCallback stream([&] {
+    try {
+      respond(engine.frame());
+    } catch (const std::exception &e) {
+      std::cerr << "Live frame failed: " << e.what() << std::endl;
+    }
+  });
+  if (streamState) stream.startTimerHz(30);
   std::cerr << "Native engine ready; entering message loop" << std::endl;
   std::atomic<bool> inputEnded{false};
   std::thread reader([&] {

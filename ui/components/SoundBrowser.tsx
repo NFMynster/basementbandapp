@@ -25,7 +25,7 @@ export function SoundBrowser({
       const next = await api.soundLibrary(c);
       setData(next);
       if (next.session) {
-        w.setS(next.session);
+        w.accept(next.session);
         w.setDirty(true);
         w.setSoundBrowser(null);
       }
@@ -35,22 +35,25 @@ export function SoundBrowser({
       setPending(false);
     }
   }
+  // The library as it is now, then each change a scan makes.
   useEffect(() => {
-    let alive = true;
-    const tick = () =>
-      api
-        .soundLibrary({ op: "list" })
-        .then((v) => {
-          if (alive) setData(v);
-        })
-        .catch((e) => {
-          if (alive) setError(String(e));
-        });
-    void tick();
-    const timer = setInterval(tick, 700);
+    let alive = true,
+      changed = false;
+    const stop = api.onSoundLibrary((library) => {
+      changed = true;
+      if (alive) setData(library);
+    });
+    api
+      .soundLibrary({ op: "list" })
+      .then((library) => {
+        if (alive && !changed) setData(library);
+      })
+      .catch((e) => {
+        if (alive) setError(String(e));
+      });
     return () => {
       alive = false;
-      clearInterval(timer);
+      void stop.then((unsubscribe) => unsubscribe());
     };
   }, []);
   if (!target || !track) return null;

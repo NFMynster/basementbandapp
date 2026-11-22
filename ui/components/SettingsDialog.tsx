@@ -38,25 +38,42 @@ export function SettingsDialog({
     if (!setup) setDeviceDirty(false);
   }
 
+  // Refresh the choices when the OS reports a device plugged in or removed,
+  // or the engine changes device.
+  const deviceListVersion = s.deviceListVersion,
+    device = s.device;
+  const shownDevices = useRef({ deviceListVersion, device });
   useEffect(() => {
+    const shown = shownDevices.current;
+    if (
+      shown.deviceListVersion === deviceListVersion &&
+      shown.device === device
+    )
+      return;
     if (!setup || deviceDirty || applying || s.playing) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const refresh = async () => {
-      try {
-        const next = await api.command({ op: "devices" });
-        if (!cancelled && !pending.current) setDevices(next);
-      } catch {
+    void api
+      .command({ op: "devices" })
+      .then((next) => {
+        if (cancelled || pending.current) return;
+        shownDevices.current = { deviceListVersion, device };
+        setDevices(next);
+      })
+      .catch(() => {
         /* Keep the current selections when a device is temporarily absent. */
-      }
-      if (!cancelled) timer = setTimeout(refresh, 2000);
-    };
-    timer = setTimeout(refresh, 2000);
+      });
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, [setup, deviceDirty, applying, s.playing, setDevices]);
+  }, [
+    deviceListVersion,
+    device,
+    setup,
+    deviceDirty,
+    applying,
+    s.playing,
+    setDevices,
+  ]);
 
   function editDevices(next: Devices) {
     if (pending.current || s.playing) return;

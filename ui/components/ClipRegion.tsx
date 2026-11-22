@@ -12,6 +12,7 @@ import { Waveform } from "./Waveform";
 import { MidiNotes } from "./MidiNotes";
 import { ContextMenu } from "./ContextMenu";
 import { ArrowLeftToLine, ArrowRightToLine, Repeat2 } from "lucide-react";
+import { getLive, useLive } from "../services/liveState";
 const loopCursor = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 8a8 8 0 1 0 1 8M19 3v6h-6" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>')}") 12 12, crosshair`;
 
 /**
@@ -48,6 +49,31 @@ function scrollTowardsEdge(
   view.scrollLeft += Math.round(dx * 18);
   view.scrollTop += Math.round(dy * 12);
   return view.scrollLeft !== left || view.scrollTop !== top;
+}
+
+/** Splits a region where the playhead is; enabled while it is inside. */
+function SplitAtPlayhead({
+  clip,
+  disabled,
+  onSplit,
+}: {
+  clip: Clip;
+  disabled: boolean;
+  onSplit: (position: number) => void;
+}) {
+  const inside = useLive(
+    (live) =>
+      live.position > clip.start && live.position < clip.start + clip.duration,
+  );
+  return (
+    <button
+      role="menuitem"
+      disabled={disabled || !inside}
+      onClick={() => onSplit(getLive().position)}
+    >
+      Split at playhead
+    </button>
+  );
 }
 
 export function ClipRegion({
@@ -608,26 +634,20 @@ export function ClipRegion({
           y={menu.y}
           onClose={closeMenu}
         >
-          <button
-            role="menuitem"
-            disabled={
-              w.s.recording ||
-              w.s.position <= c.start ||
-              w.s.position >= c.start + c.duration
-            }
-            onClick={() => {
+          <SplitAtPlayhead
+            clip={c}
+            disabled={w.s.recording}
+            onSplit={(position) => {
               w.run({
                 op: "editClip",
                 track: t.id,
                 clip: c.id,
                 action: "split",
-                position: w.s.position,
+                position,
               });
               setMenu(null);
             }}
-          >
-            Split at playhead
-          </button>
+          />
           <button
             role="menuitem"
             onClick={() => {

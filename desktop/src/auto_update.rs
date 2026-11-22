@@ -13,7 +13,7 @@ use basement_desktop::updates::check_for_update;
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 #[derive(Default)]
@@ -75,7 +75,9 @@ impl AutoUpdate {
         self.ready.lock().unwrap().is_some()
     }
 
-    fn set(&self, status: Value) {
+    /// Records the status and tells the window ("update-status" events).
+    fn set(&self, app: &AppHandle, status: Value) {
+        let _ = app.emit("update-status", &status);
         *self.status.lock().unwrap() = Some(status);
     }
 }
@@ -93,21 +95,30 @@ async fn run(app: AppHandle) {
             // No manifest yet, or offline: still tell the user about a release.
             log::warn!("Update check failed, falling back to the release notice {error}");
             let version = app.package_info().version.to_string();
-            state.set(check_for_update(&version).await);
+            state.set(&app, check_for_update(&version).await);
             return;
         }
     };
     let version = update.version.clone();
     log::info!("Downloading Basement Band {version}");
-    state.set(json!({ "available": true, "version": version, "state": "downloading" }));
+    state.set(
+        &app,
+        json!({ "available": true, "version": version, "state": "downloading" }),
+    );
     match update.download(|_, _| {}, || {}).await {
         Ok(bytes) => {
             *state.ready.lock().unwrap() = Some((update, bytes));
-            state.set(json!({ "available": true, "version": version, "state": "ready" }));
+            state.set(
+                &app,
+                json!({ "available": true, "version": version, "state": "ready" }),
+            );
         }
         Err(error) => {
             log::warn!("Basement Band update failed {error}");
-            state.set(json!({ "available": true, "version": version, "state": "failed" }));
+            state.set(
+                &app,
+                json!({ "available": true, "version": version, "state": "failed" }),
+            );
         }
     }
 }

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { Modal } from "./Modal";
+import { useLive } from "../services/liveState";
 
 export function Tuner({ controller }: { controller: WorkspaceController }) {
   const { s, track, run, busy } = controller;
   const [instrument, setInstrument] = useState<"guitar" | "bass" | "chromatic">(
     track?.icon === "bass" ? "bass" : "guitar",
   );
-  const frequency = s.tunerFrequency ?? 0;
+  const frequency = useLive((live) => live.tunerFrequency);
   const pitch = frequency > 0 ? 69 + 12 * Math.log2(frequency / 440) : null;
   const note = pitch === null ? null : Math.round(pitch);
   const cents =

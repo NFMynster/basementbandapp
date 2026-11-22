@@ -8,7 +8,7 @@ export function MidiPianoRoll({ editor }: { editor: MidiEditorController }) {
     low,
     viewportWidth,
     tempo,
-    position,
+    ruler,
     seekKeyDown,
     px,
     row,
@@ -54,15 +54,12 @@ export function MidiPianoRoll({ editor }: { editor: MidiEditorController }) {
       >
         <div
           className="note-ruler"
+          ref={ruler}
           role="slider"
           tabIndex={0}
           aria-label="MIDI playhead"
           aria-valuemin={0}
           aria-valuemax={clip.duration}
-          aria-valuenow={Math.max(
-            0,
-            Math.min(clip.duration, position - clip.start),
-          )}
           aria-disabled={unavailable}
           title="Click or drag to move the playhead"
           onDoubleClick={(e) => e.stopPropagation()}

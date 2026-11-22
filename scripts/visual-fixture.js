@@ -5,8 +5,8 @@
 // state. Never shipped or used by the app or its audio engine.
 (() => {
   /**
-   * @typedef {import("../ui/models").Session} Session
-   * @typedef {import("../ui/models").Track} Track
+   * @typedef {import("../ui/models").EngineState} EngineState
+   * @typedef {EngineState["tracks"][number]} Track
    * @typedef {import("../ui/models").Command
    *   | { op: "testAddTrack" | "testRemoveTrack" | "testTakes" }
    *   | { op: "testAudioLoad", value: number }} MockCommand
@@ -60,7 +60,7 @@
       },
     ],
   });
-  /** @type {Session} */
+  /** The fixture engine, with its live values. @type {EngineState} */
   const state = {
     title: "Friday night",
     tracks: [
@@ -214,6 +214,40 @@
     if (c.op === "limiter") state.limiterEnabled = c.value;
     return state;
   }
+  // Like the engine, number every state handed out, and stream live frames
+  // with the session to a watching window.
+  let revision = 0;
+  /** @type {{ onmessage: (frame: unknown) => void } | null} */
+  let watcher = null;
+  /** The state as a command reply. @returns {EngineState} */
+  const engineState = () => ({
+    ...structuredClone(state),
+    revision: ++revision,
+  });
+  /** Streams the current state, as the engine does after a change. */
+  function streamState() {
+    const {
+      position,
+      audioCpu,
+      tunerFrequency,
+      masterPeak,
+      tracks,
+      ...session
+    } = engineState();
+    watcher?.onmessage({
+      event: "state",
+      live: {
+        position,
+        audioCpu: audioCpu ?? 0,
+        tunerFrequency: tunerFrequency ?? 0,
+        masterPeak: masterPeak ?? 0,
+        tracks: Object.fromEntries(tracks.map((t) => [t.id, { peak: t.peak }])),
+      },
+      revision: session.revision,
+      session: { ...session, tracks: tracks.map(({ peak: _peak, ...t }) => t) },
+    });
+  }
+
   /** @param {{ op?: string, track?: string, id?: string }} c */
   async function soundLibrary(c) {
     const library = {
@@ -236,7 +270,7 @@
       ),
       ampBypass: false,
     });
-    return { ...library, session: state };
+    return { ...library, session: engineState() };
   }
 
   /**
@@ -248,7 +282,10 @@
     // Session commands reply on their channel, as in the shell.
     command: ({ command, reply }) => {
       mockCommand(command).then(
-        (ok) => reply.onmessage({ ok: structuredClone(ok) }),
+        (ok) =>
+          reply.onmessage({
+            ok: ok === state ? engineState() : structuredClone(ok),
+          }),
         (/** @type {Error} */ error) =>
           reply.onmessage({ error: error.message ?? String(error) }),
       );
@@ -259,7 +296,10 @@
     plugin: () => null,
     import_audio: () => null,
     export_audio: () => null,
-    drop_files: () => state,
+    drop_files: () => engineState(),
+    watch_engine: ({ channel }) => {
+      watcher = channel;
+    },
     check_update: () => ({ available: true, version: "0.2.0" }),
     install_update: () => undefined,
     open_release: () => undefined,
@@ -310,7 +350,11 @@
     // Fixture-only ops for the visual scripts (testAddTrack, testTakes...).
     visualFixture: {
       /** @param {MockCommand} c */
-      command: async (c) => structuredClone(await mockCommand(c)),
+      command: async (c) => {
+        const result = structuredClone(await mockCommand(c));
+        streamState();
+        return result;
+      },
     },
   });
 })();

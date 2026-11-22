@@ -10,26 +10,25 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
   const { s, armed } = controller;
   const [diagnostics, setDiagnostics] = useState(false);
   const [update, setUpdate] = useState<UpdateStatus>({ available: false });
-  const audioLoad = useAudioLoad(s.audioCpu);
-  // Self-updating builds download in the background; poll until the
-  // download is ready or has failed.
+  const audioLoad = useAudioLoad();
+  // Checking starts the background download in self-updating builds; the
+  // shell reports each step after that.
   useEffect(() => {
-    let active = true;
-    let timer: number | undefined;
-    const poll = () =>
-      void api
-        .checkForUpdate()
-        .then((next) => {
-          if (!active) return;
-          setUpdate(next);
-          if (next.state !== "ready" && next.state !== "failed")
-            timer = window.setTimeout(poll, 30000);
-        })
-        .catch(() => undefined);
-    poll();
+    let active = true,
+      changed = false;
+    const stop = api.onUpdateStatus((next) => {
+      changed = true;
+      if (active) setUpdate(next);
+    });
+    api
+      .checkForUpdate()
+      .then((next) => {
+        if (active && !changed) setUpdate(next);
+      })
+      .catch(() => undefined);
     return () => {
       active = false;
-      window.clearTimeout(timer);
+      void stop.then((unsubscribe) => unsubscribe());
     };
   }, []);
   const openSetup = () => {
@@ -48,19 +47,17 @@ export function StatusBar({ controller }: { controller: WorkspaceController }) {
           <span className="footer-sep">/</span>
           {s.bufferSize} samples
         </button>
-        {s.audioCpu !== undefined && (
-          <button
-            className={`audio-cpu ${audioLoad >= 80 ? "needs-attention" : ""}`}
-            aria-label="Audio status"
-            title="Optional technical details: averaged audio load, monitoring delay and recorded interruptions"
-            onClick={() => setDiagnostics(true)}
-          >
-            <span className="stats-label">Stats for nerds</span>
-            <span>
-              Audio <output>{audioLoad.toFixed(1)}%</output>
-            </span>
-          </button>
-        )}
+        <button
+          className={`audio-cpu ${audioLoad >= 80 ? "needs-attention" : ""}`}
+          aria-label="Audio status"
+          title="Optional technical details: averaged audio load, monitoring delay and recorded interruptions"
+          onClick={() => setDiagnostics(true)}
+        >
+          <span className="stats-label">Stats for nerds</span>
+          <span>
+            Audio <output>{audioLoad.toFixed(1)}%</output>
+          </span>
+        </button>
         {update.available &&
           (update.state === "ready" ? (
             <button

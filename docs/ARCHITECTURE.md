@@ -2,17 +2,17 @@
 
 The desktop is a React UI in the system webview (WebView2 on Windows, WKWebView on macOS), a Rust/Tauri shell, and a separate C++/JUCE audio process. There is no bundled browser and no Node runtime in the app.
 
-| Area             | Owns                                                     | Entry points                                                 |
-| ---------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
-| Renderer         | Presentation, selection, interaction, preferences        | ui/App.tsx, ui/hooks/, ui/components/                        |
-| Contract         | Typed commands and the shell bridge                      | ui/models.ts, desktop/commands.json, ui/services/desktop.ts  |
-| Desktop shell    | Window, dialogs, file drops, quit with recovery          | desktop/src/main.rs, desktop/src/ipc.rs                      |
-| Session service  | Ordered command queue, undo/redo, recovery, folders      | desktop/src/session_service.rs                               |
-| Session storage  | Portable projects, validation and atomic writes          | desktop/src/session_storage.rs, desktop/src/session_files.rs |
-| Session history  | Undo policy and immutable application of history entries | desktop/src/history.rs                                       |
-| Native transport | Serialized pipe requests, framing, failure quarantine    | desktop/src/native_client.rs                                 |
-| Sound library    | Plug-in scans, favourites, track presets, starter sounds | desktop/src/plugin_library.rs, desktop/starter-sounds.json   |
-| JUCE engine      | Devices, MIDI/audio capture, processing and rendering    | native/Engine.h and focused .cpp files                       |
+| Area             | Owns                                                      | Entry points                                                 |
+| ---------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| Renderer         | Presentation, selection, interaction, preferences         | ui/App.tsx, ui/hooks/, ui/components/                        |
+| Contract         | Typed commands and the shell bridge                       | ui/models.ts, desktop/commands.json, ui/services/desktop.ts  |
+| Desktop shell    | Window, dialogs, file drops, quit with recovery           | desktop/src/main.rs, desktop/src/ipc.rs                      |
+| Session service  | Ordered command queue, undo/redo, recovery, folders       | desktop/src/session_service.rs                               |
+| Session storage  | Portable projects, validation and atomic writes           | desktop/src/session_storage.rs, desktop/src/session_files.rs |
+| Session history  | Undo policy and immutable application of history entries  | desktop/src/history.rs                                       |
+| Native transport | Serialized pipe requests, live frames, failure quarantine | desktop/src/native_client.rs                                 |
+| Sound library    | Plug-in scans, favourites, track presets, starter sounds  | desktop/src/plugin_library.rs, desktop/starter-sounds.json   |
+| JUCE engine      | Devices, MIDI/audio capture, processing and rendering     | native/Engine.h and focused .cpp files                       |
 
 ## Extending behavior
 
@@ -26,7 +26,7 @@ The desktop is a React UI in the system webview (WebView2 on Windows, WKWebView 
 
 `desktop/` is a Cargo crate: a library (`basement_desktop`, everything testable without a window), the app binary (`src/main.rs`: Tauri window, commands, dialogs, quit flow) and `session-host`, a test-only binary that exposes SessionService, PluginLibrary and the drop/import handlers over stdin/stdout so `npm test` drives the shipped Rust code with the real engine. It is never bundled: it builds only with the `session-host` Cargo feature, which `tauri build` doesn't enable (Tauri bundles every enabled binary target).
 
-The UI reaches the shell only through `ui/services/desktop.ts`, which calls Tauri commands with `@tauri-apps/api`. The capability in `desktop/capabilities/main.json` grants the window core events and the app's own commands, nothing else: no filesystem, shell or HTTP plug-ins. Commands check that they come from the main window. Session commands are synchronous Tauri commands that queue the request the moment it arrives and reply on a channel, so rapid slider updates keep their order. Native dialogs and updates run in Rust; the CSP is set in `desktop/tauri.conf.json`. The window behaves like an app, not a browser tab: outside `npm run dev` WebView2's own shortcuts (F5/Ctrl+R reload, Ctrl+F find, Ctrl+P print, F7 caret browsing) are off (`disable_browser_shortcuts` in `main.rs`), form autofill is off, and the UI cancels the browser context menu. Installed builds update themselves through the Tauri updater (`desktop/src/auto_update.rs`): the newest published release's `latest.json` names a signed installer (Windows) or app archive (macOS), which downloads in the background and installs after recovery is written, on quit or through "restart to update". Development, smoke runs and builds without the updater's public key show the release-page notice instead (`desktop/src/updates.rs`).
+The UI reaches the shell only through `ui/services/desktop.ts`, which calls Tauri commands with `@tauri-apps/api`. The capability in `desktop/capabilities/main.json` grants the window core events and the app's own commands, nothing else: no filesystem, shell or HTTP plug-ins. Commands check that they come from the main window. Session commands are synchronous Tauri commands that queue the request the moment it arrives and reply on a channel, so rapid slider updates keep their order. Nothing in the UI polls: the shell pushes the engine stream on the window's `watch_engine` channel (RUNTIME.md), and low-frequency notices as Tauri events: `sound-library` while a plug-in scan runs and `update-status` as an update downloads. The UI subscribes to both through `ui/services/desktop.ts`. Native dialogs and updates run in Rust; the CSP is set in `desktop/tauri.conf.json`. The window behaves like an app, not a browser tab: outside `npm run dev` WebView2's own shortcuts (F5/Ctrl+R reload, Ctrl+F find, Ctrl+P print, F7 caret browsing) are off (`disable_browser_shortcuts` in `main.rs`), form autofill is off, and the UI cancels the browser context menu. Installed builds update themselves through the Tauri updater (`desktop/src/auto_update.rs`): the newest published release's `latest.json` names a signed installer (Windows) or app archive (macOS), which downloads in the background and installs after recovery is written, on quit or through "restart to update". Development, smoke runs and builds without the updater's public key show the release-page notice instead (`desktop/src/updates.rs`).
 
 User data (recovery, the Sound library, the remembered device) lives in `com.footstompstudios.basementband` under the platform's app-data folder (`%APPDATA%` on Windows, `~/Library/Application Support` on macOS). Logs go to `logs/main.log` there (macOS: `~/Library/Logs/Basement Band`), rotated at 4 MiB. The engine is a Tauri sidecar next to the app executable; development builds use `artifacts/native`.
 
@@ -40,17 +40,17 @@ Files dragged in from the desktop arrive as one native Tauri drop event with rea
 
 `useWorkspace` only composes the workspace domains in `ui/hooks/workspace/` and wires the cross-domain workflows (new project, shortcuts, recovery notice). Shortcuts that edit or toggle something (split, paste, delete, loop, metronome, undo/redo, save) confirm with a footer notice, and warn when there is nothing to act on:
 
-| Domain hook      | Owns                                                                         |
-| ---------------- | ---------------------------------------------------------------------------- |
-| useEngineSession | Session state, `run` (optimistic commands), `task` (busy file work), polling |
-| useNotices       | Transient footer notices and their timer                                     |
-| useTimeline      | Zoom, scale, arrangement length, bar/beat readout, scroll refs               |
-| useSelection     | Selected track, primary and multi-region selection, new-track reveal         |
-| useEditing       | Track/region edits with rollback, clipboard, file drops                      |
-| useDialogs       | Open dialogs and inspector panel, device list for setup                      |
-| useTempoChange   | Tempo edits that wait for a region-matching choice                           |
+| Domain hook      | Owns                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| useEngineSession | Session state, `run` (optimistic commands), `task` (busy file work), engine stream |
+| useNotices       | Transient footer notices and their timer                                           |
+| useTimeline      | Zoom, scale, arrangement length, bar/beat readout, scroll refs                     |
+| useSelection     | Selected track, primary and multi-region selection, new-track reveal               |
+| useEditing       | Track/region edits with rollback, clipboard, file drops                            |
+| useDialogs       | Open dialogs and inspector panel, device list for setup                            |
+| useTempoChange   | Tempo edits that wait for a region-matching choice                                 |
 
-Components still receive the composed `WorkspaceController`. Put new state in the domain that owns it and pass other domains in explicitly; keep `useWorkspace` to wiring. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
+Components still receive the composed `WorkspaceController`. Put new state in the domain that owns it and pass other domains in explicitly; keep `useWorkspace` to wiring. Pure optimistic session previews live in `ui/services/session-updates.ts`; they do not call the desktop bridge, and engine replies remain authoritative. Values the engine changes continuously (position, peaks, audio load, tuner pitch, recording previews) are not session state: they live in `ui/services/liveState.ts` (see RUNTIME.md). Read them in handlers with `getLive()`, and show them through a small component that calls `useLive` with a selector returning only what it displays (a beat, a rounded number), never by putting them in React state high in the tree. `useConfirmation` owns pending confirmation promises and their cleanup. Panel layout and global shortcuts retain their own hooks. Keep new domain rules outside the workspace coordinator when they can operate on explicit inputs.
 
 The arrangement is one scroller (`.arrangement-scroll`, the `timelineScroll` ref) holding the track sidebar and the timeline. The sidebar is pinned left, and the ruler, the track title and the playhead rail are pinned with `position: sticky`, so headers and lanes scroll together natively without scroll listeners. Do not split it into synced scrollers again: copying `scrollTop` between them cancels smooth and momentum scrolling and lags a frame. `scrollLeft` maps to timeline pixels as before, but the visible timeline starts right of the sidebar; use `timelineViewport()` from `useTimeline.ts` for its client-space edges and width.
 

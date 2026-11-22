@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import type { Clip, Track, TrackPatch } from "../../models";
 import { desktop as api } from "../../services/desktop";
 import { listenForFileDrops } from "../../services/fileDrop";
+import { getLive } from "../../services/liveState";
 import type { EngineSession } from "./useEngineSession";
 import type { Notices } from "./useNotices";
 import { trackContainingClip, type Selection } from "./useSelection";
@@ -59,7 +60,7 @@ export function useEditing({
         op: "editClip",
         ...target,
         action,
-        position: s.position,
+        position: getLive().position,
         target: track?.id,
       });
   }
@@ -172,7 +173,7 @@ export function useEditing({
   }
 
   async function dropAudio(paths: string[], target?: string) {
-    const at = s.position;
+    const at = getLive().position;
     const result = await task(() => api.dropFiles(paths, target));
     if (!result) return;
     await new Promise<void>((resolve) =>

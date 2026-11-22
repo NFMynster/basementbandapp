@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAnimatedPlayhead } from "./useAnimatedPlayhead";
+import { getLive } from "../services/liveState";
 import type { Clip, Session, Command, CommandResult } from "../models";
 type Options = {
   clip: Clip | undefined;
@@ -25,6 +26,8 @@ export function useMidiViewport({
     [snap, setSnap] = useState(true),
     [zoom, setZoom] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
+  // The seek ruler: a slider whose value follows the playhead.
+  const ruler = useRef<HTMLDivElement>(null);
   const [fullKeyboard, setFullKeyboard] = useState(false);
   // The visible pitch range is fitted once per region, then only grows as
   // notes are drawn outside it (adjusted during render when the region changes).
@@ -51,14 +54,14 @@ export function useMidiViewport({
       zoom / (60 / session.tempo),
     ),
     row = 20;
-  const playhead = useAnimatedPlayhead(
-    session,
-    px,
-    dragPosition,
-    clip?.start ?? 0,
-    clip?.duration ?? 0,
-    60,
-  );
+  const playhead = useAnimatedPlayhead(session, {
+    scale: px,
+    drag: dragPosition,
+    origin: clip?.start ?? 0,
+    duration: clip?.duration ?? 0,
+    gutter: 60,
+    slider: ruler,
+  });
   const unavailable = session.recording || busy;
   const quantize = (v: number) => (snap ? Math.round(v / step) * step : v);
   const seekDrag = useRef<number | null>(null);
@@ -170,7 +173,7 @@ export function useMidiViewport({
         ? 0
         : e.key === "End"
           ? clip.duration
-          : session.position -
+          : getLive().position -
             clip.start +
             (e.key === "ArrowLeft" ? -step : step);
     void run(
@@ -183,7 +186,7 @@ export function useMidiViewport({
   }
   return {
     tempo: session.tempo,
-    position: session.position,
+    ruler,
     seekKeyDown,
     division,
     setDivision,

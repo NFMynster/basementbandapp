@@ -3,7 +3,11 @@
 #include <iostream>
 
 namespace basement {
-var recordingPreview(const Track &track, double now, double rate, double loopSpan) {
+/** The waveform or notes recorded so far in the current pass. With `stream`,
+ *  an audio preview holds only the peaks that stream has not sent yet, and
+ *  `from` says where they start; the last peak is the unfinished one. */
+var recordingPreview(const Track &track, double now, double rate, double loopSpan,
+                     PreviewStream *stream = nullptr) {
   if (!track.writer && !track.midiRecording)
     return {};
   const auto elapsed = jmax(0.0, now - track.recordStart - track.captureOffset);
@@ -16,7 +20,16 @@ var recordingPreview(const Track &track, double now, double rate, double loopSpa
     Array<var> peaks;
     const auto count = track.recordingPeakCount.load(std::memory_order_acquire);
     const int first = (int)std::ceil(offset * rate / track.recordingPeakInterval);
-    for (int i = first; i < count; ++i) peaks.add(track.recordingPeaks[(size_t)i]);
+    int from = 0;
+    if (stream != nullptr) {
+      // A new take or loop pass starts the waveform over.
+      if (stream->start != track.recordStart || stream->first != first || stream->sent > count - first)
+        *stream = {track.recordStart, first, 0};
+      from = stream->sent;
+      stream->sent = jmax(0, count - first);
+      preview.getDynamicObject()->setProperty("from", from);
+    }
+    for (int i = first + from; i < count; ++i) peaks.add(track.recordingPeaks[(size_t)i]);
     peaks.add(track.recordingPartialPeak.load());
     preview.getDynamicObject()->setProperty("peakInterval", track.recordingPeakInterval / rate);
     preview.getDynamicObject()->setProperty("peaks", peaks);
@@ -147,6 +160,9 @@ void Engine::initializeAudio(bool inputAllowed, const var &remembered, bool list
   if (audioInputActive) inputChannelNames = opened->getInputChannelNames();
   devices.addAudioCallback(this);
   devices.addMidiInputDeviceCallback({}, this);
+  for (auto *type : devices.getAvailableDeviceTypes())
+    type->addListener(this);
+  midiDeviceList = MidiDeviceListConnection::make([this] { ++deviceListVersion; });
   std::cerr << "Audio device initialization finished: " << deviceError << std::endl;
   describeDevice("opened");
   startTimer(1000);
@@ -154,6 +170,10 @@ void Engine::initializeAudio(bool inputAllowed, const var &remembered, bool list
 
 Engine::~Engine() {
   stopTimer();
+  // The test device never opens a driver; listing types would create them.
+  if (!testDevice)
+    for (auto *type : devices.getAvailableDeviceTypes())
+      type->removeListener(this);
   devices.removeMidiInputDeviceCallback({}, this);
   devices.removeAudioCallback(this);
   editor.reset();
@@ -162,7 +182,7 @@ Engine::~Engine() {
   disk.stopThread(5000);
 }
 
-var Engine::state(bool full, bool pluginState) {
+var Engine::state(bool full, bool pluginState, bool previews) {
   // Session metadata and region JSON belong to the message thread. Do not
   // block the audio callback while allocating/serializing the UI snapshot.
   double snapshotRate;
@@ -234,8 +254,8 @@ var Engine::state(bool full, bool pluginState) {
                      {"pluginName", t->pluginName}, {"pluginUid", t->pluginUid},
                      {"bypass", t->bypass}});
     t->sound.write(v);
-    const auto preview = recordingPreview(*t, position.load(), snapshotRate,
-        recording && cycleRecording ? recordingLoopEnd - recordingLoopStart : 0);
+    const auto preview = previews ? recordingPreview(*t, position.load(), snapshotRate,
+        recording && cycleRecording ? recordingLoopEnd - recordingLoopStart : 0) : var();
     Array<var> effects;
     for (auto &effect : t->effects) {
       auto slot = object({{"id", effect.id}, {"name", effect.name}, {"uid", effect.uid}, {"bypass", effect.bypass}});
@@ -265,7 +285,7 @@ var Engine::state(bool full, bool pluginState) {
     list.add(v);
   }
   auto *d = devices.getCurrentAudioDevice();
-  return object(
+  auto result = object(
       {{"title", title}, {"tunerTrack", tunerTrack}, {"tunerFrequency", tunerFrequency},
        {"tracks", list},
        {"position",
@@ -299,6 +319,60 @@ var Engine::state(bool full, bool pluginState) {
        {"outputLatencySamples", snapshotOutputLatency},
        {"device", d ? d->getName() : "No audio device"},
        {"deviceError", deviceError},
+       {"deviceListVersion", deviceListVersion.load()},
        {"diskOverrun", diskOverrun.load()}});
+  // Snapshots are documents (projects, recovery, history); only UI-bound
+  // states are ordered.
+  if (!full)
+    result.getDynamicObject()->setProperty("revision", ++stateRevision);
+  return result;
+}
+
+void Engine::refreshPluginLatency() {
+  for (auto &t : tracks)
+    if (t->latency != t->pluginLatency()) {
+      const ScopedLock lock(guard);
+      prepareTrack(*t, position, looping);
+    }
+}
+
+var Engine::frame() {
+  // Plug-ins may change their latency at any time; compensate before reporting.
+  refreshPluginLatency();
+  auto session = state(false, true, false);
+  auto *top = session.getDynamicObject();
+  auto live = object({});
+  auto *values = live.getDynamicObject();
+  for (const char *key : {"position", "masterPeak", "audioCpu", "tunerFrequency"}) {
+    values->setProperty(key, top->getProperty(key));
+    top->removeProperty(key);
+  }
+  const auto revision = top->getProperty("revision");
+  top->removeProperty("revision");
+
+  const double loopSpan = recording && cycleRecording ? recordingLoopEnd - recordingLoopStart : 0;
+  auto liveTracks = object({});
+  auto *trackList = top->getProperty("tracks").getArray();
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    auto &t = *tracks[i];
+    auto *json = trackList->getReference((int)i).getDynamicObject();
+    auto entry = object({{"peak", json->getProperty("peak")}});
+    json->removeProperty("peak");
+    const auto preview = recordingPreview(t, position.load(), (double)top->getProperty("sampleRate"), loopSpan,
+                                          &previewStreams[t.id]);
+    if (preview.isVoid())
+      previewStreams.erase(t.id);
+    else
+      entry.getDynamicObject()->setProperty("recordingPreview", preview);
+    liveTracks.getDynamicObject()->setProperty(t.id, entry);
+  }
+  values->setProperty("tracks", liveTracks);
+
+  auto result = object({{"event", "state"}, {"revision", revision}, {"live", live}});
+  if (!sameJson(session, streamedSession)) {
+    streamedSession = session;
+    result.getDynamicObject()->setProperty("session", session);
+  }
+  return result;
 }
 } // namespace basement

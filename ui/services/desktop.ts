@@ -1,5 +1,12 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { Command, DesktopApi } from "../models";
+import { listen } from "@tauri-apps/api/event";
+import type {
+  Command,
+  DesktopApi,
+  EngineFrame,
+  SoundLibrary,
+  UpdateStatus,
+} from "../models";
 
 /** True inside the desktop app (not a plain browser tab). */
 export function inDesktopApp() {
@@ -34,8 +41,21 @@ function command(cmd: Command): Promise<never> {
   });
 }
 
-/** The desktop shell's commands (desktop/src/main.rs). */
+/** A shell event (`app.emit` in desktop/src); resolves to the unsubscribe. */
+function on<T>(event: string, listener: (payload: T) => void) {
+  if (!inDesktopApp()) return Promise.resolve(() => {});
+  return listen<T>(event, ({ payload }) => listener(payload));
+}
+
+/** The desktop shell's commands (desktop/src/main.rs) and events. */
 export const desktop: DesktopApi = {
+  onSoundLibrary: (listener) => on<SoundLibrary>("sound-library", listener),
+  onUpdateStatus: (listener) => on<UpdateStatus>("update-status", listener),
+  watchEngine: (onFrame) => {
+    const channel = new Channel<EngineFrame>();
+    channel.onmessage = onFrame;
+    return call("watch_engine", { channel });
+  },
   soundLibrary: (c) => call("sound_library", { command: c }),
   openLicenses: () => call("open_licenses"),
   openWebsite: () => call("open_website"),

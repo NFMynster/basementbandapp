@@ -1,4 +1,5 @@
 import { useAnimatedPlayhead } from "../hooks/useAnimatedPlayhead";
+import { getLive } from "../services/liveState";
 import type React from "react";
 import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { ContextMenu } from "./ContextMenu";
@@ -192,18 +193,14 @@ export function Arrangement({
     timeline.addEventListener("wheel", wheel, { passive: false });
     return () => timeline.removeEventListener("wheel", wheel);
   }, [zoom, setZoom, timelineScroll]);
-  const playhead = useAnimatedPlayhead(
-    s,
-    pxPerSecond,
-    controller.dragPosition,
-    0,
-    Infinity,
-    0,
-    timelineScroll,
-    followPlayhead,
-    controller.seekRevision,
-    timelineInset,
-  );
+  const playhead = useAnimatedPlayhead(s, {
+    scale: pxPerSecond,
+    drag: controller.dragPosition,
+    follow: timelineScroll,
+    followEnabled: followPlayhead,
+    seekRevision: controller.seekRevision,
+    followInset: timelineInset,
+  });
   // The playhead rail is pinned to the bottom of the view with position:
   // sticky and its line reaches up to the ruler, so scrolling never runs
   // script; only the line's height follows the view's size.
@@ -327,7 +324,7 @@ export function Arrangement({
                         id: selectedTrack.id,
                         x: anchor.x,
                         y: anchor.y,
-                        position: s.position,
+                        position: getLive().position,
                       });
                     }}
                   />
@@ -517,15 +514,11 @@ export function Arrangement({
               <div className="playhead-rail">
                 <div
                   className={"playhead " + (s.recording ? "red" : "")}
-                  style={{
-                    left: (controller.dragPosition ?? s.position) * pxPerSecond,
-                  }}
                   ref={playhead}
                   role="slider"
                   aria-label="Playhead"
                   aria-valuemin={0}
                   aria-valuemax={width / pxPerSecond}
-                  aria-valuenow={controller.dragPosition ?? s.position}
                   aria-disabled={s.recording}
                   tabIndex={0}
                   draggable={false}
@@ -535,7 +528,7 @@ export function Arrangement({
                     e.preventDefault();
                     e.stopPropagation();
                     e.currentTarget.setPointerCapture(e.pointerId);
-                    controller.setDragPosition(s.position);
+                    controller.setDragPosition(getLive().position);
                   }}
                   onPointerMove={(e) => {
                     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
@@ -575,7 +568,7 @@ export function Arrangement({
                             ? 0
                             : Math.max(
                                 0,
-                                s.position +
+                                getLive().position +
                                   ((e.key === "ArrowRight" ? 1 : -1) * 60) /
                                     s.tempo,
                               ),

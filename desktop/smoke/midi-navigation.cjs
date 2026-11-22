@@ -125,7 +125,10 @@ async function verifyMidiNavigation(win, request) {
   const midiHeadBefore = await win.webContents.executeJavaScript(
     `parseFloat(document.querySelector('.midi-playhead').style.left)`,
   );
-  await new Promise((r) => setTimeout(r, 25));
+  // The test device has no clock: advance the engine by a quarter second,
+  // past what the playhead predicts, and let its live frames move it.
+  await request({ op: "pump", frames: 12000 });
+  await new Promise((r) => setTimeout(r, 120));
   await win.webContents.capturePage();
   if (
     (await win.webContents.executeJavaScript(

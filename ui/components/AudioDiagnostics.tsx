@@ -1,5 +1,6 @@
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { Modal } from "./Modal";
+import { useLive } from "../services/liveState";
 
 export function AudioDiagnostics({
   controller: c,
@@ -9,6 +10,7 @@ export function AudioDiagnostics({
   onClose: () => void;
 }) {
   const { s, track } = c;
+  const load = useLive((live) => live.audioCpu.toFixed(1));
   const midi = track?.kind === "midi";
   const device =
     (midi ? 0 : (s.inputLatencySamples ?? 0)) + (s.outputLatencySamples ?? 0);
@@ -29,7 +31,7 @@ export function AudioDiagnostics({
           <span>Estimated monitoring delay</span>
         </div>
         <div>
-          <strong>{(s.audioCpu ?? 0).toFixed(1)}%</strong>
+          <strong>{load}%</strong>
           <span>Audio processing load</span>
         </div>
       </div>

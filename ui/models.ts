@@ -35,6 +35,8 @@ export type RecordingPreview =
       kind: "audio";
       peaks: number[];
       peakInterval?: number;
+      /** In a live frame: where `peaks` continue the waveform already sent. */
+      from?: number;
     })
   | (RecordingPreviewBase & {
       kind: "midi";
@@ -92,16 +94,13 @@ export type Track = {
   eqMidQ?: number;
   eqLowCut?: number;
 
-  peak: number;
   clips: Clip[];
   pluginName: string;
   effects?: { id: string; name: string; bypass: boolean }[];
   bypass: boolean;
-  recordingPreview?: RecordingPreview;
 };
 export type Session = {
   tunerTrack?: string;
-  tunerFrequency?: number;
   historyNotice?: string;
   canUndo?: boolean;
   canRedo?: boolean;
@@ -111,8 +110,6 @@ export type Session = {
   outputLatencySamples?: number;
   inputLatencySamples?: number;
   masterGain?: number;
-  masterPeak?: number;
-  audioCpu?: number;
   limiterEnabled?: boolean;
   outputClipped?: boolean;
   processingDropouts?: number;
@@ -125,7 +122,6 @@ export type Session = {
   countdown?: number;
   title: string;
   tracks: Track[];
-  position: number;
   playing: boolean;
   recording: boolean;
   looping: boolean;
@@ -137,7 +133,40 @@ export type Session = {
   device: string;
   deviceError: string;
   diskOverrun: boolean;
+  /** Counts OS audio and MIDI device list changes. */
+  deviceListVersion?: number;
 };
+/** A track's continuously changing values. */
+export type LiveTrack = { peak: number; recordingPreview?: RecordingPreview };
+/**
+ * What the engine changes continuously: transport position, meter peaks,
+ * audio load, tuner pitch and recording previews. Live frames bring it up to
+ * 30 times a second; it stays out of React state (ui/services/liveState.ts).
+ */
+export type Live = {
+  position: number;
+  masterPeak: number;
+  audioCpu: number;
+  tunerFrequency: number;
+  tracks: Record<string, LiveTrack>;
+};
+/**
+ * The engine's whole state, as command replies carry it: the session with
+ * its live values. `revision` orders replies and live frames.
+ */
+export type EngineState = Omit<Session, "tracks"> &
+  Omit<Live, "tracks" | "masterPeak" | "audioCpu" | "tunerFrequency"> &
+  Partial<Pick<Live, "masterPeak" | "audioCpu" | "tunerFrequency">> & {
+    revision?: number;
+    tracks: (Track & LiveTrack)[];
+  };
+/**
+ * A message on the engine stream (`watch_engine`): a live frame, with the
+ * session when it changed, or the engine stopping.
+ */
+export type EngineFrame =
+  | { event: "state"; revision: number; live: Live; session?: Session }
+  | { event: "failed"; error: string };
 export type Devices = {
   midiInputs?: { id: string; name: string }[];
   types: { name: string; inputs: string[]; outputs: string[] }[];
@@ -283,7 +312,7 @@ export type DeviceCommand =
 export type Command = SessionCommand | DeviceCommand;
 export type CommandResult<C extends Command> = C extends DeviceCommand
   ? Devices
-  : Session;
+  : EngineState;
 export type SaveResult = { saved: string };
 export type ExportOptions = {
   mode: "separate" | "mix";
@@ -322,7 +351,7 @@ export type SoundLibrary = {
   scanning: boolean;
   progress: string;
   errors: string[];
-  session?: Session;
+  session?: EngineState;
 };
 export interface DesktopApi {
   soundLibrary(command: LibraryCommand): Promise<SoundLibrary>;
@@ -335,20 +364,28 @@ export interface DesktopApi {
   openFeedback(): Promise<void>;
   waitUntilVisible(): Promise<void>;
   restart(): Promise<void>;
+  /** Calls `listener` with the library whenever a plug-in scan changes it. */
+  onSoundLibrary(
+    listener: (library: SoundLibrary) => void,
+  ): Promise<() => void>;
+  /** Calls `listener` whenever the background update moves on. */
+  onUpdateStatus(listener: (status: UpdateStatus) => void): Promise<() => void>;
+  /** Streams engine frames to `onFrame` from now on. */
+  watchEngine(onFrame: (frame: EngineFrame) => void): Promise<void>;
   /** `paths` come from the native drop event; the shell accepts no others. */
   dropFiles(
     paths: string[],
     track?: string,
     plugin?: boolean,
-  ): Promise<Session>;
+  ): Promise<EngineState>;
   command<C extends Command>(command: C): Promise<CommandResult<C>>;
   save(): Promise<SaveResult | null>;
-  open(): Promise<Session | null>;
-  importAudio(track?: string, position?: number): Promise<Session | null>;
+  open(): Promise<EngineState | null>;
+  importAudio(track?: string, position?: number): Promise<EngineState | null>;
   plugin(
     track: string,
     bundle?: boolean,
     append?: boolean,
-  ): Promise<Session | null>;
+  ): Promise<EngineState | null>;
   exportAudio(options: ExportOptions): Promise<ExportResult | null>;
 }

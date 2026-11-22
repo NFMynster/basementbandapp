@@ -12,7 +12,15 @@ inline int metronomeSoundIndex(const var &value) {
     if (value.toString() == metronomeSounds[i]) return i;
   return -1;
 }
-class Engine final : public AudioIODeviceCallback, public MidiInputCallback, private Timer {
+/** How much of a track's growing recording waveform the live stream has sent. */
+struct PreviewStream {
+  double start = -1;
+  int first = -1, sent = 0;
+};
+class Engine final : public AudioIODeviceCallback,
+                     public MidiInputCallback,
+                     private AudioIODeviceType::Listener,
+                     private Timer {
   AudioDeviceManager devices;
   AudioFormatManager formats;
   AudioPluginFormatManager plugins;
@@ -89,10 +97,25 @@ public:
   void audioDeviceIOCallbackWithContext(const float *const *inputs, int inputChannels,
                                         float *const *outputs, int outputChannels, int samples,
                                         const AudioIODeviceCallbackContext &context) override;
-  var state(bool full = false, bool pluginState = true);
+  /** The session as replies carry it. Non-full states count up `revision`,
+   *  which orders replies and live frames for the UI. */
+  var state(bool full = false, bool pluginState = true, bool previews = true);
+  /** One live frame for the UI (`--stream-state`): continuously changing
+   *  values in `live`, plus `session` when anything else changed since the
+   *  previous frame, numbered by `revision` like replies. Recording waveforms arrive incrementally (`from`). */
+  var frame();
   var command(const var &command);
 
 private:
+  int64 stateRevision = 0;
+  // Counts OS audio and MIDI device list changes; the UI refreshes its
+  // device choices when it changes instead of polling.
+  std::atomic<int> deviceListVersion{0};
+  MidiDeviceListConnection midiDeviceList;
+  void audioDeviceListChanged() override { ++deviceListVersion; }
+  var streamedSession;
+  std::map<String, PreviewStream> previewStreams;
+  void refreshPluginLatency();
   // Message-thread command handlers; mutations lock shared callback state.
   var handleTrackCommand(const var &command);
   var handlePluginCommand(const var &command);

@@ -1,5 +1,7 @@
 //! The pipe to the native engine. Commands are serialized; each gets one
-//! `BASEMENT:`-framed JSON reply. Other stdout lines are plug-in diagnostics.
+//! `BASEMENT:`-framed JSON reply. Framed objects with an `event` field are
+//! unsolicited (the live state stream) and go to the event sink instead.
+//! Other stdout lines are plug-in diagnostics.
 
 use crate::{BoxFuture, Outcome};
 use serde_json::Value;
@@ -23,6 +25,10 @@ const STOPPED: &str =
     "The audio engine stopped. Restart the app. Completed recordings remain in the session folder.";
 const QUIET_OPS: [&str; 4] = ["state", "pump", "testMidi", "snapshot"];
 
+/// Receives each engine event frame as the engine wrote it (JSON text), so
+/// the shell can pass it on without re-encoding.
+pub type EventSink = Box<dyn Fn(&str) + Send + Sync>;
+
 struct Inner {
     /// Held for a whole request, which is what serializes commands.
     stdin: tokio::sync::Mutex<Option<ChildStdin>>,
@@ -33,17 +39,23 @@ struct Inner {
     timeout: Duration,
     /// Shutdown can be requested from outside the runtime (window close).
     runtime: tokio::runtime::Handle,
+    events: Mutex<Option<EventSink>>,
 }
 
 impl Inner {
     fn fail(&self, error: String, quiet: bool) {
-        let failure = {
+        let (failure, first) = {
             let mut failure = self.failure.lock().unwrap();
-            if failure.is_none() && !quiet {
-                log::error!("Audio engine failure {error}");
-            }
-            failure.get_or_insert(error).clone()
+            let first = failure.is_none();
+            (failure.get_or_insert(error).clone(), first)
         };
+        if first && !quiet {
+            log::error!("Audio engine failure {failure}");
+            // Nothing polls the engine, so tell the window it stopped.
+            if let Some(sink) = self.events.lock().unwrap().as_ref() {
+                sink(&serde_json::json!({ "event": "failed", "error": failure }).to_string());
+            }
+        }
         if let Some(pending) = self.pending.lock().unwrap().take() {
             let _ = pending.send(Err(failure));
         }
@@ -92,6 +104,7 @@ impl NativeClient {
             kill: Notify::new(),
             timeout,
             runtime: tokio::runtime::Handle::current(),
+            events: Mutex::new(None),
         });
 
         let reader_inner = inner.clone();
@@ -103,6 +116,11 @@ impl NativeClient {
                     continue;
                 };
                 match serde_json::from_str::<Value>(frame) {
+                    Ok(event) if event.get("event").is_some() => {
+                        if let Some(sink) = reader_inner.events.lock().unwrap().as_ref() {
+                            sink(frame);
+                        }
+                    }
                     Ok(result) => {
                         let Some(pending) = reader_inner.pending.lock().unwrap().take() else {
                             continue;
@@ -217,6 +235,12 @@ impl NativeClient {
         });
     }
 
+    /// Sends the engine's event frames to `sink` from now on; without one
+    /// they are dropped.
+    pub fn on_events(&self, sink: EventSink) {
+        *self.inner.events.lock().unwrap() = Some(sink);
+    }
+
     /// Ends the process now (plug-in scans that must not linger).
     pub fn kill(&self) {
         self.inner.closing.store(true, Ordering::SeqCst);
@@ -257,6 +281,27 @@ mod tests {
             client.send(json!({ "value": 2 }))
         );
         assert_eq!((a.unwrap(), b.unwrap()), (json!(1), json!(2)));
+        client.shutdown();
+    }
+
+    #[tokio::test]
+    async fn event_frames_reach_the_sink_and_never_answer_a_request() {
+        let client = fixture(2000);
+        let (sender, mut received) = tokio::sync::mpsc::unbounded_channel();
+        client.on_events(Box::new(move |frame| {
+            let _ = sender.send(frame.to_owned());
+        }));
+        let reply = client
+            .send(json!({ "op": "events", "value": "reply" }))
+            .await;
+        assert_eq!(reply.unwrap(), json!("reply"));
+        for index in 0..2 {
+            let frame = received.recv().await.unwrap();
+            assert_eq!(
+                serde_json::from_str::<Value>(&frame).unwrap(),
+                json!({ "event": "state", "index": index })
+            );
+        }
         client.shutdown();
     }
 

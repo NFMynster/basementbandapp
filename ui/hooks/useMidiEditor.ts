@@ -3,6 +3,7 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { WorkspaceController } from "./useWorkspace";
 import type { Clip, SessionCommand } from "../models";
 import { useMidiViewport } from "./useMidiViewport";
+import { getLive } from "../services/liveState";
 type Note = NonNullable<Clip["notes"]>[number];
 type Edit = NonNullable<
   Extract<SessionCommand, { op: "editClip" }>["edits"]
@@ -151,7 +152,7 @@ export function useMidiEditor(w: Options) {
     const result = await w.run({
       op: "createMidi",
       track: w.track.id,
-      position: w.s.position,
+      position: getLive().position,
       length: 960 / w.s.tempo,
     });
     const created = result?.tracks

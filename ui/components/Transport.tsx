@@ -2,6 +2,7 @@ import { Tuner } from "./Tuner";
 import { LevelSlider } from "./LevelSlider";
 import { VALUE_ENTRY_LAYER, ValueEntry, useValueEntry } from "./ValueEntry";
 import { useEffect, useRef, useState } from "react";
+import { useLive } from "../services/liveState";
 import {
   HelpCircle,
   Timer,
@@ -69,8 +70,19 @@ function TempoInput({
   );
 }
 
+/** The bar and beat at the playhead; renders once a beat, not every frame. */
+function BarBeat({ tempo }: { tempo: number }) {
+  const beats = useLive((live) => Math.floor(live.position / (60 / tempo)));
+  return (
+    <strong>
+      {String(Math.floor(beats / 4) + 1).padStart(3, "0")}
+      <span>{(beats % 4) + 1} 1</span>
+    </strong>
+  );
+}
+
 export function Transport({ controller }: { controller: WorkspaceController }) {
-  const { s, run, busy, bar, beat, openSetup, showHelp, setHelp } = controller;
+  const { s, run, busy, openSetup, showHelp, setHelp } = controller;
   const [clickVolumeOpen, setClickVolumeOpen] = useState(false);
   const clickVolume = useRef<HTMLDivElement>(null);
   const volumeGesture = useRef<string | undefined>(undefined);
@@ -169,10 +181,7 @@ export function Transport({ controller }: { controller: WorkspaceController }) {
         </div>
         <div className="lcd">
           <div className="position">
-            <strong>
-              {String(bar).padStart(3, "0")}
-              <span>{beat} 1</span>
-            </strong>
+            <BarBeat tempo={s.tempo} />
             <small>
               BAR <span>BEAT</span>
             </small>

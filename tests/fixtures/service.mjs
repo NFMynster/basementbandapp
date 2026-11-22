@@ -5,6 +5,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     process.exit(1);
   }
   if (c.op === "hang") return;
+  if (c.op === "events")
+    for (let index = 0; index < 2; index++)
+      console.log("BASEMENT:" + JSON.stringify({ event: "state", index }));
   if (c.op === "invalid") {
     console.log("BASEMENT:invalid");
     return;

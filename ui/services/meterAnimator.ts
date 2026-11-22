@@ -1,11 +1,12 @@
-import type { Session } from "../models";
+import type { Live } from "../models";
 
 /**
  * Draws every level meter with peak-meter ballistics from one shared frame
  * loop: a meter jumps up to a new peak and falls back at FALL_DB_PER_SECOND.
  *
- * Levels come from each engine state poll (`setMeterLevels`), without a React
- * render; the fall is drawn at up to METER_FPS in between. Only a composited
+ * Levels come from each live frame (`setMeterLevels`, called by the live
+ * store), without a React render; the fall is drawn at up to METER_FPS in
+ * between. Only a composited
  * `transform` changes, so the browser never repaints, the loop stops once
  * every meter has settled, and changes too small to see never wake it.
  */
@@ -104,10 +105,12 @@ function retarget(meter: Meter) {
   schedule();
 }
 
-/** Applies the peaks of an engine state to every meter. */
-export function setMeterLevels(session: Session) {
-  latest = new Map(session.tracks.map((track) => [track.id, track.peak]));
-  latest.set("master", session.masterPeak ?? 0);
+/** Applies the peaks of a live frame to every meter. */
+export function setMeterLevels(live: Live) {
+  latest = new Map(
+    Object.entries(live.tracks).map(([id, track]) => [id, track.peak]),
+  );
+  latest.set("master", live.masterPeak);
   for (const meter of meters.values()) retarget(meter);
 }
 

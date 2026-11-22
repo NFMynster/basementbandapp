@@ -22,6 +22,10 @@ struct State {
     errors: Vec<String>,
 }
 
+/// Receives the library's view whenever a background scan changes it.
+pub type LibraryListener = Box<dyn Fn(Value) + Send + Sync>;
+type Listener = Arc<Mutex<Option<LibraryListener>>>;
+
 pub struct PluginLibrary {
     file: PathBuf,
     executable: PathBuf,
@@ -29,6 +33,7 @@ pub struct PluginLibrary {
     state: Arc<Mutex<State>>,
     /// Serializes writes of the library file.
     writes: Arc<tokio::sync::Mutex<()>>,
+    listener: Listener,
 }
 
 fn millis(time: SystemTime) -> f64 {
@@ -65,11 +70,27 @@ impl PluginLibrary {
             roots,
             state: Arc::new(Mutex::new(state)),
             writes: Arc::new(tokio::sync::Mutex::new(())),
+            listener: Listener::default(),
+        }
+    }
+
+    /// Sends the library to `listener` as a scan progresses and finishes.
+    pub fn on_change(&self, listener: LibraryListener) {
+        *self.listener.lock().unwrap() = Some(listener);
+    }
+
+    fn announce(state: &Mutex<State>, listener: &Listener) {
+        let view = Self::view_of(&state.lock().unwrap(), None);
+        if let Some(listener) = listener.lock().unwrap().as_ref() {
+            listener(view);
         }
     }
 
     fn view(&self, session: Option<Value>) -> Value {
-        let state = self.state.lock().unwrap();
+        Self::view_of(&self.state.lock().unwrap(), session)
+    }
+
+    fn view_of(state: &State, session: Option<Value>) -> Value {
         let presets: Vec<Value> = state
             .presets
             .iter()
@@ -119,6 +140,7 @@ impl PluginLibrary {
         roots: Vec<PathBuf>,
         state: Arc<Mutex<State>>,
         writes: Arc<tokio::sync::Mutex<()>>,
+        listener: Listener,
     ) {
         let mut files: Vec<PathBuf> = Vec::new();
         fn walk(folder: &Path, depth: usize, files: &mut Vec<PathBuf>) {
@@ -177,6 +199,7 @@ impl PluginLibrary {
                     continue;
                 }
             }
+            Self::announce(&state, &listener);
             let scanned =
                 match NativeClient::spawn(&executable, &["--test-device"], Duration::from_secs(15))
                 {
@@ -236,9 +259,12 @@ impl PluginLibrary {
         if let Err(error) = Self::save(&file, &state, &writes).await {
             state.lock().unwrap().errors.push(error);
         }
-        let mut s = state.lock().unwrap();
-        s.scanning = false;
-        s.progress.clear();
+        {
+            let mut s = state.lock().unwrap();
+            s.scanning = false;
+            s.progress.clear();
+        }
+        Self::announce(&state, &listener);
     }
 
     /// Scans `folder` (besides nothing else) and waits for the result. The UI
@@ -259,6 +285,7 @@ impl PluginLibrary {
             vec![folder],
             self.state.clone(),
             self.writes.clone(),
+            self.listener.clone(),
         )
         .await;
         self.view(None)
@@ -304,6 +331,7 @@ impl PluginLibrary {
                         roots,
                         self.state.clone(),
                         self.writes.clone(),
+                        self.listener.clone(),
                     ));
                 }
                 Ok(self.view(None))
@@ -421,5 +449,27 @@ impl PluginLibrary {
             }
             _ => Err("Unknown library action".into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_finished_scan_announces_the_library() {
+        let folder =
+            std::env::temp_dir().join(format!("basement-library-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let library = PluginLibrary::new(&folder, PathBuf::from("no-engine"), Vec::new());
+        let (sender, mut received) = tokio::sync::mpsc::unbounded_channel();
+        library.on_change(Box::new(move |view| {
+            let _ = sender.send(view);
+        }));
+        library.scan_folder(folder.clone()).await;
+        let view = received.recv().await.unwrap();
+        assert_eq!(view["scanning"], json!(false));
+        assert_eq!(view["plugins"], json!([]));
+        let _ = std::fs::remove_dir_all(&folder);
     }
 }

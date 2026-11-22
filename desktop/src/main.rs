@@ -20,9 +20,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
-use tauri::ipc::Channel;
+use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{
-    AppHandle, DragDropEvent, Manager, RunEvent, State, WebviewUrl, WebviewWindow,
+    AppHandle, DragDropEvent, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -34,9 +34,13 @@ fn env_flag(name: &str) -> bool {
     std::env::var(name).as_deref() == Ok("1")
 }
 
+/// Where the engine's live frames go: the window's `watch_engine` channel.
+type LiveChannel = Arc<Mutex<Option<Channel>>>;
+
 /// Shell state shared by the commands.
 struct Shell {
     service: Arc<SessionService>,
+    live: LiveChannel,
     library: OnceLock<Arc<PluginLibrary>>,
     engine: PathBuf,
     data: PathBuf,
@@ -59,15 +63,18 @@ struct SmokeDialogs {
 }
 
 impl Shell {
-    fn library(&self) -> Arc<PluginLibrary> {
+    /// The Sound library, loaded on first use; scan progress goes to the
+    /// window as "sound-library" events.
+    fn library(&self, app: &AppHandle) -> Arc<PluginLibrary> {
         self.library
             .get_or_init(|| {
                 let folders = PluginFolders::system(home());
-                Arc::new(PluginLibrary::new(
-                    &self.data,
-                    self.engine.clone(),
-                    folders.roots,
-                ))
+                let library = PluginLibrary::new(&self.data, self.engine.clone(), folders.roots);
+                let app = app.clone();
+                library.on_change(Box::new(move |view| {
+                    let _ = app.emit("sound-library", view);
+                }));
+                Arc::new(library)
             })
             .clone()
     }
@@ -150,16 +157,18 @@ fn licenses_folder(app: &AppHandle) -> PathBuf {
 }
 
 /// `launch` are the remembered-device arguments from `startup_arguments`.
+/// The engine streams live frames, which go straight to `live`.
 fn start_engine(
     path: PathBuf,
     launch: Vec<String>,
+    live: LiveChannel,
 ) -> BoxFuture<'static, Result<Arc<dyn Engine>, String>> {
     Box::pin(async move {
         let input_allowed = microphone_access().await;
         if !path.exists() {
             return Err("Run npm run build:all to build the audio engine.".into());
         }
-        let mut args: Vec<&str> = Vec::new();
+        let mut args: Vec<&str> = vec!["--stream-state"];
         if env_flag("BASEMENT_TEST_DEVICE") {
             args.push("--test-device");
         } else {
@@ -176,6 +185,16 @@ fn start_engine(
         );
         let client = NativeClient::spawn(&path, &args, Duration::from_secs(60))
             .map_err(|error| format!("The audio engine could not start: {error}"))?;
+        client.on_events(Box::new(move |frame| {
+            let mut channel = live.lock().unwrap();
+            let delivered = channel.as_ref().is_some_and(|open| {
+                open.send(InvokeResponseBody::Json(frame.to_owned()))
+                    .is_ok()
+            });
+            if !delivered {
+                *channel = None;
+            }
+        }));
         Ok(Arc::new(client) as Arc<dyn Engine>)
     })
 }
@@ -270,6 +289,16 @@ fn command(
     Ok(())
 }
 
+/// Subscribes the window to the engine's live frames: transport position,
+/// meters and the session whenever it changes (docs/RUNTIME.md). A reloaded
+/// page subscribes again and replaces the old channel.
+#[tauri::command]
+fn watch_engine(webview: tauri::Webview, shell: State<'_, Shell>, channel: Channel) -> Outcome<()> {
+    from_main(&webview)?;
+    *shell.live.lock().unwrap() = Some(channel);
+    Ok(())
+}
+
 #[tauri::command]
 async fn sound_library(
     app: AppHandle,
@@ -278,7 +307,7 @@ async fn sound_library(
     command: Value,
 ) -> Outcome {
     from_main(&webview)?;
-    let library = shell.library();
+    let library = shell.library(&app);
     ipc::sound_library(&library, &NativeDialogs { app }, &shell.service, command).await
 }
 
@@ -779,6 +808,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             command,
+            watch_engine,
             sound_library,
             save,
             open,
@@ -805,9 +835,10 @@ fn main() {
             let device_file = (!test_device).then(|| data.join("audio-device.json"));
             let recovery = (!smoke).then(|| data.join("Sessions").join(RECOVERY_FILE));
             let launch = startup_arguments(device_file.as_deref(), recovery.as_deref());
+            let live = LiveChannel::default();
             let service = tauri::async_runtime::block_on(async {
                 SessionService::start(
-                    start_engine(engine.clone(), launch),
+                    start_engine(engine.clone(), launch, live.clone()),
                     data.join("Sessions"),
                     Options {
                         recover: !smoke,
@@ -818,6 +849,7 @@ fn main() {
             let (visible, _) = tokio::sync::watch::channel(false);
             app.manage(Shell {
                 service,
+                live,
                 library: OnceLock::new(),
                 engine,
                 data: data.clone(),

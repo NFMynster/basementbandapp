@@ -1,22 +1,24 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
+import { getLive, subscribeLive } from "../services/liveState";
 
-/** Two-second average, published once a second instead of at the engine poll rate. */
-export function useAudioLoad(value: number | undefined) {
-  const load = Number.isFinite(value) ? Math.max(0, value!) : 0;
-  const latest = useEffectEvent(() => load);
-  const [display, setDisplay] = useState(load);
+/** The engine's audio load averaged over two seconds, shown once a second. */
+export function useAudioLoad() {
+  const [display, setDisplay] = useState(() => getLive().audioCpu);
   useEffect(() => {
-    const samples: number[] = [];
-    let ticks = 0;
-    const timer = setInterval(() => {
-      samples.push(latest());
-      if (samples.length > 20) samples.shift();
-      if (++ticks % 10 === 0)
-        setDisplay(
-          samples.reduce((sum, sample) => sum + sample, 0) / samples.length,
-        );
-    }, 100);
-    return () => clearInterval(timer);
+    let samples: { time: number; load: number }[] = [];
+    let shown = performance.now();
+    return subscribeLive(() => {
+      const now = performance.now();
+      const load = getLive().audioCpu;
+      samples.push({ time: now, load: Number.isFinite(load) ? load : 0 });
+      samples = samples.filter((sample) => now - sample.time <= 2000);
+      if (now - shown < 1000) return;
+      shown = now;
+      setDisplay(
+        samples.reduce((sum, sample) => sum + Math.max(0, sample.load), 0) /
+          samples.length,
+      );
+    });
   }, []);
   return display;
 }

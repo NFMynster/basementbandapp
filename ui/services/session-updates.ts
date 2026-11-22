@@ -23,7 +23,7 @@ export function optimisticSession(
     // Opening the tuner opens the audio input, which restarts the device.
     // Show (or close) the dialog at once instead of after the restart.
     case "tuner":
-      return { ...s, tunerTrack: command.track ?? "", tunerFrequency: 0 };
+      return { ...s, tunerTrack: command.track ?? "" };
     case "metronomeSound":
       return { ...s, metronomeSound: command.value };
     case "countIn":
@@ -35,8 +35,6 @@ export function optimisticSession(
         ...s,
         masterGain: Math.max(0, Math.min(2, command.value)),
       };
-    case "seek":
-      return { ...s, position: Math.max(0, command.position) };
     case "rename":
       return { ...s, title: command.title.slice(0, 100) };
     case "bypass":
@@ -82,27 +80,4 @@ export function optimisticSession(
     default:
       return null;
   }
-}
-
-/** Values that change on every poll and are shown without a session render:
- * meters take their levels directly, and the audio load is averaged once a
- * second. */
-const LIVE_KEYS = new Set(["peak", "masterPeak", "audioCpu"]);
-const fingerprints = new WeakMap<Session, string>();
-
-/** True when a polled session differs from the shown one in anything a render
- * would display, ignoring the live values. */
-export function sessionChanged(shown: Session, polled: Session) {
-  return fingerprint(shown) !== fingerprint(polled);
-}
-
-function fingerprint(session: Session) {
-  let text = fingerprints.get(session);
-  if (text === undefined) {
-    text = JSON.stringify(session, (key, value: unknown) =>
-      LIVE_KEYS.has(key) ? undefined : value,
-    );
-    fingerprints.set(session, text);
-  }
-  return text;
 }

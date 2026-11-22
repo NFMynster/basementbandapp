@@ -1,24 +1,26 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Command,
   CommandResult,
   Devices,
+  EngineFrame,
+  EngineState,
   SaveResult,
   Session,
 } from "../../models";
 import { desktop as api } from "../../services/desktop";
 import { errorMessage } from "../../services/errors";
-import { setMeterLevels } from "../../services/meterAnimator";
 import {
-  optimisticSession,
-  sessionChanged,
-} from "../../services/session-updates";
+  acceptEngineState,
+  acceptLive,
+  previewPosition,
+} from "../../services/liveState";
+import { optimisticSession } from "../../services/session-updates";
 import type { Notices } from "./useNotices";
 
 const empty: Session = {
   title: "Friday night",
   tracks: [],
-  position: 0,
   playing: false,
   recording: false,
   looping: false,
@@ -34,8 +36,11 @@ const empty: Session = {
 
 /**
  * The renderer's copy of the engine session and the one pipeline that changes
- * it: optimistic commands (`run`), busy file tasks (`task`) and state polling.
- * Engine replies stay authoritative over optimistic previews.
+ * it: optimistic commands (`run`), busy file tasks (`task`) and the engine
+ * stream. After one first read the engine pushes frames: live values go to
+ * the live store, and the session comes along only when it changed. Engine
+ * replies stay authoritative over optimistic previews, and `revision` keeps
+ * an older state from replacing a newer one.
  */
 export function useEngineSession({
   setNotice,
@@ -49,23 +54,37 @@ export function useEngineSession({
     [starting, setStarting] = useState(true),
     [seekRevision, setSeekRevision] = useState(0),
     [projectRevision, setProjectRevision] = useState(0);
-  const polling = useRef(false),
-    editing = useRef(false),
-    activeCommands = useRef(0),
+  const activeCommands = useRef(0),
     optimisticRevision = useRef(0),
-    // The session on screen and when a poll last replaced it.
-    shown = useRef(s),
-    lastPollRender = useRef(0);
-  useLayoutEffect(() => {
-    shown.current = s;
-  }, [s]);
+    // The newest engine state shown, and a streamed session waiting for the
+    // commands in flight to finish.
+    shownRevision = useRef(0),
+    waiting = useRef<{ session: Session; revision: number } | null>(null);
 
-  const accept = (v: Session | Devices | SaveResult | null) => {
-    if (v && "tracks" in v) {
-      setMeterLevels(v);
-      setS(v);
-      if (v.recoveryError) setError(v.recoveryError);
+  /** Shows an engine state unless a newer one is already on screen. */
+  const accept = (v: EngineState | Devices | SaveResult | null) => {
+    if (!v || !("tracks" in v)) return;
+    if (v.revision !== undefined) {
+      if (v.revision <= shownRevision.current) return;
+      shownRevision.current = v.revision;
     }
+    setS(acceptEngineState(v));
+    if (v.recoveryError) setError(v.recoveryError);
+  };
+
+  /**
+   * A streamed session waits while commands are in flight, so it never
+   * replaces their optimistic previews with what the engine had before.
+   */
+  const showWaiting = () => {
+    const next = waiting.current;
+    if (!next || activeCommands.current) return;
+    waiting.current = null;
+    if (next.revision <= shownRevision.current) return;
+    shownRevision.current = next.revision;
+    // Frames come from the engine alone; keep the shell's history and
+    // recovery flags from the last reply.
+    setS((shown) => ({ ...shown, ...next.session }));
   };
 
   async function run<C extends Command>(
@@ -76,6 +95,7 @@ export function useEngineSession({
       optimistic = optimisticSession(s, c),
       revision = optimistic ? ++optimisticRevision.current : 0;
     if (optimistic) setS(optimistic);
+    if (c.op === "seek") previewPosition(Math.max(0, c.position));
     activeCommands.current += 1;
     try {
       setError("");
@@ -97,25 +117,24 @@ export function useEngineSession({
       setError(errorMessage(e));
     } finally {
       activeCommands.current -= 1;
+      showWaiting();
     }
   }
 
   async function withBusy<T>(fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true);
     setError("");
-    editing.current = true;
     try {
       return await fn();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setBusy(false);
-      editing.current = false;
     }
   }
 
   async function task(
-    fn: () => Promise<Session | SaveResult | null>,
+    fn: () => Promise<EngineState | SaveResult | null>,
     saved = false,
   ) {
     const result = await withBusy(fn);
@@ -133,60 +152,42 @@ export function useEngineSession({
     return result;
   }
 
-  // Poll engine state while no command or file task is in flight.
+  // Read the session once it is ready (the shell restores recovery first),
+  // then follow the engine stream.
   useEffect(() => {
     let alive = true;
-    let failed = false;
-    const tick = async () => {
-      if (
-        failed ||
-        polling.current ||
-        editing.current ||
-        activeCommands.current
-      )
+    const receive = (frame: EngineFrame) => {
+      if (!alive) return;
+      if (frame.event === "failed") {
+        setError(frame.error);
         return;
-      polling.current = true;
-      const revision = optimisticRevision.current;
-      try {
-        const v = await api.command({ op: "state" });
-        if (
-          alive &&
-          !activeCommands.current &&
-          revision === optimisticRevision.current
-        ) {
-          // Most polls change only live values on screen: meters take their
-          // levels directly, the render is skipped, and it still refreshes
-          // once a second for the averaged audio load.
-          const now = performance.now();
-          if (
-            sessionChanged(shown.current, v) ||
-            now - lastPollRender.current >= 1000
-          ) {
-            lastPollRender.current = now;
-            accept(v);
-          } else setMeterLevels(v);
-          setStarting(false);
-        }
-      } catch (e) {
-        const message = errorMessage(e);
-        if (/audio engine.*(timed out|stopped|closing)/i.test(message))
-          failed = true;
-        if (alive) setError(message);
-      } finally {
-        polling.current = false;
+      }
+      acceptLive(frame.live, frame.revision);
+      if (frame.session) {
+        waiting.current = { session: frame.session, revision: frame.revision };
+        showWaiting();
       }
     };
-    tick();
-    const timer = setInterval(tick, 50);
+    void (async () => {
+      try {
+        const first = await api.command({ op: "state" });
+        if (!alive) return;
+        accept(first);
+        setStarting(false);
+        await api.watchEngine(receive);
+      } catch (e) {
+        if (alive) setError(errorMessage(e));
+      }
+    })();
     return () => {
       alive = false;
-      clearInterval(timer);
     };
   }, []);
 
   return {
     s,
     setS,
+    accept,
     error,
     setError,
     busy,

@@ -1,27 +1,58 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import type { Session } from "../models";
+import { getLive, subscribeLive } from "../services/liveState";
 
 const noInset = () => 0;
 
+export type PlayheadOptions = {
+  /** Pixels per second. */
+  scale: number;
+  /** A position being dragged, shown instead of the transport's. */
+  drag: number | null;
+  /** The timeline position at the element's left edge. */
+  origin?: number;
+  /** Seconds after `origin` where the playhead is shown. */
+  duration?: number;
+  /** Pixels between the element's container and `origin`. */
+  gutter?: number;
+  /** A scroller that keeps the playhead in view while playing. */
+  follow?: React.RefObject<HTMLDivElement | null>;
+  followEnabled?: boolean;
+  /** Counts seeks; the follow view scrolls to each new one. */
+  seekRevision?: number;
+  /** Pixels of the follow view covered by pinned content on its left. */
+  followInset?: (view: HTMLElement) => number;
+  /** The slider whose aria-valuenow reports the position after `origin`
+   * (the playhead element itself when omitted). */
+  slider?: React.RefObject<HTMLElement | null>;
+};
+
+/**
+ * Moves a playhead element with the transport outside React: it reads the
+ * live store, predicts between engine updates while playing, and writes the
+ * element's position (and its slider's value) directly.
+ */
 export function useAnimatedPlayhead(
   session: Session,
-  scale: number,
-  drag: number | null,
-  origin = 0,
-  duration = Infinity,
-  gutter = 0,
-  follow?: React.RefObject<HTMLDivElement | null>,
-  followEnabled = true,
-  seekRevision = 0,
-  // Pixels of the follow view covered by pinned content on its left.
-  followInset: (view: HTMLElement) => number = noInset,
+  {
+    scale,
+    drag,
+    origin = 0,
+    duration = Infinity,
+    gutter = 0,
+    follow,
+    followEnabled = true,
+    seekRevision = 0,
+    followInset = noInset,
+    slider,
+  }: PlayheadOptions,
 ) {
   const element = useRef<HTMLDivElement>(null);
   // Schedules one frame when the loop is idle; set by the frame loop below.
   const wake = useRef<(() => void) | null>(null);
   // Read the clock once, on mount, rather than on every render.
   const [mountedAt] = useState(() => performance.now());
-  const anchor = useRef({
+  const settings = useRef({
     session,
     scale,
     drag,
@@ -30,15 +61,17 @@ export function useAnimatedPlayhead(
     gutter,
     followEnabled,
     seekRevision,
-    time: mountedAt,
   });
+  // The engine position the prediction starts from, and when it applied.
+  const anchor = useRef({ position: getLive().position, time: mountedAt });
   useLayoutEffect(() => {
-    const previous = anchor.current;
-    const changed =
-      session.position !== previous.session.position ||
-      session.playing !== previous.session.playing ||
-      session.countdown !== previous.session.countdown;
-    anchor.current = {
+    const previous = settings.current.session;
+    if (
+      session.playing !== previous.playing ||
+      session.countdown !== previous.countdown
+    )
+      anchor.current = { ...anchor.current, time: performance.now() };
+    settings.current = {
       session,
       scale,
       drag,
@@ -47,7 +80,6 @@ export function useAnimatedPlayhead(
       gutter,
       followEnabled,
       seekRevision,
-      time: changed ? performance.now() : previous.time,
     };
     wake.current?.();
   }, [
@@ -60,11 +92,22 @@ export function useAnimatedPlayhead(
     followEnabled,
     seekRevision,
   ]);
+  useEffect(
+    () =>
+      subscribeLive(() => {
+        const { position } = getLive();
+        if (position === anchor.current.position) return;
+        anchor.current = { position, time: performance.now() };
+        wake.current?.();
+      }),
+    [],
+  );
   useEffect(() => {
     let frame = 0;
     let lastFrame = performance.now();
-    let lastSeek = anchor.current.seekRevision;
+    let lastSeek = settings.current.seekRevision;
     let settling = false;
+    let reported = "";
     const cancelSettling = () => {
       settling = false;
     };
@@ -76,15 +119,15 @@ export function useAnimatedPlayhead(
         session: s,
         scale,
         drag,
-        time,
         origin,
         duration,
         gutter,
         followEnabled,
         seekRevision,
-      } = anchor.current;
+      } = settings.current;
+      const { time } = anchor.current;
       // Predict only between fresh engine updates; never run indefinitely after a stalled engine.
-      let position = s.position;
+      let position = anchor.current.position;
       if (s.playing && !s.countdown)
         position += Math.min(0.15, (performance.now() - time) / 1000);
       if (
@@ -144,6 +187,14 @@ export function useAnimatedPlayhead(
         element.current.style.left = gutter + relative * scale + "px";
         element.current.style.visibility =
           relative < 0 || relative > duration ? "hidden" : "visible";
+        const value = Math.max(0, Math.min(duration, relative)).toFixed(2);
+        if (value !== reported) {
+          reported = value;
+          (slider?.current ?? element.current).setAttribute(
+            "aria-valuenow",
+            value,
+          );
+        }
       }
       // Keep animating only while the playhead or the view is moving. A
       // stopped transport redraws once per change, from wake().
@@ -159,6 +210,6 @@ export function useAnimatedPlayhead(
       view?.removeEventListener("wheel", cancelSettling);
       view?.removeEventListener("pointerdown", cancelSettling);
     };
-  }, [follow, followInset]);
+  }, [follow, followInset, slider]);
   return element;
 }

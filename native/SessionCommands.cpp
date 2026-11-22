@@ -164,11 +164,7 @@ void Engine::restoreSession(const var &c) {
 var Engine::handleSessionCommand(const var &c) {
   const auto op = str(c, "op");
   if (op == "state") {
-    for (auto &t : tracks)
-      if (t->latency != t->pluginLatency()) {
-        const ScopedLock lock(guard);
-        prepareTrack(*t, position, looping);
-      }
+    refreshPluginLatency();
     return state();
   }
   if (op == "snapshot") {

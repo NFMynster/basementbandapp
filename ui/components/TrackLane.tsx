@@ -3,6 +3,34 @@ import type { Track } from "../models";
 import type { WorkspaceController } from "../hooks/useWorkspace";
 import { ClipRegion } from "./ClipRegion";
 import { RecordingPreview } from "./RecordingPreview";
+import { useLive } from "../services/liveState";
+
+/** The take being recorded on a lane, growing with each live frame. */
+function RecordingRegion({
+  track,
+  pxPerSecond,
+}: {
+  track: Track;
+  pxPerSecond: number;
+}) {
+  const preview = useLive((live) => live.tracks[track.id]?.recordingPreview);
+  // Before the first preview arrives, grow with the transport.
+  const elapsed = useLive((live) =>
+    preview ? 0 : live.position - track.recordStart,
+  );
+  return (
+    <div
+      className="recording-region"
+      style={{
+        left: track.recordStart * pxPerSecond,
+        width: Math.max(10, (preview?.duration ?? elapsed) * pxPerSecond),
+      }}
+    >
+      <span>Recording…</span>
+      {preview && <RecordingPreview preview={preview} />}
+    </div>
+  );
+}
 
 export function TrackLane({
   track,
@@ -70,22 +98,7 @@ export function TrackLane({
           />
         ))}
       {s.recording && !s.countdown && track.armed && (
-        <div
-          className="recording-region"
-          style={{
-            left: track.recordStart * pxPerSecond,
-            width: Math.max(
-              10,
-              (track.recordingPreview?.duration ??
-                s.position - track.recordStart) * pxPerSecond,
-            ),
-          }}
-        >
-          <span>Recording…</span>
-          {track.recordingPreview && (
-            <RecordingPreview preview={track.recordingPreview} />
-          )}
-        </div>
+        <RecordingRegion track={track} pxPerSecond={pxPerSecond} />
       )}
     </div>
   );

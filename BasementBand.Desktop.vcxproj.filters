@@ -150,6 +150,7 @@
     <None Include="ui\services\desktop.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\errors.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\fileDrop.ts"><Filter>React interface\services</Filter></None>
+    <None Include="ui\services\liveState.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\meterAnimator.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\midi-note-edits.ts"><Filter>React interface\services</Filter></None>
     <None Include="ui\services\pointerReorder.ts"><Filter>React interface\services</Filter></None>
