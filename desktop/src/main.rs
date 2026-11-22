@@ -654,6 +654,8 @@ fn create_window(app: &AppHandle, smoke: bool) -> tauri::Result<WebviewWindow> {
         ));
     }
     let window = builder.build()?;
+    #[cfg(target_os = "macos")]
+    allow_full_frame_rate(&window);
     if dev_url.is_some() {
         app.add_capability(
             tauri::ipc::CapabilityBuilder::new("development-ui")
@@ -663,6 +665,75 @@ fn create_window(app: &AppHandle, smoke: bool) -> tauri::Result<WebviewWindow> {
         )?;
     }
     Ok(window)
+}
+
+/// WebKit holds page rendering (requestAnimationFrame, the playhead and
+/// meters) near 60 fps even on 120 Hz displays. It is an internal WebKit
+/// feature flag with no public API, so this looks it up by name and does
+/// nothing when a WebKit version doesn't have it.
+#[cfg(target_os = "macos")]
+fn allow_full_frame_rate(window: &WebviewWindow) {
+    use objc2::rc::Retained;
+    use objc2::runtime::{AnyClass, AnyObject, Bool};
+    use objc2::{msg_send, sel};
+    use objc2_foundation::NSString;
+    const FEATURE: &str = "PreferPageRenderingUpdatesNear60FPSEnabled";
+    let result = window.with_webview(|webview| unsafe {
+        let view = webview.inner() as *mut AnyObject;
+        let Some(class) = AnyClass::get(c"WKPreferences") else {
+            return;
+        };
+        let has_features: Bool = msg_send![class, respondsToSelector: sel!(_features)];
+        if view.is_null() || !has_features.as_bool() {
+            log::info!("Full frame rate unavailable: no WebKit feature list");
+            return;
+        }
+        let configuration: Retained<AnyObject> = msg_send![view, configuration];
+        let preferences: Retained<AnyObject> = msg_send![&*configuration, preferences];
+        let features: Retained<AnyObject> = msg_send![class, _features];
+        let count: usize = msg_send![&*features, count];
+        for index in 0..count {
+            let feature: Retained<AnyObject> = msg_send![&*features, objectAtIndex: index];
+            let key: Retained<NSString> = msg_send![&*feature, key];
+            if key.to_string() == FEATURE {
+                let _: () = msg_send![&*preferences, _setEnabled: Bool::NO, forFeature: &*feature];
+                log::info!("Full frame rate enabled ({FEATURE} off)");
+                return;
+            }
+        }
+        log::info!("Full frame rate unavailable: {FEATURE} not found");
+    });
+    if let Err(error) = result {
+        log::warn!("Full frame rate not applied {error}");
+    }
+}
+
+/// The default macOS app menu, except that Quit (Cmd+Q) goes through `quit`.
+/// The predefined Quit item terminates the process directly, skipping the
+/// recovery flush, the engine shutdown and a downloaded update.
+#[cfg(target_os = "macos")]
+fn install_app_menu(app: &AppHandle) -> tauri::Result<()> {
+    use tauri::menu::MenuItemKind;
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
+        let quit_position = app_menu.items()?.iter().position(|item| {
+            matches!(item, MenuItemKind::Predefined(predefined)
+                if predefined.text().is_ok_and(|text| text.starts_with("Quit")))
+        });
+        if let Some(position) = quit_position {
+            app_menu.remove_at(position)?;
+            let label = format!("Quit {}", app.package_info().name);
+            let quit_item = MenuItem::with_id(app, "app-quit", label, true, Some("CmdOrCtrl+Q"))?;
+            app_menu.insert(&quit_item, position)?;
+        }
+    }
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id() == "app-quit" {
+            quit(app, false);
+        }
+    });
+    Ok(())
 }
 
 fn create_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -782,6 +853,10 @@ fn main() {
                 }
                 _ => {}
             });
+            #[cfg(target_os = "macos")]
+            if let Err(error) = install_app_menu(&handle) {
+                log::warn!("App menu unavailable {error}");
+            }
             if !smoke {
                 if let Err(error) = create_tray(&handle) {
                     log::warn!("Tray icon unavailable {error}");

@@ -7,7 +7,16 @@ if (process.argv.includes("--check")) {
   run(cargo(), ["fmt", ...manifest, "--check"], env);
   run(
     cargo(),
-    ["clippy", ...manifest, "--all-targets", "--", "-D", "warnings"],
+    [
+      "clippy",
+      ...manifest,
+      "--all-targets",
+      "--features",
+      "session-host",
+      "--",
+      "-D",
+      "warnings",
+    ],
     env,
   );
 } else run(cargo(), ["test", ...manifest, "--lib", "--quiet"], env);

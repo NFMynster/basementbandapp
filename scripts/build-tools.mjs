@@ -81,6 +81,8 @@ export function buildDesktop(env = process.env) {
       "desktop/Cargo.toml",
       "--bin",
       "session-host",
+      "--features",
+      "session-host",
     ],
     rust,
   );

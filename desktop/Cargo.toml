@@ -17,10 +17,12 @@ name = "basement-band"
 path = "src/main.rs"
 
 # Test-only host that drives SessionService over stdin/stdout so the Node
-# integration tests exercise the shipped Rust session layer. Never bundled.
+# integration tests exercise the shipped Rust session layer. Behind a feature
+# so `tauri build`, which bundles every enabled binary, leaves it out.
 [[bin]]
 name = "session-host"
 path = "src/bin/session-host.rs"
+required-features = ["session-host"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -46,6 +48,8 @@ objc2-av-foundation = { version = "0.3", default-features = false, features = ["
 [features]
 # `tauri build` enables this to serve the bundled UI instead of the dev server.
 custom-protocol = ["tauri/custom-protocol"]
+# Builds the test-only session-host binary (scripts/build-tools.mjs).
+session-host = []
 
 [profile.release]
 codegen-units = 1

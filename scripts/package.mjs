@@ -92,10 +92,13 @@ writeFileSync(
     2,
   ),
 );
+// On macOS, CI makes Tauri's DMG script skip its Finder AppleScript window
+// layout, which fails on macOS 27 ("Can't set statusbar visible"). The DMG
+// keeps its Applications link and volume icon.
 runTool(
   "@tauri-apps/cli",
   ["build", "--config", "build/bundle/tauri.bundle.json"],
-  withCargo(env),
+  withCargo(platform === "mac" ? { ...env, CI: "true" } : env),
   "tauri",
 );
 
