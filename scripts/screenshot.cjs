@@ -258,6 +258,36 @@ const { mkdirSync, writeFileSync } = require("node:fs");
   console.log(
     "Audio setup: selections apply immediately; failures keep the dialog open.",
   );
+  // A missing device names whether it is the input or the output, and the
+  // notice opens the audio tab even with a MIDI track (MIDI tab) selected.
+  await win.webContents.executeJavaScript(`(async () => {
+      document.querySelector(".modal-close")?.click();
+      document.querySelector('.toast.error button[title="Dismiss"]')?.click();
+      document.querySelector('[data-track-header="m"]').click();
+      await window.visualFixture.command({ op: "testDeviceError", text: 'Your output device "Headphones" is not connected. Connect it, or choose another output device in Settings.' });
+    })()`);
+  await new Promise((r) => setTimeout(r, 150));
+  const missing = await win.webContents.executeJavaScript(`(async () => {
+      const toast = document.querySelector(".toast.error");
+      const text = toast?.textContent ?? "";
+      [...(toast?.querySelectorAll("button") ?? [])].find((b) => b.textContent.trim() === "Audio settings")?.click();
+      await new Promise((r) => setTimeout(r, 150));
+      return { text, tab: document.querySelector('.settings-tabs [aria-selected="true"]')?.textContent ?? "" };
+    })()`);
+  if (
+    !missing.text.includes('output device "Headphones"') ||
+    missing.tab !== "Audio inputs & output"
+  )
+    throw new Error(
+      "A missing device notice must name it and open audio settings: " +
+        JSON.stringify(missing),
+    );
+  await win.webContents.executeJavaScript(
+    `window.visualFixture.command({ op: "testDeviceError", text: "" })`,
+  );
+  console.log(
+    "Missing device: the notice names the output and opens the audio tab.",
+  );
   await win.webContents.executeJavaScript(`(() => {
       document.querySelector('.modal-close')?.click();
       document.querySelector('.toast.error button[title="Dismiss"]')?.click();

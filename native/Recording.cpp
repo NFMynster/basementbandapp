@@ -109,7 +109,7 @@ void Engine::beginRecording() {
         require(t->input >= 0 &&
                     t->input <
                         (testDevice ? 2 : d->getActiveInputChannels().countNumberOfSetBits()),
-                "A marked track uses an unavailable input. Check Input settings.");
+                "A marked track uses an unavailable input. Check the input device in Settings.");
       ++count;
     }
   require(count > 0, "Mark at least one track with its record button");

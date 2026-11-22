@@ -97,9 +97,9 @@ String Engine::openRememberedDevice(bool inputAllowed, const var &remembered, bo
   for (auto *candidate : devices.getAvailableDeviceTypes()) // scans every type once
     if (candidate->getTypeName() == typeName) type = candidate;
   if (type == nullptr)
-    return "The " + typeName + " audio driver is not available. Choose a device in Input settings.";
+    return "The " + typeName + " audio driver is not available. Choose another audio driver in Settings.";
   if (!type->getDeviceNames(false).contains(output))
-    return "Your audio output \"" + output + "\" is not connected. Choose a device in Input settings.";
+    return "Your output device \"" + output + "\" is not connected. Connect it, or choose another output device in Settings.";
   configuredInput = input.isNotEmpty() && type->getDeviceNames(true).contains(input) ? input : String();
   const bool openInput = configuredInput.isNotEmpty() && (listening || !type->hasSeparateInputsAndOutputs());
   // The XML form selects the driver type without opening its default device
@@ -118,7 +118,7 @@ String Engine::openRememberedDevice(bool inputAllowed, const var &remembered, bo
     return error;
   }
   if (input.isNotEmpty() && configuredInput.isEmpty())
-    return "Your audio input \"" + input + "\" is not connected. Choose an input in Input settings.";
+    return "Your input device \"" + input + "\" is not connected. Connect it, or choose another input device in Settings.";
   return {};
 }
 
