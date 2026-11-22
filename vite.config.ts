@@ -4,6 +4,5 @@ import react from "@vitejs/plugin-react";
 // (desktop/tauri.conf.json), which also allows its own IPC origins.
 export default defineConfig({
   plugins: [react()],
-  base: "./",
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
 });

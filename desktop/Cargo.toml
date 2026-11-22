@@ -28,7 +28,7 @@ required-features = ["session-host"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2" }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -38,6 +38,12 @@ uuid = { version = "1", features = ["v4"] }
 log = { version = "0.4", features = ["std"] }
 reqwest = { version = "0.12", default-features = false, features = ["native-tls", "json"] }
 tauri-plugin-updater = "2"
+
+# Already in the tree through Tauri's webview (wry); used directly to turn off
+# WebView2's browser shortcuts. Keep the versions in step with wry's.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

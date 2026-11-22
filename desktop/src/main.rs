@@ -21,8 +21,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::ipc::Channel;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
     AppHandle, DragDropEvent, Manager, RunEvent, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
@@ -443,10 +441,11 @@ fn encode_component(text: &str) -> String {
         .collect()
 }
 
+/// The platform as people know it, for the feedback mail.
 fn platform_name() -> &'static str {
     match std::env::consts::OS {
-        "windows" => "win32",
-        "macos" => "darwin",
+        "windows" => "Windows",
+        "macos" => "macOS",
         other => other,
     }
 }
@@ -597,12 +596,6 @@ fn finish(app: &AppHandle, restart: bool) {
     }
 }
 
-fn show(window: &WebviewWindow) {
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-}
-
 fn create_window(app: &AppHandle, smoke: bool) -> tauri::Result<WebviewWindow> {
     let dev_url = env_flag("BASEMENT_DEV").then(|| {
         std::env::var("BASEMENT_DEV_URL").unwrap_or_else(|_| "http://127.0.0.1:5173/".into())
@@ -627,6 +620,8 @@ fn create_window(app: &AppHandle, smoke: bool) -> tauri::Result<WebviewWindow> {
         .background_color(tauri::window::Color(0x19, 0x1a, 0x1e, 0xff))
         .visible(false)
         .center()
+        // No Edge form suggestions under track names and titles.
+        .general_autofill_enabled(false)
         .on_navigation(move |url| {
             // The UI is a single page; links open through the shell instead.
             let local = matches!(url.scheme(), "tauri" | "asset")
@@ -656,6 +651,9 @@ fn create_window(app: &AppHandle, smoke: bool) -> tauri::Result<WebviewWindow> {
     let window = builder.build()?;
     #[cfg(target_os = "macos")]
     allow_full_frame_rate(&window);
+    if dev_url.is_none() {
+        disable_browser_shortcuts(&window);
+    }
     if dev_url.is_some() {
         app.add_capability(
             tauri::ipc::CapabilityBuilder::new("development-ui")
@@ -713,7 +711,7 @@ fn allow_full_frame_rate(window: &WebviewWindow) {
 /// recovery flush, the engine shutdown and a downloaded update.
 #[cfg(target_os = "macos")]
 fn install_app_menu(app: &AppHandle) -> tauri::Result<()> {
-    use tauri::menu::MenuItemKind;
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
     let menu = Menu::default(app)?;
     if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
         let quit_position = app_menu.items()?.iter().position(|item| {
@@ -736,41 +734,37 @@ fn install_app_menu(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn create_tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Basement Band", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quit_item])?;
-    let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Basement Band")
-        .menu(&menu)
-        .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "open" => {
-                if let Some(window) = app.get_webview_window(MAIN) {
-                    show(&window);
-                }
-            }
-            "quit" => quit(app, false),
-            _ => {}
-        })
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                if let Some(window) = tray.app_handle().get_webview_window(MAIN) {
-                    show(&window);
-                }
-            }
-        });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
+/// WebView2 acts on browser shortcuts before the page sees them: F5 and
+/// Ctrl+R reload the UI, Ctrl+F finds, Ctrl+P prints, F7 starts caret
+/// browsing. The app has its own shortcuts; `npm run dev` keeps these.
+/// Text editing keys (copy, paste, undo in a text field) are unaffected.
+#[cfg(windows)]
+fn disable_browser_shortcuts(window: &WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
+    use windows_core::Interface;
+    let applied = window.with_webview(|webview| {
+        // SAFETY: COM calls on the live controller, made on the webview's
+        // own thread by `with_webview`.
+        let result = unsafe {
+            webview
+                .controller()
+                .CoreWebView2()
+                .and_then(|core| core.Settings())
+                .and_then(|settings| settings.cast::<ICoreWebView2Settings3>())
+                .and_then(|settings| settings.SetAreBrowserAcceleratorKeysEnabled(false))
+        };
+        if let Err(error) = result {
+            log::warn!("Browser shortcuts stay enabled {error}");
+        }
+    });
+    if let Err(error) = applied {
+        log::warn!("Browser shortcuts stay enabled {error}");
     }
-    tray.build(app)?;
-    Ok(())
 }
+
+/// WKWebView has no browser shortcuts of its own.
+#[cfg(not(windows))]
+fn disable_browser_shortcuts(_window: &WebviewWindow) {}
 
 fn main() {
     let smoke = env_flag("BASEMENT_SMOKE");
@@ -857,11 +851,6 @@ fn main() {
             if let Err(error) = install_app_menu(&handle) {
                 log::warn!("App menu unavailable {error}");
             }
-            if !smoke {
-                if let Err(error) = create_tray(&handle) {
-                    log::warn!("Tray icon unavailable {error}");
-                }
-            }
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -883,7 +872,7 @@ fn main() {
         .expect("Basement Band could not start")
         .run(|app, event| {
             if let RunEvent::ExitRequested { api, code, .. } = event {
-                // Quit from the menu bar or tray: preserve the session first.
+                // Quit from the macOS menu bar: preserve the session first.
                 let flushed = app.state::<Shell>().recovery_flushed.load(Ordering::SeqCst);
                 if !flushed && code.is_none() {
                     api.prevent_exit();

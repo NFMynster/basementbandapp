@@ -52,8 +52,6 @@ export function App() {
         style={
           { "--sidebar-width": `${controller.sidebarWidth}px` } as CSSProperties
         }
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => e.preventDefault()}
       >
         <TitleBar controller={controller} />
         <Transport controller={controller} />
